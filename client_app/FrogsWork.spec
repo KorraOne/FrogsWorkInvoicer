@@ -1,10 +1,13 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
 
+from PyInstaller.utils.hooks import collect_dynamic_libs
+
 ONEFILE = os.environ.get("FROGSWORK_ONEFILE", "0") == "1"
 _APP_DIR = os.path.dirname(os.path.abspath(SPEC))
 _ICON_PATH = os.path.join(_APP_DIR, "assets", "app.ico")
 _APP_ICON = _ICON_PATH if os.path.isfile(_ICON_PATH) else None
+_RUNTIME_HOOK = os.path.join(_APP_DIR, "pyi_runtime_hook.py")
 
 EXCLUDES = [
     "matplotlib", "numpy", "pandas", "scipy", "sklearn",
@@ -18,15 +21,32 @@ EXCLUDES = [
     "eventlet", "gunicorn", "waitress",
 ]
 
+_binaries = []
+for _pkg in ("pythonnet", "webview", "clr_loader"):
+    try:
+        _binaries += collect_dynamic_libs(_pkg)
+    except Exception:
+        pass
+
 a = Analysis(
     ["app.py"],
     pathex=[],
-    binaries=[],
+    binaries=_binaries,
     datas=[("templates", "templates"), ("static", "static"), ("assets", "assets")],
-    hiddenimports=["cryptography.fernet", "jwt", "tkinter", "_tkinter", "webview"],
+    hiddenimports=[
+        "cryptography.fernet",
+        "jwt",
+        "tkinter",
+        "_tkinter",
+        "clr",
+        "clr_loader",
+        "pythonnet",
+        "webview",
+        "webview.platforms.winforms",
+    ],
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=[_RUNTIME_HOOK] if os.path.isfile(_RUNTIME_HOOK) else [],
     excludes=EXCLUDES,
     noarchive=False,
     optimize=2,

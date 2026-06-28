@@ -71,6 +71,11 @@ try {
     & $pyinstaller FrogsWork.spec --noconfirm --log-level WARN
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+    $ExeConfig = Join-Path $AppDir "FrogsWork.exe.config"
+    if (-not $OneFile -and (Test-Path $ExeConfig)) {
+        Copy-Item -Force $ExeConfig (Join-Path $DistOnedir "FrogsWork.exe.config")
+    }
+
     if ($OneFile) {
         Write-Host "Output: $DistOneFile"
     } else {

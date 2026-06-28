@@ -40,7 +40,16 @@ if (Test-Path $ZipPath) {
     Remove-Item -Force $ZipPath
 }
 
-Compress-Archive -Path (Join-Path $DistDir "*") -DestinationPath $ZipPath -CompressionLevel Optimal
+# Zip the FrogsWork folder so extraction yields FrogsWork\FrogsWork.exe (not loose files).
+$StageDir = Join-Path $OutDir "_zip_stage"
+$StageRoot = Join-Path $StageDir "FrogsWork"
+if (Test-Path $StageDir) {
+    Remove-Item -Recurse -Force $StageDir
+}
+New-Item -ItemType Directory -Force -Path $StageRoot | Out-Null
+Copy-Item -Recurse -Force (Join-Path $DistDir "*") $StageRoot
+Compress-Archive -Path $StageRoot -DestinationPath $ZipPath -CompressionLevel Optimal
+Remove-Item -Recurse -Force $StageDir
 Copy-Item -Force $ZipPath $MarketingZipPath
 
 $hash = (Get-FileHash -Path $ZipPath -Algorithm SHA256).Hash.ToLower()
