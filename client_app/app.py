@@ -1457,11 +1457,6 @@ def _start_backend(startup_error):
 def main():
     from app_config import LOCAL_APP_URL
 
-    if sys.platform == "win32" and getattr(sys, "frozen", False):
-        from install_bootstrap import maybe_relocate_install
-
-        maybe_relocate_install()
-
     if use_dev_browser():
         if _start_flask_server() == "port_in_use":
             _show_already_running_message()
@@ -1487,4 +1482,8 @@ def main():
 
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == "--export-uninstall-data":
+        from uninstall_export import export_for_uninstall
+
+        raise SystemExit(export_for_uninstall())
     main()

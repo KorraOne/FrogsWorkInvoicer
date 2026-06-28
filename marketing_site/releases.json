@@ -1,7 +1,9 @@
-{
-  "notes": "Fix account services (Cloudflare). Reliable first-run install. Windows startup fixes.",
-  "version": "1.0.2",
-  "published_at": "2026-06-28",
-  "download_path": "https://downloads.frogswork.com/FrogsWork-1.0.2-win64.zip",
-  "sha256": "186c58aff1116a8f3dbc7e0b67b46b253e7a7c4663df69c708665ea2e0ba7040"
+﻿{
+    "update_zip_path":  "https://downloads.frogswork.com/FrogsWork-1.1.0-win64.zip",
+    "version":  "1.1.0",
+    "published_at":  "2026-06-28",
+    "setup_sha256":  "20ec5d57784ed510a597b250dc55c2eb2f0e653ef5688a227d1d9a73194d6ae8",
+    "sha256":  "ed7e6bd2ae7ebd1afcecb20e64b94fc66b51c131a6f90e5e1660c24c77ced928",
+    "download_path":  "https://downloads.frogswork.com/FrogsWork-1.1.0-setup.exe",
+    "notes":  "Notes - Windows installer (Inno Setup), uninstall PDF export, API connectivity fixes."
 }

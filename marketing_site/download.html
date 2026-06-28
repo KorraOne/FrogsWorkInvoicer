@@ -23,7 +23,7 @@
 
     <main class="site-main">
         <h1 class="section-heading">Download for Windows</h1>
-        <p class="section-lead">Download the zip, extract it anywhere (Downloads is fine), and run <code>FrogsWork.exe</code>. On first launch the app moves itself to your user Programs folder and can add a Desktop shortcut.</p>
+        <p class="section-lead">Run the installer for a new install. Your invoices and settings are stored separately in AppData and can be exported to Downloads when you uninstall.</p>
 
         <div class="download-panel">
             <p id="release-notes" hidden></p>
@@ -34,10 +34,10 @@
 
             <h2 style="margin-top:2rem;font-size:1.15rem;color:var(--fw-green-900);">Install steps</h2>
             <ol class="steps">
-                <li>Download the zip and extract the <strong>FrogsWork</strong> folder anywhere (for example Downloads or Desktop).</li>
-                <li>Run <code>FrogsWork.exe</code>. First launch installs to <code>%LOCALAPPDATA%\Programs\FrogsWork\</code> and restarts — you can choose a Desktop shortcut then.</li>
-                <li>Your invoices and settings live in AppData; only the program files move.</li>
-                <li>If Windows blocks the app after download, right-click the zip → <strong>Properties</strong> → check <strong>Unblock</strong>, then extract again.</li>
+                <li>Download and run <strong>FrogsWork-<span id="release-version-steps">—</span>-setup.exe</strong>.</li>
+                <li>Follow the installer. The app installs to <code>%LOCALAPPDATA%\Programs\FrogsWork\</code> (you can change the folder).</li>
+                <li>Your invoices and settings live in <code>%APPDATA%\FrogsWork\</code> — separate from the program files.</li>
+                <li>If Windows SmartScreen warns about the download, choose <strong>More info</strong> → <strong>Run anyway</strong> (the file is not signed yet).</li>
             </ol>
 
             <h2 style="margin-top:1.75rem;font-size:1.15rem;color:var(--fw-green-900);">Requirements</h2>

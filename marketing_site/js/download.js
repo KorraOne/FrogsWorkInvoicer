@@ -23,6 +23,10 @@
             if (versionEl) {
                 versionEl.textContent = data.version;
             }
+            var stepsVersionEl = document.getElementById("release-version-steps");
+            if (stepsVersionEl && data.version) {
+                stepsVersionEl.textContent = data.version;
+            }
             if (notesEl && data.notes) {
                 notesEl.textContent = data.notes;
                 notesEl.hidden = false;
