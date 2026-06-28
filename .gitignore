@@ -37,3 +37,10 @@ Thumbs.db
 
 # Optional: Cursor agent plans (local only)
 .cursor/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
