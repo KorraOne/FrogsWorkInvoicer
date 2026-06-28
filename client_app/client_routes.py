@@ -186,6 +186,11 @@ def register_client_routes(app, helpers):
                     "account_login.html",
                     error=billing_messages.map_http_auth_error(str(exc)),
                 )
+            except Exception:
+                return render_template(
+                    "account_login.html",
+                    error=billing_messages.GENERIC_BILLING_ERROR,
+                )
         return render_template("account_login.html", error=None)
 
     @app.route("/account/logout", methods=["POST"])
@@ -317,6 +322,20 @@ def register_client_routes(app, helpers):
                 return render_template(
                     "account_cap.html",
                     error=billing_messages.map_http_auth_error(str(exc)),
+                    email=email,
+                    form=request.form,
+                )
+            except billing_ledger.BillingIntegrityError:
+                return render_template(
+                    "account_cap.html",
+                    error=billing_messages.LEDGER_INVALID,
+                    email=email,
+                    form=request.form,
+                )
+            except Exception:
+                return render_template(
+                    "account_cap.html",
+                    error=billing_messages.GENERIC_BILLING_ERROR,
                     email=email,
                     form=request.form,
                 )

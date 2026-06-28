@@ -51,4 +51,14 @@ def map_http_auth_error(message):
         return SESSION_EXPIRED
     if message and ("password" in message.lower() or "email" in message.lower()):
         return INVALID_CREDENTIALS
+    if message and "internal server error" in message.lower():
+        return (
+            "Account services hit a server error. "
+            "If this keeps happening, contact support — the billing database may need attention."
+        )
+    if message and "temporarily unavailable" in message.lower():
+        return (
+            "Account services are temporarily unavailable. "
+            "Try again shortly, or contact support if the problem continues."
+        )
     return message or GENERIC_BILLING_ERROR

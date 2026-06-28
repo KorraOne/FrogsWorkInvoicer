@@ -34,7 +34,9 @@ a = Analysis(
     binaries=_binaries,
     datas=[("templates", "templates"), ("static", "static"), ("assets", "assets")],
     hiddenimports=[
+        "cryptography",
         "cryptography.fernet",
+        "_cffi_backend",
         "jwt",
         "tkinter",
         "_tkinter",

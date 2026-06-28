@@ -129,15 +129,21 @@ def logout():
 
 
 def _store_tokens(result):
+    if not result.get("access_token"):
+        raise BillingError(billing_messages.GENERIC_BILLING_ERROR)
     auth = billing_auth_store.load_auth()
     auth.update(
         {
             "access_token": result["access_token"],
             "refresh_token": result.get("refresh_token"),
             "email": result.get("email"),
+            "server_url": billing_auth_store.get_server_url(),
         }
     )
-    billing_auth_store.save_auth(auth)
+    try:
+        billing_auth_store.save_auth(auth)
+    except Exception as exc:
+        raise BillingError(billing_messages.GENERIC_BILLING_ERROR) from exc
 
 
 def refresh_if_needed():

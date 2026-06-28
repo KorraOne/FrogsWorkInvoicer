@@ -1,10 +1,18 @@
+import os
 import sqlite3
 from contextlib import contextmanager
 
 from config import DATABASE_URL
 
 
+def _ensure_database_dir():
+    db_dir = os.path.dirname(os.path.abspath(DATABASE_URL))
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
+
+
 def _connect():
+    _ensure_database_dir()
     conn = sqlite3.connect(DATABASE_URL)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
@@ -17,8 +25,24 @@ def get_db():
     try:
         yield conn
         conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         conn.close()
+
+
+def check_db_writable():
+    """Return None if the database can accept writes, else an error message."""
+    try:
+        with get_db() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            conn.execute("ROLLBACK")
+        return None
+    except sqlite3.OperationalError as exc:
+        return str(exc)
+    except OSError as exc:
+        return str(exc)
 
 
 def _schema_ready(conn):

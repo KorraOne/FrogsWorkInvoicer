@@ -1,6 +1,8 @@
 """KorraOne billing API server."""
 
+import logging
 import os
+import sqlite3
 from datetime import date
 from functools import wraps
 
@@ -10,8 +12,10 @@ import auth_service
 from admin_routes import register_admin_routes
 from auth_service import CapBlockedError, decode_access_token
 from config import FLASK_SECRET_KEY
-from db import init_db
+from db import check_db_writable, init_db
 from rate_limit import auth_rate_limited
+
+log = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.secret_key = FLASK_SECRET_KEY
@@ -60,6 +64,12 @@ def register():
         )
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
+    except sqlite3.OperationalError:
+        log.exception("register failed: database not writable")
+        return jsonify({"error": "Account service is temporarily unavailable."}), 503
+    except Exception:
+        log.exception("register failed")
+        return jsonify({"error": "Account service is temporarily unavailable."}), 500
     return jsonify({"access_token": access, "refresh_token": refresh, "email": email})
 
 
@@ -74,6 +84,12 @@ def login():
         )
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 401
+    except sqlite3.OperationalError:
+        log.exception("login failed: database not writable")
+        return jsonify({"error": "Account service is temporarily unavailable."}), 503
+    except Exception:
+        log.exception("login failed")
+        return jsonify({"error": "Account service is temporarily unavailable."}), 500
     return jsonify({"access_token": access, "refresh_token": refresh, "email": email})
 
 
@@ -162,10 +178,14 @@ def patch_billing_cycle():
 def health():
     from config import CLIENT_RELEASE_VERSION
 
-    payload = {"status": "ok"}
+    db_error = check_db_writable()
+    payload = {"status": "ok" if db_error is None else "degraded"}
+    if db_error:
+        payload["db_error"] = db_error
     if CLIENT_RELEASE_VERSION:
         payload["client_release_version"] = CLIENT_RELEASE_VERSION
-    return jsonify(payload)
+    code = 200 if db_error is None else 503
+    return jsonify(payload), code
 
 
 @app.get("/releases/latest")
