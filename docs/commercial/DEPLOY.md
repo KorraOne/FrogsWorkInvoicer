@@ -38,11 +38,23 @@ Pick a strong `ADMIN_PASSWORD` for the operator admin UI.
 
 Do this first so certificates propagate while you set up the Pi.
 
-### 1. Marketing apex
+### 1. Marketing apex (Workers static assets + Git)
 
-1. Cloudflare Dashboard → **Workers & Pages** → **Create** → **Pages** → Connect Git (or Direct Upload later).
-2. Project name e.g. `frogswork-site`. Production branch `main`. **Build command:** *(none)*. **Output directory:** `marketing_site`.
-3. After first deploy: **Custom domains** → add **`frogswork.com`** and **`www.frogswork.com`** (redirect www → apex in Cloudflare Rules if you like).
+Repo includes [`wrangler.toml`](../../wrangler.toml) at the root. Cloudflare project **`frogswork-invoicer`** should use:
+
+| Setting | Value |
+|---------|--------|
+| Git repository | `KorraOne/FrogsWorkInvoicer` (or your fork) |
+| Production branch | `main` |
+| Build command | *(none)* |
+| Deploy command | `npx wrangler deploy` |
+| Root directory | `/` |
+
+1. Push `wrangler.toml` to `main` (triggers a deploy), or **Deployments → Retry deployment**.
+2. Confirm the `*.workers.dev` URL shows the marketing home page.
+3. In the Worker project → **Domains** → add **`frogswork.com`** and optionally **`www.frogswork.com`**.
+
+Alternative: **Pages → Upload assets** if you prefer not to use Wrangler (see [marketing_site/README.md](../../marketing_site/README.md)).
 
 ### 2. Download hosting (R2)
 

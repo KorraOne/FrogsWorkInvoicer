@@ -1,6 +1,6 @@
 # FrogsWork marketing site
 
-Static site for **https://frogswork.com** — product pages. Release zips live on **https://downloads.frogswork.com** (R2).
+Static site for **https://frogswork.com** — deployed via Cloudflare Worker **`frogswork-invoicer`** and root [`wrangler.toml`](../wrangler.toml).
 
 **Deploy checklist:** [`docs/commercial/DEPLOY.md`](../docs/commercial/DEPLOY.md)
 
