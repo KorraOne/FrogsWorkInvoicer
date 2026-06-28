@@ -1,0 +1,6 @@
+{% if message %}
+<div class="notice-panel notice-panel--{{ kind|default('error') }}">
+    {% if title %}<p class="notice-panel-title">{{ title }}</p>{% endif %}
+    <p class="notice-panel-body">{{ message }}</p>
+</div>
+{% endif %}

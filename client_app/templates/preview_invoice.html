@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+
+{% block title %}Review sales invoice · {{ brand_name }}{% endblock %}
+
+{% set show_back = true %}
+
+{% set back_url = url_for('create_invoice') %}
+
+{% set back_label = 'Edit invoice' %}
+
+{% block content %}
+
+<h1>Review invoice</h1>
+
+<p class="home-intro">Step 2 of 2. Check everything, then generate.</p>
+
+
+
+<div class="preview-layout">
+
+    <section class="preview-card">
+
+        <h2 class="preview-card-heading">Invoice</h2>
+
+        <dl class="preview-dl">
+
+            <div class="preview-dl-row">
+
+                <dt>Number</dt>
+
+                <dd>{{ invoice_number }}</dd>
+
+            </div>
+
+            <div class="preview-dl-row">
+
+                <dt>Date</dt>
+
+                <dd>{{ invoice_date }}</dd>
+
+            </div>
+
+            <div class="preview-dl-row">
+
+                <dt>Due date</dt>
+
+                <dd>{{ due_date_fmt }}</dd>
+
+            </div>
+
+            <div class="preview-dl-row">
+
+                <dt>Terms</dt>
+
+                <dd>{{ due_rule_label }}</dd>
+
+            </div>
+
+        </dl>
+
+    </section>
+
+
+
+    <section class="preview-card">
+
+        <h2 class="preview-card-heading">From</h2>
+
+        <p class="preview-party-name">{{ business_name or "Not set. Check Settings." }}</p>
+
+        {% if business_address %}<p class="preview-party-detail">{{ business_address | replace('\n', '<br>') | safe }}</p>{% endif %}
+
+        {% if business_abn %}<p class="preview-party-detail">ABN: {{ business_abn }}</p>{% endif %}
+
+    </section>
+
+
+
+    <section class="preview-card">
+
+        <h2 class="preview-card-heading">Bill to</h2>
+
+        <p class="preview-party-name">{{ customer_name }}</p>
+
+        {% if customer_address %}<p class="preview-party-detail">{{ customer_address | replace('\n', '<br>') | safe }}</p>{% endif %}
+
+        {% if customer_abn %}<p class="preview-party-detail">ABN: {{ customer_abn }}</p>{% endif %}
+
+    </section>
+
+
+
+    <section class="preview-card preview-card-wide">
+
+        <h2 class="preview-card-heading">Line items</h2>
+
+        <div class="preview-items-table">
+
+            <div class="preview-items-header">
+
+                <span>Description</span>
+
+                <span>Qty</span>
+
+                <span>Unit (ex GST)</span>
+
+                <span>Amount</span>
+
+            </div>
+
+            {% for item in items %}
+
+            <div class="preview-items-row">
+
+                <span class="preview-items-desc">{{ item.description }}</span>
+
+                <span>{{ item.qty }}</span>
+
+                <span>{{ item.unit_amount_fmt }}</span>
+
+                <span class="preview-items-amount">{{ item.amount_fmt }}</span>
+
+            </div>
+
+            {% endfor %}
+
+        </div>
+
+        {% if comment %}
+
+        <p class="preview-comment"><strong>Comment:</strong> {{ comment }}</p>
+
+        {% endif %}
+
+    </section>
+
+
+
+    <section class="preview-card preview-card-totals">
+
+        <h2 class="preview-card-heading">Totals</h2>
+
+        <dl class="preview-dl preview-dl-totals">
+
+            <div class="preview-dl-row">
+
+                <dt>Subtotal (ex GST)</dt>
+
+                <dd>{{ amount_ex_gst_fmt }}</dd>
+
+            </div>
+
+            <div class="preview-dl-row">
+
+                <dt>GST (10%)</dt>
+
+                <dd>{{ gst_amount_fmt }}</dd>
+
+            </div>
+
+            <div class="preview-dl-row preview-dl-total">
+
+                <dt>Total (inc GST)</dt>
+
+                <dd>{{ total_inc_gst_fmt }}</dd>
+
+            </div>
+
+        </dl>
+
+    </section>
+
+
+
+    {% if account_name or bsb or acc %}
+
+    <section class="preview-card">
+
+        <h2 class="preview-card-heading">How to pay</h2>
+
+        <dl class="preview-dl">
+
+            {% if account_name %}
+
+            <div class="preview-dl-row"><dt>Account name</dt><dd>{{ account_name }}</dd></div>
+
+            {% endif %}
+
+            {% if bsb %}
+
+            <div class="preview-dl-row"><dt>BSB</dt><dd>{{ bsb }}</dd></div>
+
+            {% endif %}
+
+            {% if acc %}
+
+            <div class="preview-dl-row"><dt>Account</dt><dd>{{ acc }}</dd></div>
+
+            {% endif %}
+
+            <div class="preview-dl-row"><dt>Reference</dt><dd>Invoice #{{ invoice_number }}</dd></div>
+
+        </dl>
+
+    </section>
+
+    {% endif %}
+
+
+
+    <section class="preview-card preview-card-billing">
+
+        <h2 class="preview-card-heading">Platform fee (this month)</h2>
+
+        {% if account_required %}
+
+        {% with message=account_required_message, kind='info', title='Account needed' %}
+
+        {% include "_notice_panel.html" %}
+
+        {% endwith %}
+
+        {% elif billing_notice_message %}
+
+        {% with message=billing_notice_message, kind=billing_notice_kind, title=billing_notice_title %}
+
+        {% include "_notice_panel.html" %}
+
+        {% endwith %}
+
+        {% elif billing_preview %}
+
+        <p class="preview-billing-text">This invoice adds <strong>{{ fee_delta_fmt }}</strong> to your fee this month → new monthly fee <strong>{{ projected_fee_fmt }}</strong>.</p>
+
+        {% endif %}
+
+        {% if cap_blocked %}
+
+        <div class="cap-block-panel">
+
+            <p><strong>This invoice would take you {{ over_by_fmt }} over your monthly cap.</strong></p>
+
+            <p>Your fee for this month would be {{ projected_fee_fmt }}.</p>
+
+            <p>Raise your cap in Settings, or proceed to accept this fee.</p>
+
+        </div>
+
+        {% endif %}
+
+    </section>
+
+</div>
+
+
+
+<div class="preview-actions">
+
+    {% if account_required %}
+
+    <a href="{{ url_for('account_create') }}" class="btn btn-primary">Create account to continue</a>
+
+    <p class="home-intro">Your invoice details are saved. Return here after signing up.</p>
+
+    {% elif billing_notice_message %}
+
+    <a href="{{ url_for('resume_preview') }}" class="btn btn-primary">Try again</a>
+
+    {% if usage_meter.authenticated %}
+
+    <a href="{{ url_for('account_login') }}" class="btn btn-secondary">Sign in again</a>
+
+    {% endif %}
+
+    {% else %}
+
+    <form method="POST" action="{{ url_for('generate') }}" id="generate-form" class="preview-action-form">
+
+        <input type="hidden" name="customer" value="{{ customer_name }}">
+
+        {% for item in items %}
+
+        <input type="hidden" name="item_description" value="{{ item.description }}">
+
+        <input type="hidden" name="item_amount" value="{{ item.amount_raw }}">
+
+        <input type="hidden" name="item_quantity" value="{{ item.qty_raw }}">
+
+        {% endfor %}
+
+        <input type="hidden" name="comment" value="{{ comment }}">
+
+        <input type="hidden" name="due_rule_type" value="{{ due_rule_type }}">
+
+        <input type="hidden" name="due_net_days" value="{{ due_net_days }}">
+
+        {% if cap_blocked %}
+
+        <label class="cap-bypass-label">
+
+            <input type="checkbox" name="cap_bypass_confirm" value="1" id="cap-bypass">
+
+            I accept the fee above and want to proceed
+
+        </label>
+
+        {% endif %}
+
+        <button type="submit" class="btn btn-primary" {% if cap_blocked %}id="generate-btn" disabled{% endif %}>Generate invoice</button>
+
+    </form>
+
+    {% endif %}
+
+    <a href="{{ url_for('create_invoice') }}" class="btn btn-secondary">Edit invoice</a>
+
+</div>
+
+
+
+{% if cap_blocked and not account_required and not billing_notice_message %}
+
+<script>
+
+(function () {
+
+    var cb = document.getElementById("cap-bypass");
+
+    var btn = document.getElementById("generate-btn");
+
+    if (cb && btn) {
+
+        cb.addEventListener("change", function () {
+
+            btn.disabled = !cb.checked;
+
+        });
+
+    }
+
+})();
+
+</script>
+
+{% endif %}
+
+{% endblock %}
+

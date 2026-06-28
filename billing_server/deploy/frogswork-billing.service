@@ -1,0 +1,20 @@
+[Unit]
+Description=FrogsWork billing API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=frogswork
+Group=frogswork
+WorkingDirectory=/home/frogswork/frogswork/billing_server
+EnvironmentFile=/etc/frogswork/billing.env
+ExecStart=/home/frogswork/frogswork/billing_server/.venv/bin/python app.py
+Restart=on-failure
+RestartSec=5
+
+# Hardening (optional; remove if venv path issues)
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

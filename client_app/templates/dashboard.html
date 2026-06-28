@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · {{ brand_name }}{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+<p class="home-intro">Sales invoices you've sent.</p>
+
+<h2 class="dashboard-section-heading">Sales invoice totals</h2>
+<div class="preview-section">
+    <div class="preview-row"><span class="preview-label">Sales invoiced this month</span>{{ month_invoiced_fmt }}</div>
+    <div class="preview-row"><span class="preview-label">Outstanding (sent, unpaid)</span>{{ sent_total_fmt }} ({{ outstanding_count }} invoice{% if outstanding_count != 1 %}s{% endif %})</div>
+    <div class="preview-row"><span class="preview-label">Paid (all time in list)</span>{{ paid_total_fmt }}</div>
+</div>
+
+<h2 class="dashboard-section-heading">Usage this month</h2>
+{% include "_usage_context.html" %}
+<div class="preview-section">
+    <div class="preview-row"><span class="preview-label">Sales invoiced (ex GST)</span>{{ usage_fmt.month_invoiced }}</div>
+    <div class="preview-row"><span class="preview-label">Platform usage fee</span>{{ usage_fmt.fee_so_far }}</div>
+    {% if usage_meter.cap_label != "off" %}
+    <div class="preview-row">
+        <span class="preview-label">Your cap</span>
+        {{ usage_meter.cap_label }}{% if usage_meter.cap_detail %} {{ usage_meter.cap_detail }}{% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

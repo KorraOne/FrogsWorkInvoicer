@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Review Invoice - Invoice App{% endblock %}
+{% set show_back = false %}
+{% set show_home = true %}
+{% block content %}
+<h1>Review Invoice</h1>
+
+<p class="home-intro">Step 2 of 2. Check everything, then generate.</p>
+
+<p class="preview-heading">Please check everything carefully before generating.</p>
+
+<div class="preview-section">
+    <div class="preview-row">
+        <span class="preview-label">From</span>
+        {{ business_name or "Not set. Check Settings." }}
+        {% if business_address %}<br>{{ business_address | replace('\n', '<br>') | safe }}{% endif %}
+        {% if business_abn %}<br>ABN: {{ business_abn }}{% endif %}
+    </div>
+    <div class="preview-row">
+        <span class="preview-label">Invoice Number</span>
+        {{ invoice_number }}
+    </div>
+    <div class="preview-row">
+        <span class="preview-label">Date</span>
+        {{ invoice_date }}
+    </div>
+    {% if payment_terms %}
+    <div class="preview-row">
+        <span class="preview-label">Payment Terms</span>
+        {{ payment_terms }}
+    </div>
+    {% endif %}
+    <div class="preview-row">
+        <span class="preview-label">Customer</span>
+        {{ customer_name }}
+    </div>
+    {% if customer_address %}
+    <div class="preview-row">
+        <span class="preview-label">Address</span>
+        {{ customer_address | replace('\n', '<br>') | safe }}
+    </div>
+    {% endif %}
+    {% if customer_abn %}
+    <div class="preview-row">
+        <span class="preview-label">Customer ABN</span>
+        {{ customer_abn }}
+    </div>
+    {% endif %}
+
+    <div class="preview-row">
+        <span class="preview-label">Items</span>
+    </div>
+    {% for item in items %}
+    <div class="preview-item-row">
+        <span>
+            {{ item.description }}
+            {% if item.qty != '1' %}
+            <span class="preview-item-qty">({{ item.qty }} × {{ item.unit_amount_fmt }})</span>
+            {% endif %}
+        </span>
+        <span class="preview-item-amount">{{ item.amount_fmt }}</span>
+    </div>
+    {% endfor %}
+
+    {% if comment %}
+    <div class="preview-row">
+        <span class="preview-label">Comment</span>
+        {{ comment }}
+    </div>
+    {% endif %}
+    <div class="preview-row">
+        <span class="preview-label">Subtotal (ex GST)</span>
+        {{ amount_ex_gst_fmt }}
+    </div>
+    <div class="preview-row">
+        <span class="preview-label">GST (10%)</span>
+        {{ gst_amount_fmt }}
+    </div>
+    <div class="preview-total">
+        Total (inc GST): {{ total_inc_gst_fmt }}
+    </div>
+</div>
+
+{% if account_name or bsb or acc %}
+<div class="preview-section">
+    <div class="preview-row">
+        <span class="preview-label">How to pay</span>
+        {% if account_name %}Account name: {{ account_name }}<br>{% endif %}
+        {% if bsb %}BSB: {{ bsb }}<br>{% endif %}
+        {% if acc %}Account: {{ acc }}<br>{% endif %}
+        Reference: Invoice #{{ invoice_number }}
+    </div>
+</div>
+{% endif %}
+
+<form method="POST" action="{{ url_for('generate') }}">
+    <input type="hidden" name="customer" value="{{ customer_name }}">
+    {% for item in items %}
+    <input type="hidden" name="item_description" value="{{ item.description }}">
+    <input type="hidden" name="item_amount" value="{{ item.amount_raw }}">
+    <input type="hidden" name="item_quantity" value="{{ item.qty_raw }}">
+    {% endfor %}
+    <input type="hidden" name="comment" value="{{ comment }}">
+    <button type="submit" class="btn btn-primary">Generate invoice</button>
+</form>
+
+<form method="POST" action="{{ url_for('create_invoice') }}">
+    <input type="hidden" name="customer" value="{{ customer_name }}">
+    {% for item in items %}
+    <input type="hidden" name="item_description" value="{{ item.description }}">
+    <input type="hidden" name="item_amount" value="{{ item.amount_raw }}">
+    <input type="hidden" name="item_quantity" value="{{ item.qty_raw }}">
+    {% endfor %}
+    <input type="hidden" name="comment" value="{{ comment }}">
+    <button type="submit" class="btn btn-secondary">Go back and edit</button>
+</form>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "admin/base.html" %}
+{% block title %}Accounts{% endblock %}
+{% block content %}
+<h1>Accounts</h1>
+
+<form class="filter-bar" method="get">
+    <label for="month">Usage month</label>
+    <input type="text" id="month" name="month" value="{{ month }}" placeholder="YYYY-MM" pattern="\d{4}-\d{2}">
+    <button type="submit" class="btn btn-sm">Filter</button>
+</form>
+
+<table class="data">
+    <thead>
+        <tr>
+            <th>Email</th>
+            <th>Cycle</th>
+            <th>Billing status</th>
+            <th>Payment due</th>
+            <th class="text-right">Unbilled fee (ex GST)</th>
+            <th class="text-right">{{ month }} fee</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for a in accounts %}
+        {% set b = a.billing %}
+        <tr>
+            <td><a href="{{ url_for('admin.account_detail', account_id=a.id) }}">{{ a.email }}</a></td>
+            <td>{{ a.billing_cycle }}</td>
+            <td>
+                {% if b.status == 'ready_to_bill' %}
+                    <span class="badge badge-unpaid">{{ b.status_label }}</span>
+                {% elif b.status == 'awaiting_payment' %}
+                    <span class="badge badge-unpaid">{{ b.status_label }}</span>
+                {% elif b.status == 'accruing' %}
+                    <span class="badge badge-accruing">{{ b.status_label }}</span>
+                {% else %}
+                    <span class="badge badge-paid">{{ b.status_label }}</span>
+                {% endif %}
+                <div class="muted">{{ b.next_action }}</div>
+            </td>
+            <td>
+                {% if b.payment_due %}
+                    {{ b.payment_due }}
+                {% else %}
+                    None
+                {% endif %}
+                <div class="muted">{{ b.current_period }}</div>
+            </td>
+            <td class="text-right">
+                {% if b.unbilled_months_count > 0 %}
+                    ${{ "{:,.2f}".format(b.unbilled_fee_ex_gst|float) }}
+                    <div class="muted">{{ b.unbilled_months_count }} month(s)</div>
+                {% else %}
+                    None
+                {% endif %}
+            </td>
+            <td class="text-right">${{ "{:,.2f}".format(a.month_fee_accrued|float) }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="muted">No accounts yet.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,4 @@
+{% include "_free_allowance_bar.html" %}
+{% if usage_meter.cap_label != "off" %}
+<p class="usage-context-cap">Monthly cap {{ usage_meter.cap_label }}{% if usage_meter.cap_detail %} {{ usage_meter.cap_detail }}{% endif %}</p>
+{% endif %}

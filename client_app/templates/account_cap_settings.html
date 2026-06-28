@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Cap settings · {{ brand_name }}{% endblock %}
+{% block content %}
+<h1>Monthly cap</h1>
+<p class="home-intro">Set a cap to get a warning before generating an invoice that would exceed your limit.</p>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+<form method="POST">
+    <section class="billing-section">
+        {% set cap_on = cap_enabled %}
+        {% include "_cap_choice.html" %}
+    </section>
+    <button type="submit" class="btn btn-primary">Save</button>
+</form>
+<script src="{{ url_for('static', filename='billing_ui.js') }}"></script>
+{% endblock %}

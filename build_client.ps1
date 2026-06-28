@@ -1,0 +1,85 @@
+# Build FrogsWork desktop client (client_app/)
+
+param(
+    [switch]$OneFile,
+    [switch]$Clean,
+    [switch]$SkipVenv,
+    [string]$BillingUrl = ""
+)
+
+$ErrorActionPreference = "Stop"
+$Root = $PSScriptRoot
+$AppDir = Join-Path $Root "client_app"
+$ConfigFile = Join-Path $AppDir "app_config.py"
+$VenvDir = Join-Path $Root ".client-venv"
+$Requirements = Join-Path $Root "requirements-client.txt"
+$DistOnedir = Join-Path $AppDir "dist\FrogsWork"
+$DistOneFile = Join-Path $AppDir "dist\FrogsWork.exe"
+
+function Stop-RunningApp {
+    Get-Process -Name "FrogsWork" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    Get-NetTCPConnection -LocalPort 5000 -ErrorAction SilentlyContinue |
+        ForEach-Object {
+            $procId = $_.OwningProcess
+            if ($procId -and $procId -ne 0) {
+                Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
+            }
+        }
+    Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -in @("python.exe", "pythonw.exe") -and $_.CommandLine -match "client_app\\app\.py" } |
+        ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    Start-Sleep -Seconds 2
+}
+
+Set-Location $AppDir
+Stop-RunningApp
+
+$configBackup = $null
+if ($BillingUrl) {
+    $configBackup = Get-Content $ConfigFile -Raw
+    $escaped = [regex]::Escape("http://127.0.0.1:8080")
+    $updated = $configBackup -replace $escaped, $BillingUrl
+    if ($updated -eq $configBackup) {
+        throw "Could not patch app_config.py with BillingUrl. Check DEFAULT_BILLING_SERVER_URL default."
+    }
+    Set-Content -Path $ConfigFile -Value $updated -NoNewline
+    Write-Host "Using billing URL for this build: $BillingUrl"
+}
+
+try {
+    if (-not $SkipVenv) {
+        if (-not (Test-Path $VenvDir)) {
+            python -m venv $VenvDir
+        }
+        $python = Join-Path $VenvDir "Scripts\python.exe"
+        $pyinstaller = Join-Path $VenvDir "Scripts\pyinstaller.exe"
+        & $python -m pip install -q -r $Requirements
+    } else {
+        $pyinstaller = "pyinstaller"
+    }
+
+    if ($Clean) {
+        Remove-Item -Recurse -Force build, dist -ErrorAction SilentlyContinue
+    }
+
+    if ($OneFile) {
+        $env:FROGSWORK_ONEFILE = "1"
+    } else {
+        $env:FROGSWORK_ONEFILE = "0"
+    }
+
+    & $pyinstaller FrogsWork.spec --noconfirm --log-level WARN
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    if ($OneFile) {
+        Write-Host "Output: $DistOneFile"
+    } else {
+        Write-Host "Output: $DistOnedir\FrogsWork.exe"
+    }
+    Write-Host "Requires Microsoft Edge WebView2 Runtime on target PCs."
+}
+finally {
+    if ($null -ne $configBackup) {
+        Set-Content -Path $ConfigFile -Value $configBackup -NoNewline
+    }
+}

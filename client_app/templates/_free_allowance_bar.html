@@ -1,0 +1,26 @@
+<div class="free-allowance-bar{% if usage_meter.free_allowance_full %} free-allowance-bar--full{% endif %}{% if usage_meter.free_allowance_over %} free-allowance-bar--over{% endif %}">
+    <div class="free-allowance-bar-header">
+        <span class="free-allowance-bar-title">
+            {% if usage_meter.free_allowance_full %}
+            Free allowance full
+            {% else %}
+            Free allowance
+            {% endif %}
+        </span>
+    </div>
+    <div class="free-allowance-bar-track" role="progressbar"
+         aria-valuenow="{{ usage_meter.free_allowance_used_pct }}"
+         aria-valuemin="0" aria-valuemax="100"
+         aria-label="Free allowance used this month">
+        <div class="free-allowance-bar-fill" style="width: {{ usage_meter.free_allowance_used_pct }}%;"></div>
+    </div>
+    <p class="free-allowance-bar-caption">
+        {% if usage_meter.free_allowance_full and usage_meter.free_allowance_over %}
+        {{ usage_meter.month_invoiced_fmt }} sales invoiced this month · $0 free left
+        {% elif usage_meter.free_allowance_full %}
+        {{ usage_meter.free_allowance_used_fmt }} used · $0 left
+        {% else %}
+        {{ usage_meter.free_allowance_used_fmt }} used · {{ usage_meter.free_remaining_fmt }} left
+        {% endif %}
+    </p>
+</div>

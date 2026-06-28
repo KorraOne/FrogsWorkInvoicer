@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ brand_name }}{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='theme.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="app-shell">
+    <div class="container">
+        {% block back %}{% if show_back is not defined or show_back %}
+        <a href="{{ back_url|default('/') }}" class="back-link">&larr; {{ back_label|default('Back') }}</a>
+        {% endif %}{% endblock %}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-messages">
+            {% for category, message in messages %}
+            <div class="flash flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+        {% include "_update_banner.html" %}
+        {% block content %}{% endblock %}
+        {% if show_home|default(false) %}
+        <a href="{{ url_for('home') }}" class="home-footer-link">Go to Home</a>
+        {% endif %}
+        {% if show_app_footer|default(true) %}
+        {% include "_app_footer.html" %}
+        {% endif %}
+    </div>
+    <script>
+    (function () {
+        setInterval(function () {
+            fetch("{{ url_for('ping') }}", { method: "POST", keepalive: true }).catch(function () {});
+        }, 30000);
+    })();
+    </script>
+</body>
+</html>

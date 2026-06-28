@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Settings - Invoice App{% endblock %}
+{% block content %}
+<h1>Settings</h1>
+
+{% if error %}
+<div class="error">{{ error }}</div>
+{% endif %}
+
+<form method="POST">
+    <div class="form-group">
+        <label for="business_name">Business Name</label>
+        <input type="text" name="business_name" id="business_name" value="{{ settings.business_name }}">
+    </div>
+
+    <div class="form-group">
+        <label for="business_address">Business Address</label>
+        <textarea name="business_address" id="business_address">{{ settings.business_address }}</textarea>
+    </div>
+
+    <div class="form-group">
+        <label for="business_abn">Business ABN</label>
+        <input type="text" name="business_abn" id="business_abn" value="{{ settings.business_abn }}">
+    </div>
+
+    <div class="form-group">
+        <label for="bsb">Bank BSB</label>
+        <input type="text" name="bsb" id="bsb" value="{{ settings.bsb }}">
+    </div>
+
+    <div class="form-group">
+        <label for="account_name">Account Name</label>
+        <input type="text" name="account_name" id="account_name" value="{{ settings.account_name }}">
+    </div>
+
+    <div class="form-group">
+        <label for="acc">Bank Account Number</label>
+        <input type="text" name="acc" id="acc" value="{{ settings.acc }}">
+    </div>
+
+    <div class="form-group">
+        <label for="payment_terms">Payment Terms</label>
+        <input type="text" name="payment_terms" id="payment_terms" value="{{ settings.payment_terms }}">
+    </div>
+
+    <div class="form-group">
+        <label for="invoice_counter">Next Invoice Number</label>
+        <input type="number" name="invoice_counter" id="invoice_counter" value="{{ settings.invoice_counter }}" min="1" required>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Save</button>
+</form>
+{% endblock %}

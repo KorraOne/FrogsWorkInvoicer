@@ -1,0 +1,151 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ account.email }}{% endblock %}
+{% block content %}
+<h1>{{ account.email }}</h1>
+
+<div class="card">
+    <p><strong>Created:</strong> {{ account.created_at }}</p>
+    <p><strong>Billing cycle:</strong> {{ account.billing_cycle }} (platform invoice cadence; usage is always monthly)</p>
+    <p><strong>Cap:</strong>
+        {% if account.cap_enabled %}
+            Enabled, ${{ account.cap_amount_ex_gst }} ex GST / month
+        {% else %}
+            Disabled
+        {% endif %}
+    </p>
+</div>
+
+<div class="card">
+    <h2 style="margin-top:0">Billing schedule</h2>
+    <p><strong>Status:</strong>
+        {% if billing.status == 'ready_to_bill' %}
+            <span class="badge badge-unpaid">{{ billing.status_label }}</span>
+        {% elif billing.status == 'awaiting_payment' %}
+            <span class="badge badge-unpaid">{{ billing.status_label }}</span>
+        {% elif billing.status == 'accruing' %}
+            <span class="badge badge-accruing">{{ billing.status_label }}</span>
+        {% else %}
+            <span class="badge badge-paid">{{ billing.status_label }}</span>
+        {% endif %}
+    </p>
+    <p><strong>Current period:</strong> {{ billing.current_period }} (ends {{ billing.period_ends_on }})</p>
+    <p><strong>Next invoice after:</strong> {{ billing.invoice_after }}</p>
+    <p><strong>Payment due:</strong> {{ billing.payment_due or 'None' }}</p>
+    <p><strong>Unbilled fees:</strong>
+        {% if billing.unbilled_months_count > 0 %}
+            ${{ "{:,.2f}".format(billing.unbilled_fee_ex_gst|float) }} across {{ billing.unbilled_months_count }} month(s)
+        {% else %}
+            None
+        {% endif %}
+    </p>
+    {% if billing.outside_current_period_count > 0 %}
+    <p class="muted">
+        {{ billing.outside_current_period_count }} unbilled month(s) fall outside the current
+        {{ billing.current_period }} window. Run Generate for the quarter or year that contains them.
+    </p>
+    {% endif %}
+</div>
+
+<h2>Monthly summaries</h2>
+<table class="data">
+    <thead>
+        <tr>
+            <th>Month</th>
+            <th class="text-right">Total invoiced (ex GST)</th>
+            <th class="text-right">Fee accrued (ex GST)</th>
+            <th>Platform billing</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for s in monthly_summaries %}
+        {% set st = s.billing_state %}
+        <tr>
+            <td>{{ s.usage_month }}</td>
+            <td class="text-right">${{ "{:,.2f}".format(s.total_ex_gst|float) }}</td>
+            <td class="text-right">${{ "{:,.2f}".format(s.fee_accrued|float) }}</td>
+            <td>
+                {% if st.state == 'paid' %}
+                    <span class="badge badge-paid">{{ st.label }}</span>
+                {% elif st.state == 'invoiced_unpaid' %}
+                    <span class="badge badge-unpaid">{{ st.label }}{% if st.invoice_number %} ({{ st.invoice_number }}){% endif %}</span>
+                {% elif st.state == 'unbilled' %}
+                    <span class="badge badge-unpaid">{{ st.label }}</span>
+                {% elif st.state == 'accruing' %}
+                    <span class="badge badge-accruing">{{ st.label }}</span>
+                {% else %}
+                    <span class="muted">{{ st.label }}</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="muted">No usage recorded.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h2>Usage events</h2>
+<table class="data">
+    <thead>
+        <tr>
+            <th>Invoice #</th>
+            <th>Month</th>
+            <th class="text-right">Amount (ex GST)</th>
+            <th>Cap override</th>
+            <th>Committed</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for e in usage_events %}
+        <tr>
+            <td>{{ e.invoice_number }}</td>
+            <td>{{ e.usage_month }}</td>
+            <td class="text-right">${{ "{:,.2f}".format(e.amount_ex_gst|float) }}</td>
+            <td>{{ 'Yes' if e.cap_overridden else 'No' }}</td>
+            <td>{{ e.committed_at }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="muted">No commits yet.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h2>Platform invoices</h2>
+<table class="data">
+    <thead>
+        <tr>
+            <th>Invoice #</th>
+            <th>Period</th>
+            <th class="text-right">Total due</th>
+            <th>Status</th>
+            <th>PDF</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for i in platform_invoices %}
+        <tr>
+            <td>{{ i.invoice_number or ('#' ~ i.id) }}</td>
+            <td>{{ i.billing_cycle_start }} – {{ i.billing_cycle_end }}</td>
+            <td class="text-right">${{ "{:,.2f}".format(i.amount_due|float) }}</td>
+            <td>
+                {% if i.paid_at %}
+                    <span class="badge badge-paid">Paid {{ i.paid_at }}</span>
+                {% else %}
+                    <span class="badge badge-unpaid">Unpaid</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if i.pdf_filename %}
+                    <a href="{{ url_for('admin.platform_invoice_pdf', invoice_id=i.id) }}" target="_blank">View</a>
+                {% else %}
+                    None
+                {% endif %}
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="muted">No platform invoices yet.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<p><a href="{{ url_for('admin.accounts') }}">&larr; Back to accounts</a></p>
+{% endblock %}

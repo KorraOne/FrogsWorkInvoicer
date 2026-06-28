@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Your account · {{ brand_name }}{% endblock %}
+{% block content %}
+<h1>Your account</h1>
+<p class="home-intro">Platform sign-in and data backup.</p>
+
+{% if account_services_ok is not none %}
+<div class="account-services-status account-services-status--{{ 'ok' if account_services_ok else 'off' }}">
+    <p class="account-services-status-label">Account services</p>
+    <p class="account-services-status-value">
+        {% if account_services_ok %}
+        Available. You can sign in and sync usage.
+        {% else %}
+        Unavailable. Check your internet connection and try again.
+        {% endif %}
+    </p>
+</div>
+{% endif %}
+
+{% if ledger_invalid %}
+<div class="ledger-repair-panel">
+    <p class="ledger-repair-title">Usage records need attention</p>
+    <p class="ledger-repair-body">Local usage records could not be verified. This often happens after a restore or unexpected shutdown.</p>
+    <div class="ledger-repair-actions">
+        <form method="POST" action="{{ url_for('account_repair_ledger') }}">
+            <input type="hidden" name="action" value="rebuild">
+            <button type="submit" class="btn btn-primary">Rebuild from invoices</button>
+        </form>
+        <form method="POST" action="{{ url_for('account_repair_ledger') }}">
+            <input type="hidden" name="action" value="reset">
+            <button type="submit" class="btn btn-secondary">Reset usage cache</button>
+        </form>
+    </div>
+    <p class="ledger-repair-hint"><strong>Rebuild</strong> matches usage to your invoice history for this month. <strong>Reset</strong> clears local usage for this month.</p>
+</div>
+{% endif %}
+
+<div class="settings-links">
+    {% if usage_meter.authenticated %}
+    <div class="settings-link-row">
+        <div>
+            <p class="settings-link-title">Signed in</p>
+            <p class="settings-link-hint">{{ usage_meter.email }}</p>
+        </div>
+        <form method="POST" action="{{ url_for('account_logout') }}">
+            <button type="submit" class="btn btn-secondary btn-small">Sign out</button>
+        </form>
+    </div>
+    {% else %}
+    <a href="{{ url_for('account_create') }}" class="btn btn-secondary nav-card nav-card-utility">
+        <span class="nav-card-title">Create account</span>
+        <span class="nav-card-hint">For usage above $2,000/month ex-GST</span>
+    </a>
+    <a href="{{ url_for('account_login') }}" class="btn btn-secondary nav-card nav-card-utility">
+        <span class="nav-card-title">Sign in</span>
+        <span class="nav-card-hint">Existing account</span>
+    </a>
+    {% endif %}
+
+    <a href="{{ url_for('backup_import') }}" class="btn btn-secondary nav-card nav-card-utility">
+        <span class="nav-card-title">Backup &amp; restore</span>
+        <span class="nav-card-hint">Export or import your data</span>
+    </a>
+</div>
+{% endblock %}

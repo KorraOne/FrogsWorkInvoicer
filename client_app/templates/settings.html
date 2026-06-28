@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Settings · {{ brand_name }}{% endblock %}
+{% block content %}
+<h1>Settings</h1>
+<p class="home-intro">Business details, account, billing, and storage.</p>
+
+<div class="settings-nav">
+    <a href="{{ url_for('settings_details') }}" class="btn btn-secondary nav-card nav-card-utility">
+        <span class="nav-card-title">Your details</span>
+        <span class="nav-card-hint">Business name, address, ABN, and bank details</span>
+    </a>
+    <a href="{{ url_for('settings_account') }}" class="btn btn-secondary nav-card nav-card-utility">
+        <span class="nav-card-title">Your account</span>
+        <span class="nav-card-hint">Sign in, backup, and restore</span>
+    </a>
+    <a href="{{ url_for('settings_billing') }}" class="btn btn-secondary nav-card nav-card-utility">
+        <span class="nav-card-title">Billing</span>
+        <span class="nav-card-hint">Platform fees, payment schedule, and monthly history</span>
+    </a>
+    <a href="{{ url_for('settings_fee_calculator') }}" class="btn btn-secondary nav-card nav-card-utility">
+        <span class="nav-card-title">Fee calculator</span>
+        <span class="nav-card-hint">Estimate platform fees for a monthly sales invoicing total</span>
+    </a>
+    <a href="{{ url_for('settings_storage') }}" class="btn btn-secondary nav-card nav-card-utility">
+        <span class="nav-card-title">Data storage</span>
+        <span class="nav-card-hint">Config in AppData; choose where PDFs are saved</span>
+    </a>
+    <a href="{{ url_for('settings_updates') }}" class="btn btn-secondary nav-card nav-card-utility{% if pending_update %} nav-card-highlight{% endif %}">
+        <span class="nav-card-title">App update</span>
+        <span class="nav-card-hint">{% if pending_update %}Version {{ pending_update.version }} available{% else %}Check for a newer version{% endif %}</span>
+    </a>
+    {% if show_logo_design_settings %}
+    <a href="{{ url_for('settings_logo_design') }}" class="btn btn-secondary nav-card nav-card-utility">
+        <span class="nav-card-title">Logo design</span>
+        <span class="nav-card-hint">Help us with a whimsical frog mark (temporary)</span>
+    </a>
+    {% endif %}
+</div>
+{% endblock %}

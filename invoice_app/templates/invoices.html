@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block title %}Past Invoices - Invoice App{% endblock %}
+
+{% block content %}
+
+<h1>Past Invoices</h1>
+
+<p class="home-intro">Tap a section to show or hide its invoices.</p>
+
+
+
+<details class="invoice-section"{% if not_sent %} open{% endif %}>
+
+    <summary class="invoice-section-toggle">
+
+        <span class="invoice-section-title">Not sent yet</span>
+
+        <span class="invoice-section-meta">
+
+            <span class="invoice-section-count">{{ not_sent|length }}</span>
+
+            <span class="invoice-section-chevron" aria-hidden="true"></span>
+
+        </span>
+
+    </summary>
+
+    <div class="invoice-section-body">
+
+        {% if not_sent %}
+
+            {% for inv in not_sent %}
+
+            <div class="customer-card invoice-card">
+
+                <div class="invoice-card-header">
+
+                    <h3>Invoice {{ inv.invoice_number | fmt_invoice_number }}</h3>
+
+                    <span class="status-badge status-not-sent">Not sent</span>
+
+                </div>
+
+                <p><strong>Date:</strong> {{ inv.invoice_date | fmt_invoice_date }}</p>
+
+                <p><strong>Customer:</strong> {{ inv.customer_name }}</p>
+
+                <p><strong>Amount:</strong> {{ inv | fmt_invoice_amount }}</p>
+
+                {% if inv.description %}
+
+                <p class="invoice-description">{{ inv.description }}</p>
+
+                {% endif %}
+
+                <div class="customer-actions">
+
+                    <a href="{{ url_for('view_pdf', filename=inv.filename) }}" class="btn btn-secondary btn-small" target="_blank">View PDF</a>
+
+                    <form method="POST" action="{{ url_for('invoice_update_status', number=inv.invoice_number | fmt_invoice_number) }}" style="display:inline;">
+
+                        <input type="hidden" name="status" value="sent">
+
+                        <button type="submit" class="btn btn-primary btn-small">I've sent this invoice</button>
+
+                    </form>
+
+                </div>
+
+            </div>
+
+            {% endfor %}
+
+        {% else %}
+
+        <p class="invoice-empty">No invoices waiting to be sent.</p>
+
+        {% endif %}
+
+    </div>
+
+</details>
+
+
+
+<details class="invoice-section"{% if sent %} open{% endif %}>
+
+    <summary class="invoice-section-toggle">
+
+        <span class="invoice-section-title">Sent, awaiting payment</span>
+
+        <span class="invoice-section-meta">
+
+            {% if sent %}
+
+            <span class="invoice-section-summary">{{ sent_total_fmt }}</span>
+
+            {% endif %}
+
+            <span class="invoice-section-count">{{ sent_count }}</span>
+
+            <span class="invoice-section-chevron" aria-hidden="true"></span>
+
+        </span>
+
+    </summary>
+
+    <div class="invoice-section-body">
+
+        {% if sent %}
+
+        <p class="invoice-summary">{{ sent_count }} invoice{% if sent_count != 1 %}s{% endif %} owing, {{ sent_total_fmt }} total</p>
+
+        <p class="invoice-hint">Check your bank statement to mark invoices as paid.</p>
+
+            {% for inv in sent %}
+
+            <div class="customer-card invoice-card">
+
+                <div class="invoice-card-header">
+
+                    <h3>Invoice {{ inv.invoice_number | fmt_invoice_number }}</h3>
+
+                    <span class="status-badge status-sent">Sent</span>
+
+                </div>
+
+                <p><strong>Date:</strong> {{ inv.invoice_date | fmt_invoice_date }}</p>
+
+                <p><strong>Customer:</strong> {{ inv.customer_name }}</p>
+
+                <p><strong>Amount:</strong> {{ inv | fmt_invoice_amount }}</p>
+
+                {% if inv.description %}
+
+                <p class="invoice-description">{{ inv.description }}</p>
+
+                {% endif %}
+
+                <div class="customer-actions">
+
+                    <a href="{{ url_for('view_pdf', filename=inv.filename) }}" class="btn btn-secondary btn-small" target="_blank">View PDF</a>
+
+                    <form method="POST" action="{{ url_for('invoice_update_status', number=inv.invoice_number | fmt_invoice_number) }}" style="display:inline;">
+
+                        <input type="hidden" name="status" value="paid">
+
+                        <button type="submit" class="btn btn-primary btn-small">Mark as paid</button>
+
+                    </form>
+
+                </div>
+
+            </div>
+
+            {% endfor %}
+
+        {% else %}
+
+        <p class="invoice-empty">No invoices awaiting payment.</p>
+
+        {% endif %}
+
+    </div>
+
+</details>
+
+
+
+<details class="invoice-section">
+
+    <summary class="invoice-section-toggle">
+
+        <span class="invoice-section-title">Paid</span>
+
+        <span class="invoice-section-meta">
+
+            <span class="invoice-section-count">{{ paid|length }}</span>
+
+            <span class="invoice-section-chevron" aria-hidden="true"></span>
+
+        </span>
+
+    </summary>
+
+    <div class="invoice-section-body">
+
+        {% if paid %}
+
+            {% for inv in paid %}
+
+            <div class="customer-card invoice-card">
+
+                <div class="invoice-card-header">
+
+                    <h3>Invoice {{ inv.invoice_number | fmt_invoice_number }}</h3>
+
+                    <span class="status-badge status-paid">Paid</span>
+
+                </div>
+
+                <p><strong>Date:</strong> {{ inv.invoice_date | fmt_invoice_date }}</p>
+
+                <p><strong>Customer:</strong> {{ inv.customer_name }}</p>
+
+                <p><strong>Amount:</strong> {{ inv | fmt_invoice_amount }}</p>
+
+                {% if inv.description %}
+
+                <p class="invoice-description">{{ inv.description }}</p>
+
+                {% endif %}
+
+                <div class="customer-actions">
+
+                    <a href="{{ url_for('view_pdf', filename=inv.filename) }}" class="btn btn-secondary btn-small" target="_blank">View PDF</a>
+
+                </div>
+
+            </div>
+
+            {% endfor %}
+
+        {% else %}
+
+        <p class="invoice-empty">No paid invoices yet.</p>
+
+        {% endif %}
+
+    </div>
+
+</details>
+
+{% endblock %}
+

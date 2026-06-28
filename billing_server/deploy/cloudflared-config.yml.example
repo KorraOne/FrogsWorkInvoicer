@@ -1,0 +1,17 @@
+# Cloudflare Tunnel — public API only (api.frogswork.com → local billing server)
+#
+# Setup (once on Pi):
+#   cloudflared tunnel create frogswork-api
+#   cloudflared tunnel route dns frogswork-api api.frogswork.com
+#   sudo cp cloudflared-config.yml /etc/cloudflared/config.yml
+#   sudo systemctl enable --now cloudflared
+#
+# Do NOT add a public route for /admin. Use SSH port-forward for operator admin (see DEPLOY.md).
+
+tunnel: frogswork-api
+credentials-file: /home/frogswork/.cloudflared/frogswork-api.json
+
+ingress:
+  - hostname: api.frogswork.com
+    service: http://127.0.0.1:8080
+  - service: http_status:404

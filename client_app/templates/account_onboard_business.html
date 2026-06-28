@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Your business · {{ brand_name }}{% endblock %}
+{% block content %}
+{% with step=2, total=5, title="Your business" %}
+{% include "_onboarding_stepper.html" %}
+{% endwith %}
+<h1>Your business</h1>
+<p class="home-intro">Optional. Add your business details for invoices. Change them later in Settings.</p>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+<form method="POST">
+    <div class="form-group">
+        <label for="business_name">Business name</label>
+        <input type="text" name="business_name" id="business_name" value="{{ form.business_name|default('') }}" placeholder="{{ ph.business_name }}">
+    </div>
+    <div class="form-group">
+        <label for="business_address">Business address</label>
+        <textarea name="business_address" id="business_address" placeholder="{{ ph.business_address }}">{{ form.business_address|default('') }}</textarea>
+    </div>
+    <div class="form-group">
+        <label for="business_abn">Business ABN</label>
+        <input type="text" name="business_abn" id="business_abn" value="{{ form.business_abn|default('') }}" placeholder="{{ ph.business_abn }}">
+    </div>
+    <div class="onboarding-actions">
+        <button type="submit" class="btn btn-primary">Continue</button>
+        <a href="{{ url_for('account_onboard_customer') }}" class="onboarding-skip">Skip for now</a>
+    </div>
+</form>
+{% endblock %}

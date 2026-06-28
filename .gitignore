@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.egg-info/
+.eggs/
+
+# Virtual environments (build scripts create these locally)
+.build-venv/
+.client-venv/
+venv/
+.venv/
+
+# PyInstaller
+**/build/
+**/dist/
+
+# Runtime / local data
+*.db
+*.log
+debug-*.log
+
+# Generated invoices (keep out of repo)
+Invoice_*.pdf
+PlatformInvoice_*.pdf
+billing_server/platform_invoices/
+billing_server/test_invoices_out/
+billing_server/.env
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Optional: Cursor agent plans (local only)
+.cursor/

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Home · {{ brand_name }}{% endblock %}
+{% block back %}{% endblock %}
+{% block content %}
+<div class="home-page">
+<h1 class="home-brand">{{ brand_name }}</h1>
+<p class="home-intro">{{ brand_tagline }}. Create and track <strong>sales invoices</strong> you send to customers. Not supplier bills.</p>
+
+<div class="nav-buttons">
+    <a href="{{ url_for('create_invoice', fresh=1) }}" class="btn btn-primary nav-card nav-card-hero">
+        <span class="nav-card-title">Create sales invoice</span>
+        <span class="nav-card-hint">New tax invoice PDF for a customer</span>
+    </a>
+
+    <div class="nav-section">
+        <p class="nav-section-label">Keep track</p>
+        <a href="{{ url_for('dashboard') }}" class="btn nav-card nav-card-feature">
+            <span class="nav-card-title">Dashboard</span>
+            <span class="nav-card-hint">Totals, outstanding, and usage this month</span>
+        </a>
+        <a href="{{ url_for('invoices_list') }}" class="btn nav-card nav-card-feature">
+            <span class="nav-card-title">Past sales invoices</span>
+            <span class="nav-card-hint">Sent, outstanding, and paid</span>
+        </a>
+    </div>
+
+    <div class="nav-section">
+        <p class="nav-section-label">Setup</p>
+        <div class="setup-grid">
+            <a href="{{ url_for('customers_list') }}" class="btn btn-secondary nav-card nav-card-utility">
+                <span class="nav-card-title">Customers</span>
+                <span class="nav-card-hint">People you send sales invoices to</span>
+            </a>
+            <a href="{{ url_for('settings_page') }}" class="btn btn-secondary nav-card nav-card-utility">
+                <span class="nav-card-title">Settings</span>
+                <span class="nav-card-hint">Details, account, and fee calculator</span>
+            </a>
+            <a href="{{ url_for('backup_import') }}" class="btn btn-secondary nav-card nav-card-utility">
+                <span class="nav-card-title">Backup</span>
+                <span class="nav-card-hint">Export or restore your data</span>
+            </a>
+            {% if usage_meter.authenticated %}
+            <div class="setup-account-row">
+                <a href="{{ url_for('settings_account') }}" class="btn btn-secondary nav-card nav-card-utility">
+                    <span class="nav-card-title">Your account</span>
+                    <span class="nav-card-hint">Signed in{% if usage_meter.email %} as {{ usage_meter.email }}{% endif %}</span>
+                </a>
+            </div>
+            {% else %}
+            <div class="setup-account-row">
+                <a href="{{ url_for('account_create') }}" class="btn btn-secondary nav-card nav-card-utility">
+                    <span class="nav-card-title">Create account</span>
+                    <span class="nav-card-hint">For usage above $2,000/month ex-GST</span>
+                </a>
+                <a href="{{ url_for('account_login') }}" class="btn btn-secondary nav-card nav-card-utility">
+                    <span class="nav-card-title">Sign in</span>
+                    <span class="nav-card-hint">Existing account</span>
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}

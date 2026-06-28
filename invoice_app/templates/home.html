@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Invoice App{% endblock %}
+
+{% block back %}{% endblock %}
+
+{% block content %}
+
+<h1>Invoice App</h1>
+
+<p class="home-intro">What would you like to do?</p>
+
+
+
+<div class="nav-buttons">
+
+    <a href="{{ url_for('create_invoice') }}" class="btn btn-primary nav-card nav-card-hero">
+
+        <span class="nav-card-title">Create Invoice</span>
+
+        <span class="nav-card-hint">Make a new tax invoice PDF</span>
+
+    </a>
+
+
+
+    <div class="nav-section">
+
+        <p class="nav-section-label">Keep track</p>
+
+        <a href="{{ url_for('invoices_list') }}" class="btn nav-card nav-card-feature">
+
+            <span class="nav-card-title">Past Invoices</span>
+
+            <span class="nav-card-hint">See what's sent or waiting to be paid</span>
+
+        </a>
+
+    </div>
+
+
+
+    <div class="nav-section">
+
+        <p class="nav-section-label">Setup</p>
+
+        <div class="nav-cards-row">
+
+            <a href="{{ url_for('customers_list') }}" class="btn btn-secondary nav-card nav-card-utility">
+
+                <span class="nav-card-title">Customers</span>
+
+                <span class="nav-card-hint">Who you invoice</span>
+
+            </a>
+
+            <a href="{{ url_for('settings_page') }}" class="btn btn-secondary nav-card nav-card-utility">
+
+                <span class="nav-card-title">Settings</span>
+
+                <span class="nav-card-hint">Business &amp; bank details</span>
+
+            </a>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}
+

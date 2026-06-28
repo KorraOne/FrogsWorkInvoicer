@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Get started · {{ brand_name }}{% endblock %}
+{% block content %}
+{% with step=4, total=4, title="Get started" %}
+{% include "_onboarding_stepper.html" %}
+{% endwith %}
+<h1>Setup complete</h1>
+<p class="home-intro">You can create sales invoices now. An account is only required above $2,000/month ex-GST in sales invoiced.</p>
+<form method="POST" class="onboarding-actions onboarding-actions--center onboarding-actions--stack">
+    <button type="submit" class="btn btn-primary">Go to Home</button>
+    <button type="submit" name="next" value="account" class="btn btn-secondary">Create account now</button>
+</form>
+{% endblock %}

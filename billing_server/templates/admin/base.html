@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Billing Admin{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+</head>
+<body>
+{% if not hide_nav %}
+<header class="admin-header">
+    <div class="admin-header-inner">
+        <a class="admin-brand" href="{{ url_for('admin.dashboard') }}">FrogsWork Billing Admin</a>
+        <nav class="admin-nav">
+            <a href="{{ url_for('admin.dashboard') }}" {% if request.endpoint == 'admin.dashboard' %}class="active"{% endif %}>Dashboard</a>
+            <a href="{{ url_for('admin.accounts') }}" {% if request.endpoint in ('admin.accounts', 'admin.account_detail') %}class="active"{% endif %}>Accounts</a>
+            <a href="{{ url_for('admin.usage') }}" {% if request.endpoint == 'admin.usage' %}class="active"{% endif %}>Usage</a>
+            <a href="{{ url_for('admin.platform_invoices') }}" {% if request.endpoint == 'admin.platform_invoices' %}class="active"{% endif %}>Platform invoices</a>
+            <a href="{{ url_for('admin.generate') }}" {% if request.endpoint == 'admin.generate' %}class="active"{% endif %}>Generate</a>
+        </nav>
+        <form class="inline-form" method="post" action="{{ url_for('admin.logout') }}">
+            <button type="submit" class="btn btn-secondary btn-sm">Log out</button>
+        </form>
+    </div>
+</header>
+{% endif %}
+
+<main class="{% if hide_nav %}login-page{% else %}admin-main{% endif %}">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="flash flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+</main>
+</body>
+</html>

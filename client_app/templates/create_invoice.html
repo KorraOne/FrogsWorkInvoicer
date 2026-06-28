@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+{% block title %}Create sales invoice · {{ brand_name }}{% endblock %}
+{% block content %}
+<h1>Create sales invoice</h1>
+<p class="home-intro">Step 1 of 2. Invoice a customer for work or goods you sold.</p>
+
+<div class="invoice-number">Invoice number: {{ invoice_counter }}</div>
+
+{% if customer_added %}
+<div class="form-success">Customer added and selected.</div>
+{% endif %}
+
+{% if error %}
+<div class="error">{{ error }}</div>
+{% endif %}
+
+<form method="POST" action="{{ url_for('preview_invoice') }}" id="invoice-form">
+    <section class="invoice-form-section">
+        <h2 class="invoice-form-section-heading">Customer</h2>
+        <div class="form-group">
+            <label for="customer">Who are you invoicing?</label>
+            <select name="customer" id="customer" required>
+                <option value="">{{ select_labels.customer_picker }}</option>
+                {% for name in customers %}
+                <option value="{{ name }}" {% if form.customer == name %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <details class="inline-add-customer" id="inline-add-customer">
+            <summary>Add a new customer without leaving this page</summary>
+            <div class="inline-add-customer-form">
+                <div class="form-group">
+                    <label for="new_customer_name">Customer name</label>
+                    <input type="text" name="new_customer_name" id="new_customer_name" form="add-customer-form" required placeholder="{{ ph.customer_name }}">
+                </div>
+                <div class="form-group">
+                    <label for="new_customer_address">Address</label>
+                    <textarea name="new_customer_address" id="new_customer_address" form="add-customer-form" placeholder="{{ ph.customer_address }}"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="new_customer_abn">ABN (optional)</label>
+                    <input type="text" name="new_customer_abn" id="new_customer_abn" form="add-customer-form" placeholder="{{ ph.customer_abn }}">
+                </div>
+                <div class="form-group">
+                    <label for="new_customer_email">Email (optional)</label>
+                    <input type="email" name="new_customer_email" id="new_customer_email" form="add-customer-form" placeholder="{{ ph.customer_email }}">
+                </div>
+                <button type="submit" class="btn btn-secondary" form="add-customer-form">Add customer</button>
+            </div>
+        </details>
+    </section>
+
+    <section class="invoice-form-section">
+        <h2 class="invoice-form-section-heading">Line items</h2>
+        <p class="invoice-form-section-hint">Add each product or service on its own line. Collapse finished items to save space.</p>
+        <div id="items">
+            {% for item in form.line_items %}
+            <details class="line-item" {% if loop.index == 1 %}open{% endif %}>
+                <summary class="line-item-summary">
+                    <span class="line-item-heading">
+                        <span class="line-item-number">Line item {{ loop.index }}</span>
+                        <span class="line-item-preview">{{ item.description or "Not filled in yet" }}</span>
+                    </span>
+                    <button type="button" class="btn btn-danger btn-small item-remove-btn" hidden>Remove</button>
+                </summary>
+                <div class="line-item-body">
+                    <div class="form-group">
+                        <label>Description</label>
+                        <input type="text" name="item_description" class="item-description-input" value="{{ item.description }}"
+                               placeholder="{{ ph.line_item_description }}">
+                    </div>
+                    <div class="item-row-inline">
+                        <div class="form-group item-qty-field">
+                            <label>Qty</label>
+                            <input type="text" name="item_quantity" class="item-quantity-input" value="{{ item.qty|default('1') }}"
+                                   placeholder="{{ ph.line_item_quantity }}">
+                        </div>
+                        <div class="form-group item-amount-field">
+                            <label>Unit price (ex GST)</label>
+                            <input type="text" name="item_amount" class="item-amount-input" value="{{ item.amount }}"
+                                   placeholder="{{ ph.line_item_amount }}">
+                        </div>
+                    </div>
+                </div>
+            </details>
+            {% endfor %}
+        </div>
+        <button type="button" class="btn btn-secondary" id="add-item-btn">Add new line item</button>
+    </section>
+
+    <section class="invoice-form-section">
+        <h2 class="invoice-form-section-heading">Payment due</h2>
+        <p class="invoice-form-section-hint">Uses your settings defaults. Change them here if needed for this invoice.</p>
+        {% set show_due_preview = true %}
+        {% include "_due_rule_fields.html" %}
+    </section>
+
+    <section class="invoice-form-section">
+        <h2 class="invoice-form-section-heading">Notes</h2>
+        <div class="form-group">
+            <label for="comment">Comment (optional)</label>
+            <textarea name="comment" id="comment" placeholder="{{ ph.invoice_comment }}">{{ form.comment }}</textarea>
+        </div>
+    </section>
+
+    <button type="submit" class="btn btn-primary">Review invoice</button>
+</form>
+
+<form method="POST" action="{{ url_for('create_invoice_add_customer') }}" id="add-customer-form" hidden aria-hidden="true">
+    <div id="add-customer-draft-fields"></div>
+</form>
+
+<script>
+(function () {
+    var addBtn = document.getElementById("add-item-btn");
+    var container = document.getElementById("items");
+    var invoiceForm = document.getElementById("invoice-form");
+    var addCustomerForm = document.getElementById("add-customer-form");
+    var draftFields = document.getElementById("add-customer-draft-fields");
+
+    function formatPreview(desc, qty, amount) {
+        desc = (desc || "").trim();
+        qty = (qty || "1").trim() || "1";
+        amount = (amount || "").trim();
+        if (!desc && !amount) {
+            return "Not filled in yet";
+        }
+        var text = desc || "No description";
+        if (amount) {
+            text += " · " + qty + " × $" + amount.replace(/^\$/, "");
+        }
+        return text;
+    }
+
+    function updateLineItemPreview(row) {
+        var desc = row.querySelector(".item-description-input");
+        var qty = row.querySelector(".item-quantity-input");
+        var amount = row.querySelector(".item-amount-input");
+        var preview = row.querySelector(".line-item-preview");
+        if (preview) {
+            preview.textContent = formatPreview(
+                desc ? desc.value : "",
+                qty ? qty.value : "",
+                amount ? amount.value : ""
+            );
+        }
+    }
+
+    function renumberLineItems() {
+        var rows = container.querySelectorAll(".line-item");
+        rows.forEach(function (row, index) {
+            var number = row.querySelector(".line-item-number");
+            if (number) {
+                number.textContent = "Line item " + (index + 1);
+            }
+        });
+    }
+
+    function updateRemoveButtons() {
+        var rows = container.querySelectorAll(".line-item");
+        var showRemove = rows.length > 1;
+        rows.forEach(function (row) {
+            var btn = row.querySelector(".item-remove-btn");
+            if (btn) {
+                btn.hidden = !showRemove;
+            }
+        });
+    }
+
+    function bindLineItem(row) {
+        row.querySelectorAll(".item-description-input, .item-quantity-input, .item-amount-input").forEach(function (input) {
+            input.addEventListener("input", function () {
+                updateLineItemPreview(row);
+            });
+        });
+        updateLineItemPreview(row);
+    }
+
+    addBtn.addEventListener("click", function () {
+        var template = container.querySelector(".line-item");
+        var row = template.cloneNode(true);
+        row.open = true;
+        row.querySelectorAll("input").forEach(function (input) {
+            if (input.classList.contains("item-quantity-input")) {
+                input.value = "1";
+            } else {
+                input.value = "";
+            }
+        });
+        container.appendChild(row);
+        bindLineItem(row);
+        renumberLineItems();
+        updateRemoveButtons();
+        row.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+
+    container.addEventListener("click", function (event) {
+        var btn = event.target.closest(".item-remove-btn");
+        if (!btn) {
+            return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        if (container.querySelectorAll(".line-item").length <= 1) {
+            return;
+        }
+        btn.closest(".line-item").remove();
+        renumberLineItems();
+        updateRemoveButtons();
+    });
+
+    container.querySelectorAll(".line-item").forEach(bindLineItem);
+
+    addCustomerForm.addEventListener("submit", function () {
+        draftFields.innerHTML = "";
+        invoiceForm.querySelectorAll("input, select, textarea").forEach(function (field) {
+            if (!field.name || field.disabled) {
+                return;
+            }
+            var input = document.createElement("input");
+            input.type = "hidden";
+            input.name = field.name;
+            input.value = field.value;
+            draftFields.appendChild(input);
+        });
+    });
+
+    var duePreviewEl = document.getElementById("due-date-preview");
+    var dueNetDaysInput = document.getElementById("due_net_days");
+    var invoiceDateIso = "{{ invoice_date_iso }}";
+
+    function parseInvoiceDate() {
+        var parts = invoiceDateIso.split("-");
+        return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    }
+
+    function endOfWeekSunday(d) {
+        var weekday = (d.getDay() + 6) % 7;
+        return new Date(d.getFullYear(), d.getMonth(), d.getDate() + (6 - weekday));
+    }
+
+    function computeDueDate(ruleType, netDays) {
+        var d = parseInvoiceDate();
+        if (ruleType === "net_days") {
+            var days = Math.max(1, parseInt(netDays, 10) || 14);
+            return new Date(d.getFullYear(), d.getMonth(), d.getDate() + days);
+        }
+        if (ruleType === "end_next_week") {
+            var sunday = endOfWeekSunday(d);
+            return new Date(sunday.getFullYear(), sunday.getMonth(), sunday.getDate() + 7);
+        }
+        var month = d.getMonth();
+        var year = d.getFullYear();
+        return new Date(year, month + 2, 0);
+    }
+
+    function formatDueDate(d) {
+        return d.toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" });
+    }
+
+    function updateDuePreview() {
+        if (!duePreviewEl) {
+            return;
+        }
+        var ruleType = "net_days";
+        document.querySelectorAll(".due-rule-radio").forEach(function (radio) {
+            if (radio.checked) {
+                ruleType = radio.value;
+            }
+        });
+        duePreviewEl.textContent = formatDueDate(
+            computeDueDate(ruleType, dueNetDaysInput ? dueNetDaysInput.value : "14")
+        );
+    }
+
+    function syncDueNetDaysEnabled() {
+        if (!dueNetDaysInput) {
+            return;
+        }
+        var netSelected = false;
+        document.querySelectorAll(".due-rule-radio").forEach(function (radio) {
+            if (radio.checked && radio.value === "net_days") {
+                netSelected = true;
+            }
+        });
+        dueNetDaysInput.disabled = !netSelected;
+    }
+
+    document.querySelectorAll(".due-rule-radio, #due_net_days").forEach(function (el) {
+        el.addEventListener("change", function () {
+            syncDueNetDaysEnabled();
+            updateDuePreview();
+        });
+        el.addEventListener("input", updateDuePreview);
+    });
+    syncDueNetDaysEnabled();
+    updateDuePreview();
+
+    renumberLineItems();
+    updateRemoveButtons();
+})();
+</script>
+{% endblock %}

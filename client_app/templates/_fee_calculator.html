@@ -1,0 +1,24 @@
+{% if standalone %}
+<div class="fee-calculator" data-billing-ui data-free-tier="{{ billing_constants.free_tier }}" data-fee-rate="{{ billing_constants.fee_rate }}">
+    <p class="billing-section-intro">{{ intro|default("Estimate platform fees for a given monthly invoicing total (ex GST).") }}</p>
+    <div class="form-group fee-calculator-field">
+        <label for="fee_calculator_amount">If I invoice this much in a month (ex GST)</label>
+        <input type="text" id="fee_calculator_amount" class="fee-calculator-input" placeholder="{{ ph.fee_calculator_amount }}" inputmode="decimal">
+    </div>
+    <p class="fee-calculator-result">Enter a monthly total to see your fee.</p>
+    <p class="fee-calculator-breakdown"></p>
+</div>
+{% else %}
+<details class="fee-calculator-details">
+    <summary>{{ summary|default("Fee calculator: estimate your monthly platform fee") }}</summary>
+    <div class="fee-calculator" data-billing-ui data-free-tier="{{ billing_constants.free_tier }}" data-fee-rate="{{ billing_constants.fee_rate }}">
+        <p class="billing-section-intro">{{ intro|default("Estimate platform fees for a given monthly invoicing total (ex GST).") }}</p>
+        <div class="form-group fee-calculator-field">
+            <label class="fee-calculator-label">If I invoice this much in a month (ex GST)</label>
+            <input type="text" class="fee-calculator-input" placeholder="{{ ph.fee_calculator_amount }}" inputmode="decimal">
+        </div>
+        <p class="fee-calculator-result">Enter a monthly total to see your fee.</p>
+        <p class="fee-calculator-breakdown"></p>
+    </div>
+</details>
+{% endif %}

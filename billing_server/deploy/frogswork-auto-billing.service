@@ -1,0 +1,11 @@
+[Unit]
+Description=FrogsWork platform invoice auto-billing job
+After=frogswork-billing.service
+
+[Service]
+Type=oneshot
+User=frogswork
+Group=frogswork
+WorkingDirectory=/home/frogswork/frogswork/billing_server
+EnvironmentFile=/etc/frogswork/billing.env
+ExecStart=/home/frogswork/frogswork/billing_server/.venv/bin/python auto_billing.py

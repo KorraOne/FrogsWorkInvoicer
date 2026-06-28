@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Sign in · {{ brand_name }}{% endblock %}
+{% block content %}
+<div class="account-auth-page">
+    <h1>Sign in</h1>
+    <p class="home-intro">Sign in to sync usage above $2,000/month ex-GST or when using a monthly cap.</p>
+
+    {% if error %}
+    {% with message=error, kind='error', title='Could not sign in' %}
+    {% include "_notice_panel.html" %}
+    {% endwith %}
+    {% endif %}
+
+    <form method="POST" class="account-auth-form">
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" name="email" id="email" required autocomplete="email" placeholder="{{ ph.account_email }}">
+        </div>
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" name="password" id="password" required autocomplete="current-password">
+        </div>
+        <div class="onboarding-actions onboarding-actions--center onboarding-actions--fill">
+            <button type="submit" class="btn btn-primary">Sign in</button>
+        </div>
+    </form>
+
+    <p class="form-footer">No account yet? <a href="{{ url_for('account_create') }}">Create account</a></p>
+</div>
+{% endblock %}

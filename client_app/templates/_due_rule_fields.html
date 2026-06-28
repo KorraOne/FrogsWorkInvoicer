@@ -1,0 +1,41 @@
+<fieldset class="due-rule-fieldset">
+    {% if legend %}
+    <legend class="due-rule-legend">{{ legend }}</legend>
+    {% endif %}
+    {% if hint %}
+    <p class="due-rule-hint">{{ hint }}</p>
+    {% endif %}
+    <label class="due-rule-option">
+        <input type="radio" name="due_rule_type" value="net_days" class="due-rule-radio"
+               {% if due_rule_type == "net_days" %}checked{% endif %}>
+        <span class="due-rule-body">
+            <span class="due-rule-title">Net days</span>
+            <span class="due-rule-desc">Fixed days after the invoice date.</span>
+            <div class="due-net-days-row">
+                <label for="due_net_days" class="due-net-days-label">Days after invoice</label>
+                <input type="number" name="due_net_days" id="due_net_days" class="due-net-days-input"
+                       min="1" max="365" value="{{ due_net_days }}"
+                       {% if due_rule_type != "net_days" %}disabled{% endif %}>
+            </div>
+        </span>
+    </label>
+    <label class="due-rule-option">
+        <input type="radio" name="due_rule_type" value="end_next_week" class="due-rule-radio"
+               {% if due_rule_type == "end_next_week" %}checked{% endif %}>
+        <span class="due-rule-body">
+            <span class="due-rule-title">End of next week</span>
+            <span class="due-rule-desc">Sunday at the end of the week after the invoice week.</span>
+        </span>
+    </label>
+    <label class="due-rule-option">
+        <input type="radio" name="due_rule_type" value="end_next_month" class="due-rule-radio"
+               {% if due_rule_type == "end_next_month" %}checked{% endif %}>
+        <span class="due-rule-body">
+            <span class="due-rule-title">End of next month</span>
+            <span class="due-rule-desc">Last day of the month after the invoice month.</span>
+        </span>
+    </label>
+    {% if show_due_preview %}
+    <p class="due-date-preview">Payment due: <strong id="due-date-preview">{{ due_date_preview }}</strong></p>
+    {% endif %}
+</fieldset>

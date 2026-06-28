@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Welcome · {{ brand_name }}{% endblock %}
+{% block back %}{% endblock %}
+{% block content %}
+{% with step=1, total=4, title="Welcome" %}
+{% include "_onboarding_stepper.html" %}
+{% endwith %}
+<h1>Welcome to {{ brand_name }}</h1>
+<p class="home-intro">{{ brand_tagline }}. Create <strong>sales invoices</strong>, track what's sent and paid, and manage customers on this PC.</p>
+<p class="home-intro home-intro-muted">Outgoing invoices only. Not for supplier bills.</p>
+<ul class="welcome-list">
+    <li>Create sales tax invoice PDFs</li>
+    <li>Track sent and paid invoices on the dashboard</li>
+    <li>Store business details, customers, and invoice history locally</li>
+</ul>
+<div class="onboarding-actions onboarding-actions--center onboarding-actions--fill">
+    <a href="{{ url_for('welcome_pricing') }}" class="btn btn-primary">Continue</a>
+</div>
+{% endblock %}

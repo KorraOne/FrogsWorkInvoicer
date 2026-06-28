@@ -1,0 +1,49 @@
+/* FrogsWork design tokens — keep in sync with docs/commercial/brand.md and desktop_shell splash */
+
+:root {
+    --fw-bg-page: #f0fdf4;
+    --fw-bg-top: #ecfdf5;
+    --fw-bg-mid: #d1fae5;
+    --fw-bg-bottom: #a7f3d0;
+
+    --fw-green-900: #14532d;
+    --fw-green-800: #166534;
+    --fw-green-700: #15803d;
+    --fw-green-600: #16a34a;
+    --fw-green-500: #22c55e;
+    --fw-green-400: #4ade80;
+    --fw-green-300: #86efac;
+
+    --fw-surface: #ffffff;
+    --fw-surface-muted: #ecfdf5;
+    --fw-surface-hover: #d1fae5;
+    --fw-text: #1f2937;
+    --fw-text-muted: #475569;
+    --fw-border: rgba(20, 83, 45, 0.12);
+    --fw-border-strong: rgba(20, 83, 45, 0.22);
+
+    --fw-primary: var(--fw-green-600);
+    --fw-primary-hover: var(--fw-green-700);
+    --fw-link: var(--fw-green-700);
+    --fw-focus-ring: var(--fw-green-300);
+    --fw-shadow: rgba(20, 83, 45, 0.12);
+    --fw-shadow-strong: rgba(20, 83, 45, 0.22);
+
+    --fw-error: #c0392b;
+    --fw-error-bg: #fdecea;
+}
+
+body.app-shell {
+    background: radial-gradient(120% 80% at 50% 0%, var(--fw-bg-top) 0%, var(--fw-bg-mid) 35%, var(--fw-bg-page) 100%);
+    color: var(--fw-text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+body.app-shell > .container {
+    flex: 1 0 auto;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}

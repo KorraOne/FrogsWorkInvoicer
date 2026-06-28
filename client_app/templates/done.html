@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Sales invoice ready · {{ brand_name }}{% endblock %}
+
+{% set show_back = false %}
+
+{% block content %}
+
+<h1>Invoice ready</h1>
+
+
+
+{% if invoice_number %}
+
+<p class="done-lead">Invoice <strong>#{{ invoice_number }}</strong> has been saved.</p>
+
+{% else %}
+
+<p class="done-lead">Your invoice has been saved.</p>
+
+{% endif %}
+
+
+
+<div class="done-steps">
+
+    <h2 class="done-steps-title">What to do next</h2>
+
+
+
+    <div class="done-step{% if step2_complete %} done-step-complete{% endif %}">
+
+        <span class="done-step-num">{% if step2_complete %}✓{% else %}1{% endif %}</span>
+
+        <div class="done-step-body">
+
+            <p class="done-step-heading">View your invoice</p>
+
+            {% if step2_complete %}
+
+            <p class="done-step-hint">PDF checked.</p>
+
+            {% else %}
+
+            <p class="done-step-hint">Open the PDF and check it.</p>
+
+            {% endif %}
+
+            {% if filename %}
+
+            <a href="{{ url_for('view_pdf', filename=filename) }}" class="btn btn-primary" target="_blank">View invoice PDF</a>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+
+
+    <div class="done-step{% if step2_complete %} done-step-complete{% endif %}">
+
+        <span class="done-step-num">{% if step2_complete %}✓{% else %}2{% endif %}</span>
+
+        <div class="done-step-body">
+
+            <p class="done-step-heading">Send it to your customer</p>
+
+            {% if marked_sent %}
+
+            <p class="done-step-hint">Marked as sent{% if sent_date %} on {{ sent_date | fmt_invoice_date }}{% endif %}.</p>
+
+            {% elif send_later %}
+
+            <p class="done-step-hint">You'll send this later. It stays under Past Invoices, Not sent yet.</p>
+
+            {% else %}
+
+            <p class="done-step-hint">Copy the details below into your email, attach the PDF, and mark as sent.</p>
+
+            {% if email_details %}
+
+            {% include "_invoice_email_details.html" %}
+
+            {% endif %}
+
+            {% if invoice_number %}
+
+            {% with invoice_number=invoice_number, next_page='done', show_send_later=true, email_started=email_started %}
+
+            {% include "_invoice_send_actions.html" %}
+
+            {% endwith %}
+
+            {% endif %}
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+
+
+    <div class="done-step{% if step2_complete %} done-step-next{% else %} done-step-muted{% endif %}">
+
+        <span class="done-step-num">3</span>
+
+        <div class="done-step-body">
+
+            <p class="done-step-heading">Finished for now?</p>
+
+            {% if step2_complete %}
+
+            <p class="done-step-hint">Choose what you would like to do.</p>
+
+            <div class="done-step-actions">
+                <a href="{{ url_for('create_invoice', fresh=1, customer=customer) }}" class="btn btn-primary">Create another invoice</a>
+                <a href="{{ url_for('home') }}" class="btn btn-secondary">Go to Home</a>
+            </div>
+
+            {% else %}
+
+            <p class="done-step-hint">Complete step 2 first. Mark as sent or choose send later.</p>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}
+

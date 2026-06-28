@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+
+
+{% block title %}Your data · {{ brand_name }}{% endblock %}
+
+
+
+{% block content %}
+
+
+
+{% with step=3, total=4, title="Your data" %}
+
+{% include "_onboarding_stepper.html" %}
+
+{% endwith %}
+
+
+
+<h1>Where your data lives</h1>
+
+
+
+<p class="home-intro">Data stays on your PC unless you create an account.</p>
+
+
+
+<h2 class="welcome-subheading">On your computer</h2>
+
+
+
+<p>Settings, customers, and sales invoice history are always saved here:</p>
+
+<p class="storage-current-path-inline"><code>{{ config_folder }}</code></p>
+
+
+
+<ul class="welcome-list">
+
+    <li>Business settings and bank details</li>
+
+    <li>Customers and sales invoice history</li>
+
+    <li>Usage totals for this month</li>
+
+</ul>
+
+
+
+<p>Sales invoice PDF folder{% if using_default %} (default){% endif %}:</p>
+
+
+
+<div class="folder-picker-row">
+
+    <input type="text" class="folder-picker-path" value="{{ pdf_folder }}" readonly aria-label="PDF folder">
+
+    <form method="POST" action="{{ url_for('welcome_pick_data_folder') }}" class="folder-picker-browse-form">
+
+        <button type="submit" class="btn btn-secondary folder-picker-browse">Browse…</button>
+
+    </form>
+
+</div>
+
+
+
+<p class="folder-picker-hint">Optional. Browse to save PDFs elsewhere (e.g. OneDrive). Leave as-is to keep them in the AppData <code>pdfs</code> folder.</p>
+
+
+
+<h2 class="welcome-subheading">On the server (only with an account)</h2>
+
+
+
+<p>If you sign up, the billing server stores:</p>
+
+
+
+<ul class="welcome-list">
+
+    <li>Your email and password (hashed)</li>
+
+    <li>Verified usage totals and fee calculations</li>
+
+    <li>Platform fee billing records</li>
+
+</ul>
+
+
+
+<p>Your customers, sales invoice line items, and PDFs are <strong>not</strong> uploaded.</p>
+
+
+
+<div class="onboarding-actions onboarding-actions--center onboarding-actions--fill">
+
+    <a href="{{ url_for('welcome_done') }}" class="btn btn-primary">Continue</a>
+
+</div>
+
+
+
+{% endblock %}
+
