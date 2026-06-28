@@ -53,8 +53,8 @@ Code paths:
 Intended production stack:
 
 1. **Single billing instance** on Raspberry Pi (systemd autorestart; UPS recommended)
-2. **Cloudflare Tunnel**: public HTTPS on your domain; do not expose port 8080 on the WAN
-3. Billing API binds **`127.0.0.1:8080`** (`HOST=127.0.0.1`); only `cloudflared` connects locally
+2. **Cloudflare Tunnel**: public HTTPS on your domain; do not expose the billing port on the WAN
+3. Billing API binds **`127.0.0.1:8008`** on the Pi (`PORT=8008` in production; dev uses 8080); only `cloudflared` connects locally
 4. **TLS** terminates at Cloudflare
 5. **Secrets:** unique `JWT_SECRET` in a root-only env file on the Pi: never in repo or dev scripts for production
 6. **Distributed `.exe`:** built with production `https://api.frogswork.com`; users do not configure the server URL in normal flow
@@ -149,11 +149,11 @@ Not trusted from client without validation:
 # Example systemd env (root-only file)
 JWT_SECRET=<random-64-char-hex>
 HOST=127.0.0.1
-PORT=8080
-DATABASE_URL=/var/lib/frogswork/billing.db
+PORT=8008
+DATABASE_URL=/home/frogswork/frogswork/billing_server/billing.db
 ```
 
-Run `cloudflared` tunnel to `http://127.0.0.1:8080`. Build desktop releases with:
+Run `cloudflared` tunnel `frogswork-api` to `http://127.0.0.1:8008`. Build desktop releases with:
 
 ```powershell
 .\build_client.ps1 -BillingUrl "https://api.frogswork.com"

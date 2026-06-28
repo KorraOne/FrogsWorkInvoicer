@@ -1,38 +1,30 @@
 # FrogsWork marketing site
 
-Static site for **https://frogswork.com** — deployed via Cloudflare Worker **`frogswork-invoicer`** and root [`wrangler.toml`](../wrangler.toml).
+Static site at **https://frogswork.com**. Deployed via Cloudflare Worker **`frogswork-invoicer`** and root [`wrangler.toml`](../wrangler.toml).
 
-**Deploy checklist:** [`docs/commercial/DEPLOY.md`](../docs/commercial/DEPLOY.md)
+Release zips: **https://downloads.frogswork.com** (R2 — not in git).
+
+**Deploy / Pi:** [DEPLOY.md](../docs/commercial/DEPLOY.md) · [PI-SETUP.md](../billing_server/deploy/PI-SETUP.md)
 
 ## Pages
 
 | Path | Purpose |
 |------|---------|
-| `/` | Home, features, CTA |
-| `/pricing.html` | Free tier and platform fees |
-| `/download.html` | Latest zip (from `releases.json`) |
-| `/privacy.html` | Privacy policy |
-| `/terms.html` | Terms of use |
+| `/` | Home |
+| `/pricing.html` | Pricing |
+| `/download.html` | Latest release (`releases.json`) |
+| `/privacy.html` | Privacy |
+| `/terms.html` | Terms |
 
-## Distribution vs update metadata
-
-| Role | Host |
-|------|------|
-| **Zip file** (bytes) | `downloads.frogswork.com` (Cloudflare R2) |
-| **Update check** (version, URL, SHA256) | `api.frogswork.com` → `GET /releases/latest` |
-| **Marketing** | `frogswork.com` (Cloudflare Pages) |
-
-The desktop app asks the **billing API** whether an update exists, then downloads the zip from the URL in that response (R2).
-
-## Publish a release
-
-From repo root on Windows:
+## Publish a release (Windows)
 
 ```powershell
-.\scripts\package_client_release.ps1 -Version "1.0.0" -ReleaseNotes "First public release."
+.\scripts\package_client_release.ps1 -Version "1.0.0" -ReleaseNotes "Release note."
 ```
 
-Then follow steps 14–16 in [DEPLOY.md](../docs/commercial/DEPLOY.md): upload zip to R2, set `CLIENT_RELEASE_*` on Pi, push `releases.json` to Pages.
+1. Upload zip to R2
+2. Set `CLIENT_RELEASE_*` on Pi
+3. Push `marketing_site/releases.json` to `main`
 
 ## Local preview
 
@@ -41,10 +33,10 @@ cd marketing_site
 python -m http.server 8088
 ```
 
-Open http://127.0.0.1:8088/download.html
+## Cloudflare settings
 
-## Deploy
-
-**Cloudflare Pages:** output directory `marketing_site`, custom domain `frogswork.com`.
-
-Do **not** commit large zips. Only push HTML/CSS/JS and `releases.json`.
+| Setting | Value |
+|---------|--------|
+| Deploy command | `npx wrangler deploy` |
+| Build command | *(none)* |
+| Custom domain | `frogswork.com` |

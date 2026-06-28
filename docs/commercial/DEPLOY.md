@@ -1,360 +1,130 @@
 # FrogsWork production deploy
 
-Exact order to go from zero to a live product: marketing site, downloads, billing API on a Pi, and the first Windows release.
+Reference for **frogswork.com**, **api.frogswork.com**, and Pi hosting. For a fresh Pi, start with [`billing_server/deploy/PI-SETUP.md`](../../billing_server/deploy/PI-SETUP.md).
 
-**Domain map (production):**
+## Production layout
 
+| Host | Role |
+|------|------|
+| `frogswork.com` | Marketing (Cloudflare Worker + `wrangler.toml` → `marketing_site/`) |
+| `downloads.frogswork.com` | Release zips (R2) |
+| `api.frogswork.com` | Billing API + `/releases/latest` (Pi, port **8008**, tunnel `frogswork-api`) |
 
-| Host                      | Role                                                      |
-| ------------------------- | --------------------------------------------------------- |
-| `frogswork.com`           | Marketing site (Home, Pricing, Download, Privacy, Terms)  |
-| `downloads.frogswork.com` | Release zip files (Cloudflare R2 — large binaries)        |
-| `api.frogswork.com`       | Billing API + `/releases/latest` (Pi + Cloudflare Tunnel) |
+```
+Browser          → frogswork.com              (marketing + releases.json)
+Download         → downloads.frogswork.com    (R2 zip)
+Desktop app      → api.frogswork.com          (auth, usage, update metadata)
+Operator admin   → localhost:8008 via SSH     (/admin — not public)
+User data        → %APPDATA%\FrogsWork\       (on each PC)
+```
 
+**Pi paths:** repo `/home/frogswork/frogswork/` · secrets `/etc/frogswork/billing.env` · billing listens **`127.0.0.1:8008`** (8008 avoids clash with other local apps on 8080).
 
-Admin UI (`/admin`) is **not** on a public URL. Use SSH port-forward from your laptop (see step 12).
+**Two tunnels on one Pi:** existing `pi` tunnel (`my-webapp`) is unchanged. FrogsWork uses a separate **`cloudflared-frogswork.service`** (user `frogswork`, tunnel `frogswork-api`). Do **not** run `sudo cloudflared service install` — that conflicts with the existing setup.
 
 ---
 
-## Before you start
+## Fresh Pi (summary)
 
-- [x] Domain `**frogswork.com`** in Cloudflare (DNS active).
-- [x] Raspberry Pi on your network, Raspberry Pi OS updated, SSH working.
-- [x] Cloudflare account with **Zero Trust / Tunnel** enabled.
-- [x] Windows dev PC with this repo, Python 3.11+, PowerShell.
-- [ ] KorraOne business details ready (ABN, bank, address) for platform invoices.
-- [x] SMTP credentials if you want automatic platform invoice email.
-
-Generate two secrets on your laptop (save in a password manager):
-
-```bash
-openssl rand -hex 32   # JWT_SECRET
-openssl rand -hex 32   # FLASK_SECRET_KEY
-```
-
-Pick a strong `ADMIN_PASSWORD` for the operator admin UI.
+1. `sudo ./billing_server/deploy/pi-bootstrap.sh` — see [PI-SETUP.md](../../billing_server/deploy/PI-SETUP.md)
+2. Edit `/etc/frogswork/billing.env` (`PORT=8008`, secrets, `CLIENT_RELEASE_*`)
+3. `sudo systemctl start frogswork-billing`
+4. Create `frogswork-api` tunnel; install `cloudflared-frogswork.service`
+5. Verify `curl https://api.frogswork.com/health`
 
 ---
 
-## Phase A — Cloudflare DNS (15 min)
+## Ship a desktop release
 
-Do this first so certificates propagate while you set up the Pi.
-
-### 1. Marketing apex (Workers static assets + Git)
-
-Repo includes `[wrangler.toml](../../wrangler.toml)` at the root. Cloudflare project `**frogswork-invoicer**` should use:
-
-
-| Setting           | Value                                       |
-| ----------------- | ------------------------------------------- |
-| Git repository    | `KorraOne/FrogsWorkInvoicer` (or your fork) |
-| Production branch | `main`                                      |
-| Build command     | *(none)*                                    |
-| Deploy command    | `npx wrangler deploy`                       |
-| Root directory    | `/`                                         |
-
-
-1. Push `wrangler.toml` to `main` (triggers a deploy), or **Deployments → Retry deployment**.
-2. Confirm the `*.workers.dev` URL shows the marketing home page.
-3. In the Worker project → **Domains** → add `**frogswork.com*`* and optionally `**www.frogswork.com**`.
-
-Alternative: **Pages → Upload assets** if you prefer not to use Wrangler (see [marketing_site/README.md](../../marketing_site/README.md)).
-
-### 2. Download hosting (R2)
-
-PyInstaller zips are usually **>25 MB**, too large for Pages git deploy.
-
-1. **R2** → Create bucket `frogswork-releases` (private is fine).
-2. **Public access** → Allow public reads via custom domain `**downloads.frogswork.com`** (Cloudflare walks you through DNS).
-3. Note the public URL pattern: `https://downloads.frogswork.com/FrogsWork-1.0.0-win64.zip`.
-
-You will upload zips here in Phase D.
-
-### 3. API tunnel hostname
-
-Do not create an A record for `api` yet — **cloudflared** will create it in step 10.
-
----
-
-## Phase B — Raspberry Pi billing server (45–60 min)
-
-**From-scratch walkthrough:** [`billing_server/deploy/PI-SETUP.md`](../../billing_server/deploy/PI-SETUP.md)  
-**Automated bootstrap:** `sudo ./billing_server/deploy/pi-bootstrap.sh` (see PI-SETUP.md)
-
-**Chosen paths:**
-
-| Path | Purpose |
-|------|---------|
-| `/home/frogswork/frogswork/` | Git repo |
-| `/etc/frogswork/billing.env` | Secrets |
-| `/home/frogswork/backups/frogswork-billing/` | Backups |
-
-### 4. Create Linux user and directories
-
-On the Pi (SSH as default user, then):
-
-```bash
-sudo adduser --disabled-password --gecos "" frogswork
-sudo mkdir -p /etc/frogswork
-sudo chown root:root /etc/frogswork
-sudo chmod 700 /etc/frogswork
-sudo mkdir -p /home/frogswork/backups/frogswork-billing
-sudo chown -R frogswork:frogswork /home/frogswork/backups
-```
-
-### 5. Clone repo and Python venv
-
-As user `frogswork`:
-
-```bash
-sudo -u frogswork -i
-git clone https://github.com/KorraOne/FrogsWorkInvoicer.git ~/frogswork
-cd ~/frogswork/billing_server
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-exit
-```
-
-Replace `<your-repo-url>` with your actual remote. Pull-based updates later: `sudo -u frogswork git -C /home/frogswork/frogswork pull`.
-
-### 6. Production environment file
-
-On the Pi:
-
-```bash
-sudo cp /home/frogswork/frogswork/billing_server/deploy/production.env.example /etc/frogswork/billing.env
-sudo chmod 600 /etc/frogswork/billing.env
-sudo nano /etc/frogswork/billing.env
-```
-
-Set at minimum:
-
-- `JWT_SECRET`, `FLASK_SECRET_KEY`, `ADMIN_PASSWORD`
-- `KORRAONE_*` when ready to send real invoices
-- `SMTP_*` if using auto email
-- Leave `CLIENT_RELEASE_*` empty until Phase D
-
-**Keep `HOST=127.0.0.1`.** The API must not listen on the LAN/WAN directly.
-
-### 7. Install systemd services
-
-```bash
-sudo cp /home/frogswork/frogswork/billing_server/deploy/frogswork-billing.service /etc/systemd/system/
-sudo cp /home/frogswork/frogswork/billing_server/deploy/frogswork-auto-billing.service /etc/systemd/system/
-sudo cp /home/frogswork/frogswork/billing_server/deploy/frogswork-auto-billing.timer /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable frogswork-billing frogswork-auto-billing.timer
-sudo systemctl start frogswork-billing
-```
-
-Check:
-
-```bash
-curl -s http://127.0.0.1:8008/health
-# {"status":"ok"}
-```
-
-### 8. Daily backup cron
-
-```bash
-sudo chmod +x /home/frogswork/frogswork/billing_server/deploy/backup.sh
-sudo crontab -u frogswork -e
-```
-
-Add:
-
-```cron
-15 2 * * * /home/frogswork/frogswork/billing_server/deploy/backup.sh
-```
-
----
-
-## Phase C — Public API tunnel (20 min)
-
-### 9. Install cloudflared on Pi
-
-Follow [Cloudflare docs](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) for `arm64`/`armhf`, or:
-
-```bash
-# Example Debian/Bookworm — verify latest package from Cloudflare
-curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64.deb -o /tmp/cloudflared.deb
-sudo dpkg -i /tmp/cloudflared.deb
-```
-
-### 10. Create tunnel for api.frogswork.com
-
-As user `frogswork`:
-
-```bash
-cloudflared tunnel login
-cloudflared tunnel create frogswork-api
-cloudflared tunnel route dns frogswork-api api.frogswork.com
-```
-
-Copy example config:
-
-```bash
-mkdir -p ~/.cloudflared
-cp ~/frogswork/billing_server/deploy/cloudflared-config.yml.example ~/.cloudflared/config.yml
-# Edit credentials-file path if cloudflared put the json elsewhere
-nano ~/.cloudflared/config.yml
-```
-
-Install as system service (Cloudflare’s `cloudflared service install` or systemd unit from their docs). Start tunnel.
-
-### 11. Verify public API
-
-From your laptop (not the Pi):
-
-```bash
-curl -s https://api.frogswork.com/health
-# {"status":"ok"}
-```
-
-If this fails, fix tunnel/DNS before continuing.
-
----
-
-## Phase D — First client release (Windows dev PC)
-
-Do this **after** step 11 succeeds so the built exe points at a live API.
-
-### 12. Operator admin (SSH — not public)
-
-From your laptop:
-
-```bash
-ssh -L 8008:127.0.0.1:8008 pi@<pi-hostname-or-tailscale-ip>
-```
-
-Open http://127.0.0.1:8008/admin and log in with `ADMIN_PASSWORD`.
-
-See [operator-admin.md](operator-admin.md) for billing workflows.
-
-### 13. Set version and build
-
-On Windows, in repo root:
-
-1. Edit `client_app/app_config.py`:
-  - `APP_VERSION = "1.0.0"` (your release version)
-  - `APP_BRAND_URL = "https://frogswork.com"` *(already default after domain update)*
-2. Package release:
+On Windows (repo root):
 
 ```powershell
-.\scripts\package_client_release.ps1 `
-  -Version "1.0.0" `
-  -BillingUrl "https://api.frogswork.com" `
-  -MarketingSiteUrl "https://frogswork.com" `
-  -DownloadHost "https://downloads.frogswork.com" `
-  -ReleaseNotes "First public release."
+.\scripts\package_client_release.ps1 -Version "1.0.0" -ReleaseNotes "Your release note."
 ```
 
-This will:
+Then:
 
-- Build `FrogsWork.exe` with API URL baked in
-- Create zip + SHA256
-- Update `marketing_site/releases.json`
-- Copy zip to `marketing_site/downloads/` (local copy for reference)
-- Print `CLIENT_RELEASE_*` lines for the Pi
+1. Upload `client_app\dist\FrogsWork-x.y.z-win64.zip` to R2
+2. Set `CLIENT_RELEASE_*` in `/etc/frogswork/billing.env` on Pi → `sudo systemctl restart frogswork-billing`
+3. Push `marketing_site/releases.json` to `main` (Wrangler redeploys frogswork.com)
 
-### 14. Upload zip to R2
-
-Upload `client_app\dist\FrogsWork-1.0.0-win64.zip` to bucket `frogswork-releases` so it is available at:
-
-`https://downloads.frogswork.com/FrogsWork-1.0.0-win64.zip`
-
-Verify in browser (download starts).
-
-### 15. Enable updates on billing server
-
-On the Pi, edit `/etc/frogswork/billing.env`:
-
-```env
-CLIENT_RELEASE_VERSION=1.0.0
-CLIENT_RELEASE_URL=https://downloads.frogswork.com/FrogsWork-1.0.0-win64.zip
-CLIENT_RELEASE_SHA256=<from package script output>
-CLIENT_RELEASE_NOTES=First public release.
-```
-
-```bash
-sudo systemctl restart frogswork-billing
-curl -s https://api.frogswork.com/releases/latest
-```
-
-### 16. Deploy marketing site
-
-1. Commit and push `marketing_site/` changes (including updated `releases.json`). Use a **gitignore-safe** approach: do **not** commit multi‑MB zips; only `releases.json` and HTML/CSS/JS.
-2. Cloudflare Pages redeploys from git, or upload the `marketing_site/` folder manually.
-3. Open [https://frogswork.com](https://frogswork.com) — check Home, Pricing, Download.
-4. Download page should show version **1.0.0** and link to the R2 zip (via full URL in `releases.json`).
+Details: [RELEASE.md](RELEASE.md)
 
 ---
 
-## Phase E — Smoke test (15 min)
+## In-app updates (when you ship 1.0.1+)
 
-### 17. Fresh install test
-
-On a clean Windows PC (or VM):
-
-1. Download from [https://frogswork.com/download.html](https://frogswork.com/download.html)
-2. Extract to `%LOCALAPPDATA%\Programs\FrogsWork\`
-3. Run `FrogsWork.exe` — welcome flow, create a test invoice under free tier
-4. Optional: create account, confirm `https://api.frogswork.com` calls succeed (Settings → Your account)
-
-### 18. Update path test (optional before ship)
-
-1. Bump `APP_VERSION` to `1.0.1` locally, build `1.0.0` stays installed on test PC
-2. Upload `1.0.1` zip to R2, update `CLIENT_RELEASE_`* on Pi
-3. Open installed app while online — banner appears → **Update now** → app restarts on new version; AppData intact
-
----
-
-## Ongoing operations
-
-### Ship a new version
+Not required to test before v1.0.0 launch. When ready:
 
 1. Bump `APP_VERSION` in `client_app/app_config.py`
-2. Run `package_client_release.ps1` with new `-Version` and `-BillingUrl https://api.frogswork.com`
-3. Upload zip to R2
-4. Update `CLIENT_RELEASE_`* in `/etc/frogswork/billing.env` → `sudo systemctl restart frogswork-billing`
-5. Push updated `marketing_site/releases.json` (Pages redeploys)
+2. Run `package_client_release.ps1` with new version
+3. Upload zip to R2; update `CLIENT_RELEASE_*` on Pi
+4. Push `releases.json`
 
-### Pi code updates (billing server only)
-
-```bash
-sudo -u frogswork git -C /home/frogswork/frogswork pull
-sudo systemctl restart frogswork-billing
-```
-
-### Platform invoices
-
-- Automatic: `frogswork-auto-billing.timer` (daily) + SMTP in env
-- Manual: SSH admin tunnel → `/admin` → Generate, or `python run_billing_job.py` on Pi
-
-### Backups
-
-- Nightly `backup.sh` cron under user `frogswork`
-- Copy `/home/frogswork/backups/` off-Pi periodically
+Installed apps call `GET /releases/latest`, download from R2, verify SHA256, replace install folder. AppData unchanged.
 
 ---
 
-## Quick reference — who serves what
+## Marketing site (Cloudflare)
 
+| Setting | Value |
+|---------|--------|
+| Project | `frogswork-invoicer` (Workers static assets) |
+| Deploy command | `npx wrangler deploy` |
+| Config | Root [`wrangler.toml`](../../wrangler.toml) → `marketing_site/` |
+
+Custom domain: **Domains** → `frogswork.com`. Zips live on R2, not in git.
+
+---
+
+## Operator admin
+
+From Windows:
+
+```powershell
+ssh -L 8008:127.0.0.1:8008 pi@<pi-ip>
 ```
-User browser     → frogswork.com              (Pages: marketing + releases.json)
-User download    → downloads.frogswork.com    (R2: zip bytes)
-Desktop app      → api.frogswork.com          (Pi tunnel: auth, usage, /releases/latest)
-Operator admin   → localhost:8008 via SSH     (/admin — not public)
-User data        → %APPDATA%\FrogsWork\       (on each PC — never on your servers)
+
+http://127.0.0.1:8008/admin — see [operator-admin.md](operator-admin.md)
+
+---
+
+## Ongoing Pi maintenance
+
+```bash
+# Billing code update
+sudo -u frogswork git -C /home/frogswork/frogswork pull
+sudo systemctl restart frogswork-billing
+
+# Check services
+sudo systemctl status frogswork-billing cloudflared-frogswork
+
+# Logs
+journalctl -u frogswork-billing -n 50
+journalctl -u cloudflared-frogswork -n 50
 ```
+
+Backups: nightly cron from bootstrap → `/home/frogswork/backups/frogswork-billing/`
+
+---
+
+## Clean-machine test checklist
+
+- [ ] https://frogswork.com/download.html shows current version
+- [ ] Zip downloads from R2
+- [ ] Extract to `%LOCALAPPDATA%\Programs\FrogsWork\`, run exe
+- [ ] Welcome flow, create invoice (free tier, offline OK)
+- [ ] Optional: account sign-in, Settings → Your account shows server OK
+- [ ] `curl https://api.frogswork.com/releases/latest` returns JSON
+
+Update flow: test when shipping **1.0.1** (see [RELEASE.md](RELEASE.md)).
 
 ---
 
 ## Related docs
 
-- [RELEASE.md](RELEASE.md) — install layout, in-app update mechanics
-- [marketing_site/README.md](../../marketing_site/README.md) — site structure
-- [security-risk-model.md](security-risk-model.md) — threat model and checklist
-- [operator-admin.md](operator-admin.md) — admin UI workflows
-- [billing_server/deploy/README.md](../../billing_server/deploy/README.md) — Pi file list
-
+- [PI-SETUP.md](../../billing_server/deploy/PI-SETUP.md) — Pi from scratch
+- [RELEASE.md](RELEASE.md) — install layout, update mechanics
+- [marketing_site/README.md](../../marketing_site/README.md)
+- [operator-admin.md](operator-admin.md)
+- [security-risk-model.md](security-risk-model.md)

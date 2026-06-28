@@ -1,44 +1,46 @@
 # Billing server
 
-Flask API for FrogsWork account registration, JWT auth, usage commits, cap enforcement, and operator admin UI.
+Flask API for FrogsWork accounts, usage, and operator admin.
 
-- **Production API:** `https://api.frogswork.com`
-- **Local dev:** `http://127.0.0.1:8080`
+| Environment | URL |
+|-------------|-----|
+| **Production API** | `https://api.frogswork.com` |
+| **Production admin** | SSH tunnel → `http://127.0.0.1:8008/admin` (not public) |
+| **Local dev** | `http://127.0.0.1:8080` |
+
 - **Database:** SQLite `billing.db` (runtime, not committed)
-- **Admin UI:** `/admin` (password-protected; **not** exposed publicly in production)
 - **Client:** [`../client_app/billing_client.py`](../client_app/billing_client.py) (HTTP only)
 
-## Production deploy
+## Production (Pi)
 
-**Follow [`../docs/commercial/DEPLOY.md`](../docs/commercial/DEPLOY.md)** — Pi setup, Cloudflare Tunnel, systemd, first release.
+**Setup:** [PI-SETUP.md](deploy/PI-SETUP.md) · [DEPLOY.md](../docs/commercial/DEPLOY.md)
 
-Deploy files: [`deploy/`](deploy/)
+**Deploy files:** [deploy/](deploy/)
 
 ## Local dev
 
-Copy `.env.example` to `.env` and edit as needed.
+Copy `.env.example` to `.env`. From `billing_server/`:
 
 ```powershell
-cd billing_server
 pip install -r requirements.txt
 python app.py
 ```
 
-Or from repo root: `.\scripts\dev-test.ps1 -Action StartServer`
+Admin: http://127.0.0.1:8080/admin
 
-Admin: http://127.0.0.1:8080/admin (`ADMIN_PASSWORD` from `.env`, default `dev-admin`).
+Or from repo root: `.\scripts\dev-test.ps1 -Action StartServer`
 
 ## Operator admin (production)
 
-Do **not** browse `/admin` on `api.frogswork.com`. From your laptop:
+SSH as **`pi`**, forward port **8008**:
 
-```bash
-ssh -L 8080:127.0.0.1:8080 frogswork@<pi-host>
+```powershell
+ssh -L 8008:127.0.0.1:8008 pi@<pi-ip>
 ```
 
-Open http://127.0.0.1:8080/admin
+http://127.0.0.1:8008/admin
 
-See [`../docs/commercial/operator-admin.md`](../docs/commercial/operator-admin.md).
+See [operator-admin.md](../docs/commercial/operator-admin.md).
 
 ## Platform fee invoices
 
@@ -46,10 +48,4 @@ See [`../docs/commercial/operator-admin.md`](../docs/commercial/operator-admin.m
 python run_billing_job.py --quarter 1 --year 2026
 ```
 
-Or **Generate** in admin UI. Automatic daily job: `frogswork-auto-billing.timer` (see deploy/).
-
-## Docs
-
-- [DEPLOY.md](../docs/commercial/DEPLOY.md) — production checklist
-- [security-risk-model.md](../docs/commercial/security-risk-model.md) — threat model
-- [operator-admin.md](../docs/commercial/operator-admin.md) — admin workflows
+Automatic daily job: `frogswork-auto-billing.timer` (see deploy/).

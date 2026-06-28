@@ -1,17 +1,16 @@
-# Pi deploy files
+# Deploy files (Raspberry Pi)
 
-Systemd units, Cloudflare Tunnel example, production env template, and backup script for the billing server.
-
-**Follow the numbered checklist in [`docs/commercial/DEPLOY.md`](../../docs/commercial/DEPLOY.md)** — that is the canonical deploy order.
+**Start here:** [PI-SETUP.md](PI-SETUP.md) · [DEPLOY.md](../../docs/commercial/DEPLOY.md)
 
 | File | Purpose |
 |------|---------|
-| `production.env.example` | Copy to `/etc/frogswork/billing.env` on the Pi |
-| `frogswork-billing.service` | systemd unit for `python app.py` |
+| `pi-bootstrap.sh` | First-time setup: user, clone, venv, env, systemd, backup cron |
+| `PI-SETUP.md` | Step-by-step Pi guide |
+| `production.env.example` | Template → `/etc/frogswork/billing.env` |
+| `frogswork-billing.service` | Billing API on `127.0.0.1:8008` |
+| `cloudflared-frogswork.service` | Tunnel `frogswork-api` → `api.frogswork.com` (separate from `pi` tunnel) |
+| `cloudflared-config.yml.example` | Ingress → `http://127.0.0.1:8008` |
 | `frogswork-auto-billing.service` + `.timer` | Daily platform invoice job |
-| `cloudflared-frogswork.service` | systemd unit for `api.frogswork.com` tunnel (user frogswork) |
-| `cloudflared-config.yml.example` | `api.frogswork.com` → `127.0.0.1:8008` |
-| `pi-bootstrap.sh` | First-time Pi setup (user, clone, venv, systemd) |
-| `PI-SETUP.md` | Step-by-step Pi guide from zero |
+| `backup.sh` | Nightly `billing.db` + PDF backup |
 
-Paths assume repo clone at `/home/frogswork/frogswork/` and Linux user `frogswork`. Adjust before installing.
+Paths assume clone at `/home/frogswork/frogswork/` and Linux user `frogswork`.
