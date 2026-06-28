@@ -1,7 +1,7 @@
-{
-  "version": "",
-  "download_path": "",
-  "sha256": "",
-  "notes": "",
-  "published_at": ""
+﻿{
+    "published_at":  "2026-06-28",
+    "sha256":  "6781632ba41eaea68d45208b69319978fbd9baab6955317ece03ad95de55b114",
+    "version":  "1.0.0",
+    "download_path":  "https://downloads.frogswork.com/FrogsWork-1.0.0-win64.zip",
+    "notes":  "First public release."
 }

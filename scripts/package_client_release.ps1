@@ -58,7 +58,7 @@ Set-Content -Path (Join-Path $MarketingDir "releases.json") -Value $manifest -En
 
 Write-Host ""
 Write-Host "Release package: $ZipPath"
-Write-Host "Local copy:      $MarketingZipPath (upload to R2 — do not commit large zips)"
+Write-Host "Local copy:      $MarketingZipPath (upload to R2; do not commit large zips)"
 Write-Host "Public URL:      $DownloadUrl"
 Write-Host "SHA256: $hash"
 Write-Host ""

@@ -29,7 +29,7 @@ APP_WINDOW_MIN_WIDTH = 900
 APP_WINDOW_MIN_HEIGHT = 640
 
 # Minimum time the splash stays visible (seconds), measured from first paint.
-APP_SPLASH_MIN_SECONDS = 5.0
+APP_SPLASH_MIN_SECONDS = 3.0
 
 # Temporary Settings entry for logo design outreach. Remove in a later release.
 SHOW_LOGO_DESIGN_SETTINGS = True
