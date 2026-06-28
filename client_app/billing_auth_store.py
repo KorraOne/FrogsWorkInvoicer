@@ -66,10 +66,14 @@ def is_authenticated():
 
 
 def get_server_url():
-    auth = load_auth()
-    url = auth.get("server_url") or os.environ.get(
-        "BILLING_SERVER_URL", DEFAULT_BILLING_SERVER_URL
+    env_url = (
+        os.environ.get("BILLING_SERVER_URL", "").strip()
+        or os.environ.get("FROGSWORK_BILLING_URL", "").strip()
     )
+    if env_url:
+        return env_url.rstrip("/")
+    auth = load_auth()
+    url = auth.get("server_url") or DEFAULT_BILLING_SERVER_URL
     return url.rstrip("/")
 
 

@@ -1,6 +1,7 @@
 """FrogsWork client routes: billing UI, account, dashboard, backup."""
 
 import io
+import logging
 import os
 import shutil
 import zipfile
@@ -25,6 +26,8 @@ import billing_local
 import billing_messages
 import storage
 from billing_client import BillingError, BillingOfflineError
+
+log = logging.getLogger(__name__)
 
 
 def register_client_routes(app, helpers):
@@ -333,6 +336,7 @@ def register_client_routes(app, helpers):
                     form=request.form,
                 )
             except Exception:
+                log.exception("Account signup failed")
                 return render_template(
                     "account_cap.html",
                     error=billing_messages.GENERIC_BILLING_ERROR,

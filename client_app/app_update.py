@@ -80,7 +80,7 @@ def fetch_latest_release():
     if not billing_client.check_server_available():
         return None
     url = billing_auth_store.get_server_url().rstrip("/") + "/releases/latest"
-    req = urllib.request.Request(url, headers={"Accept": "application/json"}, method="GET")
+    req = urllib.request.Request(url, headers=billing_client.api_headers(), method="GET")
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             if resp.status == 204:
@@ -159,7 +159,7 @@ def _sha256_file(path):
 
 
 def _download_file(url, dest):
-    req = urllib.request.Request(url, method="GET")
+    req = urllib.request.Request(url, headers=billing_client.api_headers(), method="GET")
     with urllib.request.urlopen(req, timeout=300) as resp, open(dest, "wb") as out:
         shutil.copyfileobj(resp, out)
 

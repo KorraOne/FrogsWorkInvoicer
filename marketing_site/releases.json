@@ -1,7 +1,7 @@
 {
-  "notes": "Fix startup after downloading on Windows.",
+  "notes": "",
   "version": "1.0.1",
   "published_at": "2026-06-28",
   "download_path": "https://downloads.frogswork.com/FrogsWork-1.0.1-win64.zip",
-  "sha256": "04873f2781508c2ad252ecc9606efbb2c296d9f396c743936ec0f882ce01d341"
+  "sha256": "f297ec184ca5c68e086adde9b9c821a46e6d52512025cfdb39f8f0ca017ae18c"
 }

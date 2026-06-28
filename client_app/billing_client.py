@@ -1,6 +1,7 @@
 """HTTP client for the KorraOne billing server."""
 
 import json
+import logging
 import urllib.error
 import urllib.request
 from decimal import Decimal
@@ -10,6 +11,21 @@ import billing_core
 import billing_ledger
 import billing_local
 import billing_messages
+
+log = logging.getLogger(__name__)
+
+
+def api_headers(extra=None):
+    """Headers for billing API calls (Cloudflare blocks default Python urllib)."""
+    from app_config import APP_BRAND_NAME, APP_VERSION
+
+    headers = {
+        "User-Agent": f"{APP_BRAND_NAME}/{APP_VERSION} (Windows; Desktop)",
+        "Accept": "application/json",
+    }
+    if extra:
+        headers.update(extra)
+    return headers
 
 
 class BillingError(Exception):
@@ -32,7 +48,7 @@ class CapBlockedError(BillingError):
 
 def _request(method, path, body=None, auth=True, _retried=False):
     url = billing_auth_store.get_server_url() + path
-    headers = {"Content-Type": "application/json", "Accept": "application/json"}
+    headers = api_headers({"Content-Type": "application/json"})
     if auth:
         tokens = billing_auth_store.load_auth()
         if tokens.get("access_token"):
@@ -53,6 +69,7 @@ def _request(method, path, body=None, auth=True, _retried=False):
         except Exception:
             detail = {}
             msg = exc.reason
+        log.warning("Billing API %s %s -> HTTP %s: %s", method, path, exc.code, msg)
         if exc.code == 401 and auth and not _retried:
             auth_data = billing_auth_store.load_auth()
             refresh_token = auth_data.get("refresh_token")
@@ -70,16 +87,19 @@ def _request(method, path, body=None, auth=True, _retried=False):
                     pass
             billing_auth_store.clear_auth()
             raise BillingError(billing_messages.SESSION_EXPIRED)
-        if exc.code == 401:
+        if exc.code == 401 and auth:
             billing_auth_store.clear_auth()
             raise BillingError(billing_messages.SESSION_EXPIRED)
         if exc.code == 403 and "account" in str(msg).lower():
             raise AccountRequiredError(msg)
+        if exc.code == 403:
+            raise BillingOfflineError(billing_messages.OFFLINE_CONNECT)
         if exc.code == 409:
             preview = detail.get("preview") if isinstance(detail, dict) else {}
             raise CapBlockedError(msg, preview)
         raise BillingError(msg)
     except urllib.error.URLError as exc:
+        log.warning("Billing API %s %s unreachable: %s", method, path, exc.reason)
         raise BillingOfflineError(billing_messages.OFFLINE_CONNECT) from exc
 
 
@@ -93,8 +113,9 @@ def _local_usage_fallback(session_expired=False):
 
 def check_server_available():
     url = billing_auth_store.get_server_url() + "/health"
+    req = urllib.request.Request(url, headers=api_headers(), method="GET")
     try:
-        with urllib.request.urlopen(url, timeout=3) as resp:
+        with urllib.request.urlopen(req, timeout=3) as resp:
             return resp.status == 200
     except Exception:
         return False

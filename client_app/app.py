@@ -1236,12 +1236,9 @@ def settings_account():
     import billing_client
     import billing_local
 
-    services_ok = None
-    if billing_auth_store.is_authenticated():
-        services_ok = billing_client.check_server_available()
     return render_template(
         "settings_account.html",
-        account_services_ok=services_ok,
+        account_services_ok=billing_client.check_server_available(),
         ledger_invalid=billing_local.is_ledger_invalid(),
     )
 
