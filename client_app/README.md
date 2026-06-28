@@ -23,4 +23,8 @@ Commercial desktop sales invoicing app. Forked from [`../invoice_app/`](../invoi
 
 ```powershell
 .\build_client.ps1
+# Full release (installer + update zip):
+.\scripts\package_client_release.ps1 -Version "1.1.0" -ReleaseNotes "..."
 ```
+
+Install: **Inno Setup** `FrogsWork-x.y.z-setup.exe` → `%LOCALAPPDATA%\Programs\FrogsWork\`. See [RELEASE.md](../docs/commercial/RELEASE.md).

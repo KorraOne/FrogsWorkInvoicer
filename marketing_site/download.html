@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Download — FrogsWork</title>
+    <title>Download FrogsWork</title>
     <meta name="description" content="Download FrogsWork for Windows. Local sales invoicing for Australian sole traders.">
     <link rel="stylesheet" href="/css/site.css">
 </head>
@@ -22,32 +22,40 @@
     </header>
 
     <main class="site-main">
-        <h1 class="section-heading">Download for Windows</h1>
-        <p class="section-lead">Run the installer for a new install. Your invoices and settings are stored separately in AppData and can be exported to Downloads when you uninstall.</p>
+        <h1 class="section-heading">Download FrogsWork</h1>
+        <p class="section-lead">Install FrogsWork on your Windows PC. Your invoices and customer records stay on your computer, not in the cloud.</p>
 
         <div class="download-panel">
-            <p id="release-notes" hidden></p>
-            <a id="download-btn" class="btn btn-primary" href="#" aria-disabled="true">Download FrogsWork</a>
-            <p class="download-meta">Version <span id="release-version">—</span> · Windows 10 or later · 64-bit</p>
-            <p class="download-meta" hidden>SHA256: <code id="release-sha256"></code></p>
-            <p id="download-fallback" class="download-meta">The latest build has not been uploaded yet. Check back soon or contact <a href="https://korraone.com/support">support</a>.</p>
+            <div class="download-cta">
+                <a id="download-btn" class="btn btn-primary btn-download" href="#" aria-disabled="true">Download for Windows</a>
+                <p class="download-meta">Version <span id="release-version">…</span>. Windows 10 or later, 64-bit.</p>
+                <p id="download-fallback" class="download-meta">The latest build has not been uploaded yet. Check back soon or contact <a href="https://korraone.com/support">support</a>.</p>
+            </div>
 
-            <h2 style="margin-top:2rem;font-size:1.15rem;color:var(--fw-green-900);">Install steps</h2>
-            <ol class="steps">
-                <li>Download and run <strong>FrogsWork-<span id="release-version-steps">—</span>-setup.exe</strong>.</li>
-                <li>Follow the installer. The app installs to <code>%LOCALAPPDATA%\Programs\FrogsWork\</code> (you can change the folder).</li>
-                <li>Your invoices and settings live in <code>%APPDATA%\FrogsWork\</code> — separate from the program files.</li>
-                <li>If Windows SmartScreen warns about the download, choose <strong>More info</strong> → <strong>Run anyway</strong> (the file is not signed yet).</li>
-            </ol>
+            <section class="download-section">
+                <h2>How to install</h2>
+                <ol class="steps">
+                    <li>Click the download button above and wait for the file to finish downloading.</li>
+                    <li>Open the installer and follow the on-screen prompts. The default location is fine for most people.</li>
+                    <li>Launch FrogsWork from the Start menu when installation is complete.</li>
+                </ol>
+                <p class="download-hint">If Windows shows a security warning about an unknown publisher, choose <strong>More info</strong>, then <strong>Run anyway</strong>. The installer is not signed yet.</p>
+            </section>
 
-            <h2 style="margin-top:1.75rem;font-size:1.15rem;color:var(--fw-green-900);">Requirements</h2>
-            <ul class="steps">
-                <li>Microsoft Edge <strong>WebView2 Runtime</strong> (usually already installed on Windows 11).</li>
-                <li>Internet optional on the free tier; required for account sign-in and fee-bearing usage.</li>
-            </ul>
+            <section class="download-section">
+                <h2>Your invoices and settings</h2>
+                <p>FrogsWork keeps your data in its own folder on your PC, separate from the program itself. If you uninstall, you can export your invoices to your Downloads folder first.</p>
+            </section>
 
-            <h2 style="margin-top:1.75rem;font-size:1.15rem;color:var(--fw-green-900);">Updates</h2>
-            <p class="download-meta" style="margin-top:0.5rem;">When a newer version is available, the app shows a banner after it connects to <strong>api.frogswork.com</strong>. Choose <strong>Update now</strong> to download from <strong>downloads.frogswork.com</strong> and restart. Your AppData is not changed.</p>
+            <section class="download-section">
+                <h2>Automatic updates</h2>
+                <p>When you are online, FrogsWork checks for newer versions and offers to install them from inside the app. Your invoices and settings are not changed by an update.</p>
+            </section>
+
+            <details class="version-history" id="version-history">
+                <summary>Version history</summary>
+                <ol class="version-history-list" id="version-history-list"></ol>
+            </details>
         </div>
     </main>
 

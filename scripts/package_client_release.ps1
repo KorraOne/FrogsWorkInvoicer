@@ -71,6 +71,32 @@ Copy-Item -Force $SetupPath $MarketingSetupPath
 $setupHash = (Get-FileHash -Path $SetupPath -Algorithm SHA256).Hash.ToLower()
 $publishedAt = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd")
 
+$releasesPath = Join-Path $MarketingDir "releases.json"
+$history = @()
+if (Test-Path $releasesPath) {
+    try {
+        $existing = Get-Content -Raw -Path $releasesPath | ConvertFrom-Json
+        if ($existing.history) {
+            $history = @($existing.history | Where-Object { $_.version -ne $Version })
+        } elseif ($existing.version -and $existing.version -ne $Version) {
+            $history = @(@{
+                version      = $existing.version
+                published_at = $existing.published_at
+                notes        = $existing.notes
+            })
+        }
+    } catch {
+        Write-Warning "Could not read existing releases.json; starting fresh history."
+    }
+}
+
+$newEntry = @{
+    version      = $Version
+    published_at = $publishedAt
+    notes        = $ReleaseNotes
+}
+$history = @($newEntry) + $history
+
 $manifest = @{
     version            = $Version
     download_path      = $SetupDownloadUrl
@@ -79,9 +105,10 @@ $manifest = @{
     sha256             = $zipHash
     notes              = $ReleaseNotes
     published_at       = $publishedAt
-} | ConvertTo-Json -Depth 3
+    history            = $history
+} | ConvertTo-Json -Depth 4
 
-Set-Content -Path (Join-Path $MarketingDir "releases.json") -Value $manifest -Encoding utf8
+Set-Content -Path $releasesPath -Value $manifest -Encoding utf8
 
 Write-Host ""
 Write-Host "Setup (marketing):  $SetupPath"

@@ -2,7 +2,10 @@
 
 Static site at **https://frogswork.com**. Deployed via Cloudflare Worker **`frogswork-invoicer`** and root [`wrangler.toml`](../wrangler.toml).
 
-Release zips: **https://downloads.frogswork.com** (R2 — not in git).
+Release files: **https://downloads.frogswork.com** (R2, not in git):
+
+- **`FrogsWork-x.y.z-setup.exe`** — linked from `/download.html` via `releases.json` → `download_path`
+- **`FrogsWork-x.y.z-win64.zip`** — in-app updates only (Pi `CLIENT_RELEASE_*`)
 
 **Deploy / Pi:** [DEPLOY.md](../docs/commercial/DEPLOY.md) · [PI-SETUP.md](../billing_server/deploy/PI-SETUP.md)
 
@@ -19,12 +22,16 @@ Release zips: **https://downloads.frogswork.com** (R2 — not in git).
 ## Publish a release (Windows)
 
 ```powershell
-.\scripts\package_client_release.ps1 -Version "1.0.0" -ReleaseNotes "Release note."
+.\scripts\package_client_release.ps1 -Version "1.1.0" -ReleaseNotes "Release note."
 ```
 
-1. Upload zip to R2
-2. Set `CLIENT_RELEASE_*` on Pi
-3. Push `marketing_site/releases.json` to `main`
+Then:
+
+1. Upload **setup.exe** and **zip** to R2
+2. Set `CLIENT_RELEASE_*` on Pi (zip URL + zip SHA256)
+3. Push `marketing_site/releases.json` and deploy (`npx wrangler deploy`)
+
+See [DEPLOY.md](../docs/commercial/DEPLOY.md) for the full checklist.
 
 ## Local preview
 

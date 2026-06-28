@@ -44,7 +44,7 @@ sudo nano /etc/frogswork/billing.env
 | `PORT` | `8008` |
 | `BASE_URL` | `https://api.frogswork.com` |
 | `ADMIN_PASSWORD` | Strong operator password |
-| `CLIENT_RELEASE_*` | Set after first zip is on R2 (version, URL, SHA256, notes) |
+| `CLIENT_RELEASE_*` | After release is on R2: **zip** URL + zip SHA256 for in-app updates (not the setup exe) |
 
 ```bash
 sudo systemctl start frogswork-billing

@@ -58,11 +58,11 @@ Use `$env:FROGSWORK_DEV_BROWSER = "1"` or `python app.py --dev-browser` for a no
 # Production API URL (baked into exe):
 .\build_client.ps1 -BillingUrl "https://api.frogswork.com"
 
-# Full release (build + zip + manifest):
-.\scripts\package_client_release.ps1 -Version "1.0.0" -ReleaseNotes "First release."
+# Full release (build + installer + zip + manifest):
+.\scripts\package_client_release.ps1 -Version "1.1.0" -ReleaseNotes "Release note."
 ```
 
-Output: `client_app\dist\FrogsWork\FrogsWork.exe`
+Outputs: `client_app\dist\FrogsWork\`, `FrogsWork-x.y.z-setup.exe`, `FrogsWork-x.y.z-win64.zip`, `marketing_site\releases.json`. Requires **Inno Setup 6** on the build PC. See [RELEASE.md](RELEASE.md).
 
 ```powershell
 .\scripts\dev-test.ps1 -Action TestOffline -Force   # free tier, no server

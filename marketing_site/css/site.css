@@ -1,4 +1,4 @@
-/* FrogsWork marketing site — tokens aligned with client_app/static/theme.css */
+/* FrogsWork marketing site: tokens aligned with client_app/static/theme.css */
 
 :root {
     --fw-bg-page: #f0fdf4;
@@ -334,25 +334,127 @@ img {
     max-width: 40rem;
 }
 
+.download-cta {
+    padding-bottom: 1.75rem;
+    margin-bottom: 1.75rem;
+    border-bottom: 1px solid var(--fw-border);
+}
+
+.btn-download {
+    min-width: 14rem;
+    font-size: 1.15rem;
+    padding: 1rem 1.75rem;
+}
+
+.download-section {
+    margin-bottom: 1.75rem;
+}
+
+.download-section:last-of-type {
+    margin-bottom: 0;
+}
+
+.download-section h2 {
+    margin: 0 0 0.65rem;
+    font-size: 1.15rem;
+    color: var(--fw-green-900);
+}
+
+.download-section p {
+    margin: 0;
+    color: var(--fw-text-muted);
+}
+
 .download-meta {
     margin-top: 1rem;
     font-size: 0.95rem;
     color: var(--fw-text-muted);
-    word-break: break-all;
 }
 
-.download-meta code {
-    font-size: 0.85rem;
+.download-hint {
+    margin-top: 1rem;
+    font-size: 0.95rem;
+    color: var(--fw-text-muted);
 }
 
 .steps {
-    margin: 1.25rem 0 0;
+    margin: 0;
     padding-left: 1.25rem;
     color: var(--fw-text-muted);
 }
 
 .steps li {
     margin-bottom: 0.65rem;
+}
+
+.steps li:last-child {
+    margin-bottom: 0;
+}
+
+.version-history {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--fw-border);
+}
+
+.version-history summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--fw-green-800);
+    list-style: none;
+}
+
+.version-history summary::-webkit-details-marker {
+    display: none;
+}
+
+.version-history summary::before {
+    content: "+";
+    display: inline-block;
+    width: 1.1rem;
+    margin-right: 0.35rem;
+    color: var(--fw-green-700);
+}
+
+.version-history[open] summary::before {
+    content: "−";
+}
+
+.version-history-list {
+    list-style: none;
+    margin: 1rem 0 0;
+    padding: 0;
+}
+
+.version-history-item {
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--fw-border);
+}
+
+.version-history-item:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+}
+
+.version-history-heading {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.35rem 0.75rem;
+    color: var(--fw-green-900);
+}
+
+.version-history-date {
+    font-size: 0.9rem;
+    font-weight: 400;
+    color: var(--fw-text-muted);
+}
+
+.version-history-notes {
+    margin: 0.35rem 0 0;
+    font-size: 0.95rem;
+    color: var(--fw-text-muted);
 }
 
 .prose h2 {
