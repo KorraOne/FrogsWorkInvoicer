@@ -49,11 +49,14 @@ No zip extraction or first-run relocate step. Requires **Inno Setup 6** on the b
 
 From **Settings → Apps → FrogsWork → Uninstall** (or Start menu uninstall entry):
 
-1. Optional (default on): export invoice PDFs to `Downloads\FrogsWork-Uninstall-{date}\pdfs\`
-2. Remove program files from `%LOCALAPPDATA%\Programs\FrogsWork\`
-3. Remove all local data from `%APPDATA%\FrogsWork\`
+1. Any running FrogsWork process is closed automatically
+2. Invoice PDFs are copied silently to `Downloads\FrogsWork-Uninstall-{date}\pdfs\` (see `README.txt` there)
+3. Program files are removed from `%LOCALAPPDATA%\Programs\FrogsWork\` (retried if a folder lock delayed deletion)
+4. All local data is removed from `%APPDATA%\FrogsWork\`
 
-Implemented via Inno `[UninstallRun]` calling `FrogsWork.exe --export-uninstall-data` and `[UninstallDelete]` for AppData.
+If the install folder could not be deleted (for example File Explorer had it open), uninstall finishes with one message naming the folder to delete manually.
+
+Implemented via Inno `[UninstallRun]` calling `FrogsWork.exe --export-uninstall-data`, `[UninstallDelete]` for AppData, and installer script cleanup for running processes and leftover program files.
 
 ## Build requirements (operator)
 

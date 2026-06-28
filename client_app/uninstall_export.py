@@ -21,44 +21,27 @@ def _downloads_dir():
     return os.path.join(userprofile, "Downloads")
 
 
-def _message_box(text, title=None, error=False):
-    if os.name != "nt":
-        print(text)
-        return
-    import ctypes
-
-    flags = 0x00000010 if error else 0x00000040
-    ctypes.windll.user32.MessageBoxW(0, text, title or APP_BRAND_NAME, 0x00000000 | flags)
-
-
 def export_for_uninstall():
+    """Copy invoice PDFs to Downloads silently. Never blocks uninstall."""
     downloads = _downloads_dir()
     if not downloads or not os.path.isdir(downloads):
-        _message_box(
-            "Could not find your Downloads folder.\n\nUninstall will continue without exporting PDFs.",
-            error=True,
-        )
-        return 1
+        return 0
 
     try:
         pdf_dir = storage.get_pdf_dir()
-    except Exception as exc:
-        _message_box(f"Could not read PDF folder settings:\n{exc}", error=True)
-        return 1
-
-    stamp = date.today().isoformat()
-    export_root = os.path.join(downloads, f"FrogsWork-Uninstall-{stamp}")
-    export_pdfs = os.path.join(export_root, "pdfs")
+    except Exception:
+        return 0
 
     pdfs = []
     if os.path.isdir(pdf_dir):
         pdfs = [name for name in os.listdir(pdf_dir) if name.lower().endswith(".pdf")]
 
     if not pdfs:
-        _message_box(
-            "No invoice PDFs were found to export.\n\nYour FrogsWork data will be removed from this PC.",
-        )
         return 0
+
+    stamp = date.today().isoformat()
+    export_root = os.path.join(downloads, f"FrogsWork-Uninstall-{stamp}")
+    export_pdfs = os.path.join(export_root, "pdfs")
 
     try:
         os.makedirs(export_pdfs, exist_ok=True)
@@ -76,14 +59,9 @@ def export_for_uninstall():
                 f"{copied} invoice PDF(s) were copied from:\n  {pdf_dir}\n\n"
                 f"to:\n  {export_pdfs}\n"
             )
-    except OSError as exc:
-        _message_box(f"Could not export PDFs to Downloads:\n{exc}", error=True)
-        return 1
+    except OSError:
+        return 0
 
-    _message_box(
-        f"Exported {copied} invoice PDF(s) to:\n\n{export_root}\n\n"
-        "Your other FrogsWork data on this PC will now be removed.",
-    )
     return 0
 
 
