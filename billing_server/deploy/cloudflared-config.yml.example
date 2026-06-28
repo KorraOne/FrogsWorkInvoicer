@@ -13,5 +13,5 @@ credentials-file: /home/frogswork/.cloudflared/frogswork-api.json
 
 ingress:
   - hostname: api.frogswork.com
-    service: http://127.0.0.1:8080
+    service: http://127.0.0.1:8008
   - service: http_status:404

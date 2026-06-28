@@ -150,7 +150,7 @@ sudo systemctl start frogswork-billing
 Check:
 
 ```bash
-curl -s http://127.0.0.1:8080/health
+curl -s http://127.0.0.1:8008/health
 # {"status":"ok"}
 ```
 
@@ -224,10 +224,10 @@ Do this **after** step 11 succeeds so the built exe points at a live API.
 From your laptop:
 
 ```bash
-ssh -L 8080:127.0.0.1:8080 frogswork@<pi-hostname-or-tailscale-ip>
+ssh -L 8008:127.0.0.1:8008 pi@<pi-hostname-or-tailscale-ip>
 ```
 
-Open [http://127.0.0.1:8080/admin](http://127.0.0.1:8080/admin) and log in with `ADMIN_PASSWORD`.
+Open http://127.0.0.1:8008/admin and log in with `ADMIN_PASSWORD`.
 
 See [operator-admin.md](operator-admin.md) for billing workflows.
 
@@ -344,7 +344,7 @@ sudo systemctl restart frogswork-billing
 User browser     → frogswork.com              (Pages: marketing + releases.json)
 User download    → downloads.frogswork.com    (R2: zip bytes)
 Desktop app      → api.frogswork.com          (Pi tunnel: auth, usage, /releases/latest)
-Operator admin   → localhost:8080 via SSH     (/admin — not public)
+Operator admin   → localhost:8008 via SSH     (/admin — not public)
 User data        → %APPDATA%\FrogsWork\       (on each PC — never on your servers)
 ```
 

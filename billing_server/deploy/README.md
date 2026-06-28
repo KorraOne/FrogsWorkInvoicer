@@ -9,7 +9,8 @@ Systemd units, Cloudflare Tunnel example, production env template, and backup sc
 | `production.env.example` | Copy to `/etc/frogswork/billing.env` on the Pi |
 | `frogswork-billing.service` | systemd unit for `python app.py` |
 | `frogswork-auto-billing.service` + `.timer` | Daily platform invoice job |
-| `cloudflared-config.yml.example` | `api.frogswork.com` → `127.0.0.1:8080` |
+| `cloudflared-frogswork.service` | systemd unit for `api.frogswork.com` tunnel (user frogswork) |
+| `cloudflared-config.yml.example` | `api.frogswork.com` → `127.0.0.1:8008` |
 | `pi-bootstrap.sh` | First-time Pi setup (user, clone, venv, systemd) |
 | `PI-SETUP.md` | Step-by-step Pi guide from zero |
 

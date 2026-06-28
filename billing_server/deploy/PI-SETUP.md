@@ -12,7 +12,7 @@ Billing API for **api.frogswork.com**. Run these steps in order on a **fresh Pi*
 | `/home/frogswork/backups/frogswork-billing/` | Nightly DB backups |
 | `/home/frogswork/.cloudflared/` | Tunnel login + credentials |
 
-The app listens on **`127.0.0.1:8080` only**. The public internet reaches it via **Cloudflare Tunnel**, not open router ports.
+The app listens on **`127.0.0.1:8008` only** (8008 avoids conflict with other local services on 8080). The public internet reaches it via **Cloudflare Tunnel**, not open router ports.
 
 ---
 
@@ -92,7 +92,7 @@ Save (Ctrl+O, Enter, Ctrl+X).
 ```bash
 sudo systemctl start frogswork-billing
 sudo systemctl status frogswork-billing
-curl -s http://127.0.0.1:8080/health
+curl -s http://127.0.0.1:8008/health
 ```
 
 Expected: `{"status":"ok"}` (may include `client_release_version` if set).
@@ -102,10 +102,10 @@ Expected: `{"status":"ok"}` (may include `client_release_version` if set).
 From your **Windows PC** (new terminal, keep Pi running):
 
 ```powershell
-ssh -L 8080:127.0.0.1:8080 frogswork@<pi-ip>
+ssh -L 8008:127.0.0.1:8008 pi@<pi-ip>
 ```
 
-Browser: http://127.0.0.1:8080/admin — login with `ADMIN_PASSWORD`.
+Browser: http://127.0.0.1:8008/admin — login with `ADMIN_PASSWORD`.
 
 ---
 
@@ -221,6 +221,6 @@ sudo systemctl restart frogswork-billing
 | `systemctl status frogswork-billing` failed | `journalctl -u frogswork-billing -n 50` |
 | Health works on Pi, not public | Tunnel running? `cloudflared tunnel list` |
 | Git clone private repo fails | SSH key for `frogswork` user on GitHub |
-| Admin 404 on api.frogswork.com | Expected — use SSH `-L 8080:127.0.0.1:8080` |
+| Admin 404 on api.frogswork.com | Expected — use SSH `-L 8008:127.0.0.1:8008` |
 
 Full deploy doc: [DEPLOY.md](../../docs/commercial/DEPLOY.md)

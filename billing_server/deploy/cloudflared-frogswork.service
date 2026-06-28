@@ -1,0 +1,15 @@
+[Unit]
+Description=Cloudflare Tunnel frogswork-api (api.frogswork.com)
+After=network-online.target frogswork-billing.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=frogswork
+Group=frogswork
+ExecStart=/usr/bin/cloudflared tunnel --config /home/frogswork/.cloudflared/config.yml run frogswork-api
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
