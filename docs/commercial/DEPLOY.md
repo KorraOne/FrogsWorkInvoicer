@@ -78,6 +78,17 @@ Do not create an A record for `api` yet — **cloudflared** will create it in st
 
 ## Phase B — Raspberry Pi billing server (45–60 min)
 
+**From-scratch walkthrough:** [`billing_server/deploy/PI-SETUP.md`](../../billing_server/deploy/PI-SETUP.md)  
+**Automated bootstrap:** `sudo ./billing_server/deploy/pi-bootstrap.sh` (see PI-SETUP.md)
+
+**Chosen paths:**
+
+| Path | Purpose |
+|------|---------|
+| `/home/frogswork/frogswork/` | Git repo |
+| `/etc/frogswork/billing.env` | Secrets |
+| `/home/frogswork/backups/frogswork-billing/` | Backups |
+
 ### 4. Create Linux user and directories
 
 On the Pi (SSH as default user, then):
@@ -97,7 +108,7 @@ As user `frogswork`:
 
 ```bash
 sudo -u frogswork -i
-git clone <your-repo-url> ~/frogswork
+git clone https://github.com/KorraOne/FrogsWorkInvoicer.git ~/frogswork
 cd ~/frogswork/billing_server
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
