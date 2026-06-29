@@ -26,8 +26,17 @@ import billing_local
 import billing_messages
 import storage
 from billing_client import BillingError, BillingOfflineError
+from gst_settings import apply_gst_registered_to_settings, validate_business_gst_settings
 
 log = logging.getLogger(__name__)
+
+
+def _settings_have_business(settings):
+    return bool((settings.get("business_name") or "").strip())
+
+
+def _has_any_customers():
+    return bool(storage.load_customers())
 
 
 def register_client_routes(app, helpers):
@@ -147,6 +156,17 @@ def register_client_routes(app, helpers):
             },
         )
 
+    def _redirect_after_business_onboard():
+        if _has_any_customers():
+            return redirect(url_for("account_cap"))
+        return redirect(url_for("account_onboard_customer"))
+
+    def _redirect_after_email_signup():
+        settings = storage.load_settings()
+        if not _settings_have_business(settings):
+            return redirect(url_for("account_onboard_business"))
+        return _redirect_after_business_onboard()
+
     @app.route("/account/login", methods=["GET", "POST"])
     def account_login():
         if request.method == "POST":
@@ -187,7 +207,7 @@ def register_client_routes(app, helpers):
             if not email:
                 return render_template("account_create.html", error="Email is required.")
             session["signup_email"] = email
-            return redirect(url_for("account_onboard_business"))
+            return _redirect_after_email_signup()
         return render_template("account_create.html", error=None)
 
     def _require_signup_session():
@@ -201,6 +221,8 @@ def register_client_routes(app, helpers):
         if guard:
             return guard
         settings = storage.load_settings()
+        if request.method == "GET" and _settings_have_business(settings):
+            return _redirect_after_business_onboard()
         if request.method == "POST":
             business_name = request.form.get("business_name", "").strip()
             business_address = request.form.get("business_address", "").strip()
@@ -209,10 +231,22 @@ def register_client_routes(app, helpers):
                 settings["business_name"] = business_name
             if business_address:
                 settings["business_address"] = business_address
-            if business_abn:
-                settings["business_abn"] = business_abn
+            settings["business_abn"] = business_abn
+            apply_gst_registered_to_settings(settings, request.form)
+            gst_err = validate_business_gst_settings(settings)
+            if gst_err:
+                return render_template(
+                    "account_onboard_business.html",
+                    error=gst_err,
+                    form={
+                        "business_name": business_name or settings.get("business_name", ""),
+                        "business_address": business_address or settings.get("business_address", ""),
+                        "business_abn": business_abn,
+                        "gst_registered": settings.get("gst_registered", False),
+                    },
+                )
             storage.save_settings(settings)
-            return redirect(url_for("account_onboard_customer"))
+            return _redirect_after_business_onboard()
         return render_template(
             "account_onboard_business.html",
             error=None,
@@ -220,6 +254,7 @@ def register_client_routes(app, helpers):
                 "business_name": settings.get("business_name", ""),
                 "business_address": settings.get("business_address", ""),
                 "business_abn": settings.get("business_abn", ""),
+                "gst_registered": settings.get("gst_registered", False),
             },
         )
 
@@ -228,6 +263,8 @@ def register_client_routes(app, helpers):
         guard = _require_signup_session()
         if guard:
             return guard
+        if request.method == "GET" and _has_any_customers():
+            return redirect(url_for("account_cap"))
         if request.method == "POST":
             name = request.form.get("name", "").strip()
             address = request.form.get("address", "").strip()

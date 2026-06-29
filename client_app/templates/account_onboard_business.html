@@ -5,7 +5,7 @@
 {% include "_onboarding_stepper.html" %}
 {% endwith %}
 <h1>Your business</h1>
-<p class="home-intro">Optional. Add business details for your invoices. You can change these in Settings later.</p>
+<p class="home-intro">Optional. Add business details for your invoices, including whether you are registered for GST. You can change these in Settings later.</p>
 {% if error %}<div class="error">{{ error }}</div>{% endif %}
 <form method="POST">
     <div class="form-group">
@@ -16,8 +16,10 @@
         <label for="business_address">Business address</label>
         <textarea name="business_address" id="business_address" placeholder="{{ ph.business_address }}">{{ form.business_address|default('') }}</textarea>
     </div>
+    {% set gst_registered = form.gst_registered|default(false) %}
+    {% include "_gst_registration_fields.html" %}
     <div class="form-group">
-        <label for="business_abn">Business ABN</label>
+        <label for="business_abn" id="business_abn_label">Business ABN</label>
         <input type="text" name="business_abn" id="business_abn" value="{{ form.business_abn|default('') }}" placeholder="{{ ph.business_abn }}">
     </div>
     <div class="onboarding-actions">
@@ -25,4 +27,5 @@
         <a href="{{ url_for('account_onboard_customer') }}" class="onboarding-skip">Skip for now</a>
     </div>
 </form>
+<script src="{{ url_for('static', filename='gst_registration_ui.js') }}"></script>
 {% endblock %}

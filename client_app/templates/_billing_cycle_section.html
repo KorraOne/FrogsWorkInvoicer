@@ -1,6 +1,11 @@
 <section class="billing-section billing-cycle-section">
+    {% if billing_cycle_compact %}
+    <h2 class="billing-section-heading">Billing cycle</h2>
+    <p class="billing-section-intro">How often you receive platform fee invoices.</p>
+    {% else %}
     <h2 class="billing-section-heading">Platform fee invoices</h2>
     <p class="billing-section-intro">Usage fees are tallied each calendar month. When fees apply, you get a platform fee invoice on the schedule below. Separate from sales invoices you send customers.</p>
+    {% endif %}
     <div class="form-group">
         <label for="billing_cycle">Platform billing cycle</label>
         <select name="billing_cycle" id="billing_cycle">
@@ -8,5 +13,7 @@
             <option value="annual" {% if billing_cycle|default('quarterly') == 'annual' %}selected{% endif %}>Annual, once per year</option>
         </select>
     </div>
+    {% if not billing_cycle_compact %}
     <p class="billing-cycle-note">By creating your account, you agree to this billing schedule for monthly usage fees.</p>
+    {% endif %}
 </section>

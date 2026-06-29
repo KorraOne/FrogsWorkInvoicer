@@ -8,6 +8,8 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
+from gst_settings import invoice_uses_tax_invoice
+
 PAGE_WIDTH, PAGE_HEIGHT = A4
 CONTENT_WIDTH = PAGE_WIDTH - 40 * mm
 
@@ -144,7 +146,10 @@ def generate_invoice(output_dir, invoice_data):
     if not business_block:
         business_block.append(Paragraph("&nbsp;", normal))
 
-    meta_rows = [[Paragraph("Tax Invoice" if Decimal(str(invoice_data.get("gst_amount", "0"))) > 0 else "Invoice", title_style)]]
+    gst_registered = invoice_uses_tax_invoice(invoice_data)
+    invoice_title = "Tax Invoice" if gst_registered else "Invoice"
+
+    meta_rows = [[Paragraph(invoice_title, title_style)]]
     meta_rows.append([Paragraph(f"<b>Invoice #</b> {invoice_number_display}", meta_style)])
     meta_rows.append([Paragraph(f"<b>Date</b> {invoice_date.strftime('%d %B %Y')}", meta_style)])
     due_date_fmt = invoice_data.get("due_date_fmt", "")
@@ -235,39 +240,67 @@ def generate_invoice(output_dir, invoice_data):
 
     amt_right = ParagraphStyle("AmtRight", parent=normal, alignment=TA_RIGHT)
     qty_right = ParagraphStyle("QtyRight", parent=normal, alignment=TA_RIGHT)
-    line_data = [
-        [
-            Paragraph("<b>Description</b>", normal),
-            Paragraph("<b>Qty</b>", qty_right),
-            Paragraph("<b>Unit (ex GST)</b>", ParagraphStyle("HdrRight", parent=normal, alignment=TA_RIGHT)),
-            Paragraph("<b>GST</b>", ParagraphStyle("HdrGst", parent=normal, alignment=TA_RIGHT)),
-            Paragraph("<b>Amount (ex GST)</b>", ParagraphStyle("HdrRight2", parent=normal, alignment=TA_RIGHT)),
-        ],
-    ]
-    for item in line_items:
-        qty = item.get("quantity", Decimal("1"))
-        unit = item.get("unit_amount_ex_gst", item["amount_ex_gst"])
-        gst_applicable = item.get("gst_applicable", True)
-        gst_label = "10%" if gst_applicable else "No"
-        line_data.append(
+    hdr_right = ParagraphStyle("HdrRight", parent=normal, alignment=TA_RIGHT)
+
+    if gst_registered:
+        line_data = [
             [
-                Paragraph(item["description"], normal),
-                Paragraph(_fmt_qty(qty), qty_right),
-                Paragraph(_fmt_money(unit), amt_right),
-                Paragraph(gst_label, amt_right),
-                Paragraph(_fmt_money(item["amount_ex_gst"]), amt_right),
-            ]
-        )
-    line_table = Table(
-        line_data,
-        colWidths=[
+                Paragraph("<b>Description</b>", normal),
+                Paragraph("<b>Qty</b>", qty_right),
+                Paragraph("<b>Unit (ex GST)</b>", hdr_right),
+                Paragraph("<b>GST</b>", hdr_right),
+                Paragraph("<b>Amount (ex GST)</b>", hdr_right),
+            ],
+        ]
+        for item in line_items:
+            qty = item.get("quantity", Decimal("1"))
+            unit = item.get("unit_amount_ex_gst", item["amount_ex_gst"])
+            gst_applicable = item.get("gst_applicable", True)
+            gst_label = "10%" if gst_applicable else "No"
+            line_data.append(
+                [
+                    Paragraph(item["description"], normal),
+                    Paragraph(_fmt_qty(qty), qty_right),
+                    Paragraph(_fmt_money(unit), amt_right),
+                    Paragraph(gst_label, amt_right),
+                    Paragraph(_fmt_money(item["amount_ex_gst"]), amt_right),
+                ]
+            )
+        line_col_widths = [
             CONTENT_WIDTH * 0.38,
             CONTENT_WIDTH * 0.08,
             CONTENT_WIDTH * 0.18,
             CONTENT_WIDTH * 0.08,
             CONTENT_WIDTH * 0.18,
-        ],
-    )
+        ]
+    else:
+        line_data = [
+            [
+                Paragraph("<b>Description</b>", normal),
+                Paragraph("<b>Qty</b>", qty_right),
+                Paragraph("<b>Unit price</b>", hdr_right),
+                Paragraph("<b>Amount</b>", hdr_right),
+            ],
+        ]
+        for item in line_items:
+            qty = item.get("quantity", Decimal("1"))
+            unit = item.get("unit_amount_ex_gst", item["amount_ex_gst"])
+            line_data.append(
+                [
+                    Paragraph(item["description"], normal),
+                    Paragraph(_fmt_qty(qty), qty_right),
+                    Paragraph(_fmt_money(unit), amt_right),
+                    Paragraph(_fmt_money(item["amount_ex_gst"]), amt_right),
+                ]
+            )
+        line_col_widths = [
+            CONTENT_WIDTH * 0.46,
+            CONTENT_WIDTH * 0.10,
+            CONTENT_WIDTH * 0.22,
+            CONTENT_WIDTH * 0.22,
+        ]
+
+    line_table = Table(line_data, colWidths=line_col_widths)
     line_table.setStyle(
         TableStyle(
             [
@@ -286,23 +319,28 @@ def generate_invoice(output_dir, invoice_data):
     story.append(Spacer(1, 12))
 
     totals_data = []
-    if gst_free_ex_gst > 0 and taxable_ex_gst > 0:
+    if gst_registered:
+        if gst_free_ex_gst > 0 and taxable_ex_gst > 0:
+            totals_data.append(
+                [Paragraph("Taxable subtotal (ex GST)", total_label_style), Paragraph(_fmt_money(taxable_ex_gst), total_value_style)]
+            )
+            totals_data.append(
+                [Paragraph("GST-free subtotal (ex GST)", total_label_style), Paragraph(_fmt_money(gst_free_ex_gst), total_value_style)]
+            )
         totals_data.append(
-            [Paragraph("Taxable subtotal (ex GST)", total_label_style), Paragraph(_fmt_money(taxable_ex_gst), total_value_style)]
+            [Paragraph("Subtotal (ex GST)", total_label_style), Paragraph(_fmt_money(amount_ex_gst), total_value_style)]
+        )
+        gst_label = "GST (10%)" if gst_amount > 0 else "GST not applicable"
+        totals_data.append(
+            [Paragraph(gst_label, total_label_style), Paragraph(_fmt_money(gst_amount), total_value_style)]
         )
         totals_data.append(
-            [Paragraph("GST-free subtotal (ex GST)", total_label_style), Paragraph(_fmt_money(gst_free_ex_gst), total_value_style)]
+            [Paragraph("TOTAL AUD", grand_total_label), Paragraph(_fmt_money(total_inc_gst), grand_total_value)]
         )
-    totals_data.append(
-        [Paragraph("Subtotal (ex GST)", total_label_style), Paragraph(_fmt_money(amount_ex_gst), total_value_style)]
-    )
-    gst_label = "GST (10%)" if gst_amount > 0 else "GST not applicable"
-    totals_data.append(
-        [Paragraph(gst_label, total_label_style), Paragraph(_fmt_money(gst_amount), total_value_style)]
-    )
-    totals_data.append(
-        [Paragraph("TOTAL AUD", grand_total_label), Paragraph(_fmt_money(total_inc_gst), grand_total_value)]
-    )
+    else:
+        totals_data.append(
+            [Paragraph("TOTAL AUD", grand_total_label), Paragraph(_fmt_money(total_inc_gst), grand_total_value)]
+        )
     totals_table = Table(totals_data, colWidths=[CONTENT_WIDTH * 0.72, CONTENT_WIDTH * 0.28])
     totals_table.setStyle(
         TableStyle(

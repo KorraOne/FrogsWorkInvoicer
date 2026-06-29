@@ -53,7 +53,7 @@
 
     <section class="invoice-form-section">
         <h2 class="invoice-form-section-heading">Line items</h2>
-        <p class="invoice-form-section-hint">One product or service per line.</p>
+        <p class="invoice-form-section-hint">One product or service per line.{% if gst_registered %} Toggle GST per line if needed.{% endif %}</p>
         <div id="items">
             {% for item in form.line_items %}
             <details class="line-item{% if item.gst_free %} line-item--gst-free{% endif %}" {% if loop.index == 1 %}open{% endif %}>
@@ -63,6 +63,7 @@
                         <span class="line-item-preview">{{ item.description or "Not filled in yet" }}</span>
                     </span>
                     <span class="line-item-toolbar">
+                        {% if gst_registered %}
                         <span class="line-item-gst-control">
                             <label class="gst-switch" title="GST-free for this line">
                                 <input type="checkbox" class="item-gst-free-input"
@@ -76,6 +77,9 @@
                             </label>
                             <span class="gst-mode-label">{% if item.gst_free %}inc. GST{% else %}exc. GST{% endif %}</span>
                         </span>
+                        {% else %}
+                        <input type="hidden" name="item_gst_free" class="item-gst-free-hidden" value="">
+                        {% endif %}
                         <button type="button" class="btn btn-danger btn-small item-remove-btn" hidden>Remove</button>
                     </span>
                 </summary>
@@ -92,7 +96,7 @@
                                    placeholder="{{ ph.line_item_quantity }}">
                         </div>
                         <div class="form-group item-amount-field">
-                            <label class="item-amount-label">Unit price ({% if item.gst_free %}inc. GST{% else %}exc. GST{% endif %})</label>
+                            <label class="item-amount-label">Unit price{% if gst_registered %} ({% if item.gst_free %}inc. GST{% else %}exc. GST{% endif %}){% endif %}</label>
                             <input type="text" name="item_amount" class="item-amount-input" value="{{ item.amount }}"
                                    placeholder="{{ ph.line_item_amount }}">
                         </div>
@@ -133,6 +137,7 @@
     var invoiceForm = document.getElementById("invoice-form");
     var addCustomerForm = document.getElementById("add-customer-form");
     var draftFields = document.getElementById("add-customer-draft-fields");
+    var gstRegistered = {{ 'true' if gst_registered else 'false' }};
 
     function formatPreview(desc, qty, amount) {
         desc = (desc || "").trim();
@@ -196,7 +201,9 @@
                 label.textContent = gstText;
             }
             if (amountLabel) {
-                amountLabel.textContent = "Unit price (" + gstText + ")";
+                amountLabel.textContent = gstRegistered
+                    ? "Unit price (" + gstText + ")"
+                    : "Unit price";
             }
         }
     }

@@ -1,0 +1,17 @@
+{% set gst_registered = gst_registered|default(false) %}
+<fieldset class="gst-registration-fieldset">
+    <legend class="gst-registration-legend">Are you registered for GST?</legend>
+    <p class="form-hint">Only GST-registered businesses may issue a Tax Invoice. Most sole traders are not registered.
+        <a href="https://www.ato.gov.au/businesses-and-organisations/gst-excise-and-indirect-taxes/gst/registering-for-gst" target="_blank" rel="noopener noreferrer">ATO: registering for GST</a>
+    </p>
+    <div class="gst-registration-options">
+        <label class="gst-registration-option">
+            <input type="radio" name="gst_registered" value="yes" class="gst-registered-radio" {% if gst_registered %}checked{% endif %}>
+            Yes, registered for GST
+        </label>
+        <label class="gst-registration-option">
+            <input type="radio" name="gst_registered" value="no" class="gst-registered-radio" {% if not gst_registered %}checked{% endif %}>
+            No, not registered for GST
+        </label>
+    </div>
+</fieldset>

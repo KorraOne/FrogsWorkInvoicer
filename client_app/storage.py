@@ -34,6 +34,8 @@ DEFAULT_SETTINGS = {
 
     "business_abn": "",
 
+    "gst_registered": False,
+
     "account_name": "",
 
     "bsb": "",

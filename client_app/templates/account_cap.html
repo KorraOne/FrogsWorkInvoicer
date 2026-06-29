@@ -5,7 +5,7 @@
 {% include "_onboarding_stepper.html" %}
 {% endwith %}
 <h1>Platform fee setup</h1>
-<p class="home-intro">Set fee warnings and how often you get platform fee invoices. This is separate from sales invoices you send customers.</p>
+<p class="home-intro">Optional monthly cap and how often you get platform fee invoices.</p>
 {% if error %}
 {% with message=error, kind='error', title="Couldn't create account" %}
 {% include "_notice_panel.html" %}
@@ -14,10 +14,6 @@
 <form method="POST" class="billing-setup-form">
     <input type="hidden" name="email" value="{{ email }}">
 
-    <section class="billing-section billing-section-compact">
-        {% include "_fee_calculator.html" %}
-    </section>
-
     <section class="billing-section">
         {% set cap_on = form.get('cap_choice', 'off') == 'on' if form else false %}
         {% set cap_amount = form.get('cap_amount', '') if form else '' %}
@@ -25,11 +21,11 @@
     </section>
 
     {% set billing_cycle = form.get('billing_cycle', 'quarterly') if form else 'quarterly' %}
+    {% set billing_cycle_compact = true %}
     {% include "_billing_cycle_section.html" %}
 
     <div class="form-actions">
         <button type="submit" class="btn btn-primary">Continue</button>
     </div>
 </form>
-<script src="{{ url_for('static', filename='billing_ui.js') }}"></script>
 {% endblock %}

@@ -20,7 +20,7 @@
 
     <section class="preview-card">
 
-        <h2 class="preview-card-heading">Invoice</h2>
+        <h2 class="preview-card-heading">{{ invoice_title }}</h2>
 
         <dl class="preview-dl">
 
@@ -94,7 +94,7 @@
 
         <h2 class="preview-card-heading">Line items</h2>
 
-        <div class="preview-items-table">
+        <div class="preview-items-table{% if not gst_registered %} preview-items-table--no-gst{% endif %}">
 
             <div class="preview-items-header">
 
@@ -102,9 +102,9 @@
 
                 <span>Qty</span>
 
-                <span>Unit (ex GST)</span>
+                <span>Unit{% if gst_registered %} (ex GST){% endif %}</span>
 
-                <span>GST</span>
+                {% if gst_registered %}<span>GST</span>{% endif %}
 
                 <span>Amount</span>
 
@@ -120,7 +120,7 @@
 
                 <span>{{ item.unit_amount_fmt }}</span>
 
-                <span>{% if item.gst_applicable %}10%{% else %}No{% endif %}</span>
+                {% if gst_registered %}<span>{% if item.gst_applicable %}10%{% else %}No{% endif %}</span>{% endif %}
 
                 <span class="preview-items-amount">{{ item.amount_fmt }}</span>
 
@@ -145,6 +145,8 @@
         <h2 class="preview-card-heading">Totals</h2>
 
         <dl class="preview-dl preview-dl-totals">
+
+            {% if gst_registered %}
 
             {% if has_mixed_gst %}
 
@@ -189,6 +191,18 @@
                 <dd>{{ total_inc_gst_fmt }}</dd>
 
             </div>
+
+            {% else %}
+
+            <div class="preview-dl-row preview-dl-total">
+
+                <dt>Total</dt>
+
+                <dd>{{ total_inc_gst_fmt }}</dd>
+
+            </div>
+
+            {% endif %}
 
         </dl>
 

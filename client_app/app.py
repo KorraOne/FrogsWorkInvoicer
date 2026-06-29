@@ -16,6 +16,12 @@ from werkzeug.serving import make_server
 
 import storage
 from due_dates import due_rule_from_form_data, merge_due_rule_into_form, invoice_due_summary
+from gst_settings import (
+    apply_registration_to_parsed_items,
+    is_gst_registered,
+    apply_gst_registered_to_settings,
+    validate_business_gst_settings,
+)
 from email_compose import build_invoice_email_context, format_clipboard_text
 from folder_picker import process_pending_picks
 from ui_config import IDLE_TIMEOUT_SECONDS, PLACEHOLDERS, SELECT_LABELS
@@ -242,7 +248,7 @@ def format_qty(qty):
     return format(q, "f").rstrip("0").rstrip(".")
 
 
-def parse_line_items(descriptions, amounts, quantities=None, gst_free_flags=None):
+def parse_line_items(descriptions, amounts, quantities=None, gst_free_flags=None, gst_registered=True):
     """Parse parallel description/amount/qty lists into validated line items."""
     if quantities is None:
         quantities = []
@@ -285,20 +291,19 @@ def parse_line_items(descriptions, amounts, quantities=None, gst_free_flags=None
     if not items:
         raise ValueError("Add at least one line item with a description and amount.")
 
-    taxable_ex_gst = sum(item["amount_ex_gst"] for item in items if item["gst_applicable"])
-    gst_free_ex_gst = sum(item["amount_ex_gst"] for item in items if not item["gst_applicable"])
-    subtotal = taxable_ex_gst + gst_free_ex_gst
-    gst_amount = (taxable_ex_gst * Decimal("0.10")).quantize(Decimal("0.01"))
-    total_inc_gst = taxable_ex_gst + gst_free_ex_gst + gst_amount
-    return items, subtotal, gst_amount, total_inc_gst, taxable_ex_gst, gst_free_ex_gst
+    subtotal = sum(item["amount_ex_gst"] for item in items)
+    return apply_registration_to_parsed_items(items, subtotal, gst_registered)
 
 
-def line_items_from_request(form):
+def line_items_from_request(form, gst_registered=None):
+    if gst_registered is None:
+        gst_registered = is_gst_registered(storage.load_settings())
     return parse_line_items(
         form.getlist("item_description"),
         form.getlist("item_amount"),
         form.getlist("item_quantity"),
         form.getlist("item_gst_free"),
+        gst_registered=gst_registered,
     )
 
 
@@ -362,12 +367,16 @@ def has_invoice_draft():
     return bool(session.get("invoice_draft"))
 
 
-def _line_items_from_form_dict(form):
+def _line_items_from_form_dict(form, gst_registered=None):
+    if gst_registered is None:
+        gst_registered = is_gst_registered(storage.load_settings())
     descriptions = [item["description"] for item in form["line_items"]]
     amounts = [item["amount"] for item in form["line_items"]]
     quantities = [item["qty"] for item in form["line_items"]]
     gst_free_flags = ["on" if item.get("gst_free") else "" for item in form["line_items"]]
-    return parse_line_items(descriptions, amounts, quantities, gst_free_flags)
+    return parse_line_items(
+        descriptions, amounts, quantities, gst_free_flags, gst_registered=gst_registered
+    )
 
 
 def _render_preview_from_form(form):
@@ -379,8 +388,15 @@ def _render_preview_from_form(form):
     if not customer_name or customer_name not in customers:
         return render_create_invoice(form, error="Select a customer.")
 
+    gst_err = validate_business_gst_settings(settings)
+    if gst_err:
+        return render_create_invoice(form, error=gst_err)
+
+    gst_registered = is_gst_registered(settings)
     try:
-        items, subtotal, gst_amount, total_inc_gst, taxable_ex_gst, gst_free_ex_gst = _line_items_from_form_dict(form)
+        items, subtotal, gst_amount, total_inc_gst, taxable_ex_gst, gst_free_ex_gst = _line_items_from_form_dict(
+            form, gst_registered=gst_registered
+        )
     except ValueError as exc:
         return render_create_invoice(form, error=str(exc))
 
@@ -425,8 +441,10 @@ def _render_preview_from_form(form):
         gst_free_ex_gst_fmt=format_money(gst_free_ex_gst),
         gst_amount_fmt=format_money(gst_amount),
         total_inc_gst_fmt=format_money(total_inc_gst),
-        has_mixed_gst=gst_free_ex_gst > 0 and taxable_ex_gst > 0,
-        has_gst=gst_amount > 0,
+        gst_registered=gst_registered,
+        invoice_title="Tax Invoice" if gst_registered else "Invoice",
+        has_mixed_gst=gst_registered and gst_free_ex_gst > 0 and taxable_ex_gst > 0,
+        has_gst=gst_registered and gst_amount > 0,
         invoice_number=format_invoice_number(settings["invoice_counter"]),
         invoice_date=invoice_date.strftime("%d %B %Y"),
         subtotal_raw=str(subtotal),
@@ -500,6 +518,7 @@ def _create_invoice_template_context(form, error=None):
         "invoice_counter": format_invoice_number(settings["invoice_counter"]),
         "form": form,
         "error": error,
+        "gst_registered": is_gst_registered(settings),
         "due_rule_type": due["due_rule_type"],
         "due_net_days": due["due_net_days"],
         "due_date_preview": due["due_date_fmt"],
@@ -727,8 +746,15 @@ def generate():
     if not customer_name or customer_name not in customers:
         return redirect(url_for("create_invoice", error="Select a customer."))
 
+    gst_err = validate_business_gst_settings(settings)
+    if gst_err:
+        return redirect(url_for("create_invoice", error=gst_err))
+
+    gst_registered = is_gst_registered(settings)
     try:
-        items, subtotal, gst_amount, total_inc_gst, taxable_ex_gst, gst_free_ex_gst = line_items_from_request(request.form)
+        items, subtotal, gst_amount, total_inc_gst, taxable_ex_gst, gst_free_ex_gst = line_items_from_request(
+            request.form, gst_registered=gst_registered
+        )
     except ValueError as exc:
         return redirect(url_for("create_invoice", error=str(exc)))
 
@@ -782,6 +808,7 @@ def generate():
         "gst_amount": gst_amount,
         "total_inc_gst": total_inc_gst,
         "comment": comment,
+        "gst_registered": gst_registered,
     }
 
     filepath = pdf_generator.generate_invoice(storage.get_pdf_dir(), invoice_data)
@@ -799,6 +826,7 @@ def generate():
             "total_inc_gst": str(total_inc_gst),
             "amount_ex_gst": str(subtotal),
             "gst_amount": str(gst_amount),
+            "gst_registered": gst_registered,
             "filename": filename,
             "due_date": due["due_date_iso"],
             "due_rule_type": due["due_rule_type"],
@@ -1348,11 +1376,28 @@ def settings_details():
         settings["business_name"] = request.form.get("business_name", "").strip()
         settings["business_address"] = request.form.get("business_address", "").strip()
         settings["business_abn"] = request.form.get("business_abn", "").strip()
+        apply_gst_registered_to_settings(settings, request.form)
         settings["account_name"] = request.form.get("account_name", "").strip()
         settings["bsb"] = request.form.get("bsb", "").strip()
         settings["acc"] = request.form.get("acc", "").strip()
         settings["due_rule_type"] = request.form.get("due_rule_type", "net_days").strip()
         settings["due_net_days"] = due_rule_from_form_data(request.form, settings)["due_net_days"]
+
+        gst_err = validate_business_gst_settings(settings)
+        if gst_err:
+            due = invoice_due_summary(
+                date.today(),
+                settings.get("due_rule_type"),
+                settings.get("due_net_days"),
+            )
+            return render_template(
+                "settings_details.html",
+                settings=settings,
+                error=gst_err,
+                due_rule_type=due["due_rule_type"],
+                due_net_days=due["due_net_days"],
+                due_date_preview=due["due_date_fmt"],
+            )
 
         counter_raw = request.form.get("invoice_counter", "").strip()
         try:

@@ -25,6 +25,7 @@ SEED_SETTINGS = {
     "business_name": "Sam Chen — Garden & Property",
     "business_address": "Unit 4, 18 Kingsley Street\nFremantle WA 6160",
     "business_abn": "51824793601",
+    "gst_registered": True,
     "account_name": "Sam Chen",
     "bsb": "016-001",
     "acc": "284719",
@@ -201,6 +202,7 @@ def _pdf_data_for_invoice(invoice, settings, customers):
         "gst_free_ex_gst": gst_free_ex_gst,
         "gst_amount": gst_amount,
         "total_inc_gst": total_inc_gst,
+        "gst_registered": settings.get("gst_registered", False),
         "comment": "",
     }
 

@@ -1538,6 +1538,11 @@ h1.home-brand {
     align-items: start;
 }
 
+.preview-items-table--no-gst .preview-items-header,
+.preview-items-table--no-gst .preview-items-row {
+    grid-template-columns: 1fr 60px 110px 110px;
+}
+
 .preview-items-header {
     background: #f1f5f9;
     font-weight: 700;
@@ -2305,6 +2310,42 @@ button.onboarding-skip {
     border: none;
     margin: 0 0 1.5rem 0;
     padding: 0;
+}
+
+.gst-registration-fieldset {
+    border: none;
+    margin: 0 0 1.5rem 0;
+    padding: 0;
+}
+
+.gst-registration-legend {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333333;
+    margin-bottom: 0.75rem;
+    padding: 0;
+}
+
+.gst-registration-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.gst-registration-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    cursor: pointer;
+    background: #ffffff;
+}
+
+.gst-registration-option:has(.gst-registered-radio:checked) {
+    border-color: var(--fw-link);
+    background: #f8fafc;
 }
 
 .due-rule-legend {

@@ -5,6 +5,8 @@ import os
 import subprocess
 import sys
 
+from gst_settings import invoice_uses_tax_invoice
+
 log = logging.getLogger(__name__)
 
 
@@ -12,8 +14,8 @@ class EmailComposeError(Exception):
     pass
 
 
-def _invoice_label(has_gst):
-    return "Tax Invoice" if has_gst else "Invoice"
+def _invoice_label(invoice, settings):
+    return "Tax Invoice" if invoice_uses_tax_invoice(invoice, settings) else "Invoice"
 
 
 def build_invoice_email_context(invoice, customer, settings, pdf_path):
@@ -33,25 +35,7 @@ def build_invoice_email_context(invoice, customer, settings, pdf_path):
     except Exception:
         total_fmt = f"${total}"
 
-    gst_amount = invoice.get("gst_amount")
-    if gst_amount is None:
-        try:
-            from decimal import Decimal
-
-            has_gst = Decimal(str(invoice.get("total_inc_gst", "0"))) > Decimal(
-                str(invoice.get("amount_ex_gst", "0"))
-            )
-        except Exception:
-            has_gst = True
-    else:
-        try:
-            from decimal import Decimal
-
-            has_gst = Decimal(str(gst_amount)) > 0
-        except Exception:
-            has_gst = True
-
-    label = _invoice_label(has_gst)
+    label = _invoice_label(invoice, settings)
     to_email = customer.get("email", "").strip() if customer else ""
     subject = f"{label} #{inv_num_str} from {business}"
 
