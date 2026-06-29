@@ -4,14 +4,14 @@
         <input type="radio" name="cap_choice" value="off" class="cap-choice-radio" {% if not cap_on %}checked{% endif %}>
         <span class="cap-choice-body">
             <span class="cap-choice-title">No cap</span>
-            <span class="cap-choice-hint">No monthly limit. Fees still apply above $2,000/month ex-GST.</span>
+            <span class="cap-choice-hint">No monthly limit. Fees still apply above $2,000/month ex GST.</span>
         </span>
     </label>
     <label class="cap-choice-option">
         <input type="radio" name="cap_choice" value="on" class="cap-choice-radio" {% if cap_on %}checked{% endif %}>
         <span class="cap-choice-body">
             <span class="cap-choice-title">Set a cap</span>
-            <span class="cap-choice-hint">Warn me before fees add up. The app will ask you to confirm before generating an invoice over your limit.</span>
+            <span class="cap-choice-hint">Warn before you go over your limit. The app asks you to confirm before generating a larger invoice.</span>
             <div class="cap-dual-inputs">
                 <div class="cap-dual-field">
                     <label for="cap_amount" class="cap-amount-label">Max invoiced per month (ex GST)</label>
@@ -19,7 +19,7 @@
                            placeholder="{{ ph.cap_amount_ex_gst }}" value="{{ cap_amount|default('') }}"
                            {% if not cap_on %}disabled{% endif %}>
                 </div>
-                <p class="cap-dual-link">↔ stays in sync ↔</p>
+                <p class="cap-dual-link">These fields stay in sync</p>
                 <div class="cap-dual-field">
                     <label for="cap_fee" class="cap-amount-label">Max platform fee per month</label>
                     <input type="text" id="cap_fee" class="cap-fee-input"

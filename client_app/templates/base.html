@@ -35,6 +35,14 @@
         setInterval(function () {
             fetch("{{ url_for('ping') }}", { method: "POST", keepalive: true }).catch(function () {});
         }, 30000);
+
+        document.addEventListener("click", function (event) {
+            document.querySelectorAll(".invoice-actions-menu[open]").forEach(function (menu) {
+                if (!menu.contains(event.target)) {
+                    menu.removeAttribute("open");
+                }
+            });
+        });
     })();
     </script>
 </body>

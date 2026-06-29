@@ -232,6 +232,21 @@ def commit(invoice_number, amount_ex_gst, cap_bypassed=False):
     )
 
 
+def revert_commit(invoice_number):
+    if not billing_auth_store.is_authenticated():
+        billing_local.revert_local_commit(invoice_number)
+        return {"ok": True, "local": True}
+    refresh_if_needed()
+    return _request(
+        "POST",
+        "/usage/revert",
+        {
+            "invoice_number": int(invoice_number),
+            "usage_month": billing_core.current_usage_month(),
+        },
+    )
+
+
 def update_cap(cap_enabled, cap_amount_ex_gst, scope="permanent"):
     refresh_if_needed()
     return _request(

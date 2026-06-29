@@ -28,7 +28,7 @@ PLACEHOLDERS = {
     # Account (platform login)
     "account_email": "you@example.com",
     # Sales invoice
-    "line_item_description": "e.g. Consulting – March 2026",
+    "line_item_description": "e.g. Consulting, March 2026",
     "line_item_quantity": "1",
     "line_item_amount": "e.g. 4500.00",
     "invoice_comment": "e.g. Payment due within 30 days",

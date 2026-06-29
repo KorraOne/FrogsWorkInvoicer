@@ -264,6 +264,28 @@ def commit_usage(account_id, invoice_number, amount_ex_gst, usage_month, cap_byp
     return {"ok": True, "month_total_ex_gst": total, "fee_accrued": float(fee)}
 
 
+def revert_usage(account_id, invoice_number, usage_month):
+    with get_db() as conn:
+        row = conn.execute(
+            """
+            SELECT amount_ex_gst FROM usage_events
+            WHERE account_id = ? AND invoice_number = ? AND usage_month = ?
+            """,
+            (account_id, int(invoice_number), usage_month),
+        ).fetchone()
+        if not row:
+            raise ValueError("Invoice commit not found.")
+        conn.execute(
+            """
+            DELETE FROM usage_events
+            WHERE account_id = ? AND invoice_number = ? AND usage_month = ?
+            """,
+            (account_id, int(invoice_number), usage_month),
+        )
+        total, fee = _recompute_month(conn, account_id, usage_month)
+    return {"ok": True, "month_total_ex_gst": total, "fee_accrued": float(fee)}
+
+
 def update_cap(account_id, cap_enabled, cap_amount_ex_gst):
     with get_db() as conn:
         conn.execute(

@@ -10,7 +10,7 @@
                {% if due_rule_type == "net_days" %}checked{% endif %}>
         <span class="due-rule-body">
             <span class="due-rule-title">Net days</span>
-            <span class="due-rule-desc">Fixed days after the invoice date.</span>
+            <span class="due-rule-desc">A fixed number of days after the invoice date.</span>
             <div class="due-net-days-row">
                 <label for="due_net_days" class="due-net-days-label">Days after invoice</label>
                 <input type="number" name="due_net_days" id="due_net_days" class="due-net-days-input"
@@ -24,7 +24,7 @@
                {% if due_rule_type == "end_next_week" %}checked{% endif %}>
         <span class="due-rule-body">
             <span class="due-rule-title">End of next week</span>
-            <span class="due-rule-desc">Sunday at the end of the week after the invoice week.</span>
+            <span class="due-rule-desc">The Sunday at the end of the week after invoice week.</span>
         </span>
     </label>
     <label class="due-rule-option">

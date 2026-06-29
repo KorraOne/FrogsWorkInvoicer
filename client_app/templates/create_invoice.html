@@ -2,7 +2,7 @@
 {% block title %}Create sales invoice · {{ brand_name }}{% endblock %}
 {% block content %}
 <h1>Create sales invoice</h1>
-<p class="home-intro">Step 1 of 2. Invoice a customer for work or goods you sold.</p>
+<p class="home-intro">Step 1 of 2. Invoice a customer for work you did.</p>
 
 <div class="invoice-number">Invoice number: {{ invoice_counter }}</div>
 
@@ -28,7 +28,7 @@
         </div>
 
         <details class="inline-add-customer" id="inline-add-customer">
-            <summary>Add a new customer without leaving this page</summary>
+            <summary>Add a customer here</summary>
             <div class="inline-add-customer-form">
                 <div class="form-group">
                     <label for="new_customer_name">Customer name</label>
@@ -53,16 +53,31 @@
 
     <section class="invoice-form-section">
         <h2 class="invoice-form-section-heading">Line items</h2>
-        <p class="invoice-form-section-hint">Add each product or service on its own line. Collapse finished items to save space.</p>
+        <p class="invoice-form-section-hint">One product or service per line.</p>
         <div id="items">
             {% for item in form.line_items %}
-            <details class="line-item" {% if loop.index == 1 %}open{% endif %}>
+            <details class="line-item{% if item.gst_free %} line-item--gst-free{% endif %}" {% if loop.index == 1 %}open{% endif %}>
                 <summary class="line-item-summary">
                     <span class="line-item-heading">
                         <span class="line-item-number">Line item {{ loop.index }}</span>
                         <span class="line-item-preview">{{ item.description or "Not filled in yet" }}</span>
                     </span>
-                    <button type="button" class="btn btn-danger btn-small item-remove-btn" hidden>Remove</button>
+                    <span class="line-item-toolbar">
+                        <span class="line-item-gst-control">
+                            <label class="gst-switch" title="GST-free for this line">
+                                <input type="checkbox" class="item-gst-free-input"
+                                       {% if item.gst_free %}checked{% endif %}>
+                                <input type="hidden" name="item_gst_free" class="item-gst-free-hidden"
+                                       value="{% if item.gst_free %}on{% endif %}">
+                                <span class="gst-switch-track" aria-hidden="true">
+                                    <span class="gst-switch-thumb"></span>
+                                </span>
+                                <span class="visually-hidden">GST-free line</span>
+                            </label>
+                            <span class="gst-mode-label">{% if item.gst_free %}inc. GST{% else %}exc. GST{% endif %}</span>
+                        </span>
+                        <button type="button" class="btn btn-danger btn-small item-remove-btn" hidden>Remove</button>
+                    </span>
                 </summary>
                 <div class="line-item-body">
                     <div class="form-group">
@@ -77,7 +92,7 @@
                                    placeholder="{{ ph.line_item_quantity }}">
                         </div>
                         <div class="form-group item-amount-field">
-                            <label>Unit price (ex GST)</label>
+                            <label class="item-amount-label">Unit price ({% if item.gst_free %}inc. GST{% else %}exc. GST{% endif %})</label>
                             <input type="text" name="item_amount" class="item-amount-input" value="{{ item.amount }}"
                                    placeholder="{{ ph.line_item_amount }}">
                         </div>
@@ -91,7 +106,7 @@
 
     <section class="invoice-form-section">
         <h2 class="invoice-form-section-heading">Payment due</h2>
-        <p class="invoice-form-section-hint">Uses your settings defaults. Change them here if needed for this invoice.</p>
+        <p class="invoice-form-section-hint">Uses your default from Settings. Change here if this invoice needs different terms.</p>
         {% set show_due_preview = true %}
         {% include "_due_rule_fields.html" %}
     </section>
@@ -168,12 +183,43 @@
         });
     }
 
+    function syncGstHidden(row) {
+        var cb = row.querySelector(".item-gst-free-input");
+        var hidden = row.querySelector(".item-gst-free-hidden");
+        var label = row.querySelector(".gst-mode-label");
+        var amountLabel = row.querySelector(".item-amount-label");
+        if (cb && hidden) {
+            hidden.value = cb.checked ? "on" : "";
+            row.classList.toggle("line-item--gst-free", cb.checked);
+            var gstText = cb.checked ? "inc. GST" : "exc. GST";
+            if (label) {
+                label.textContent = gstText;
+            }
+            if (amountLabel) {
+                amountLabel.textContent = "Unit price (" + gstText + ")";
+            }
+        }
+    }
+
     function bindLineItem(row) {
         row.querySelectorAll(".item-description-input, .item-quantity-input, .item-amount-input").forEach(function (input) {
             input.addEventListener("input", function () {
                 updateLineItemPreview(row);
             });
         });
+        var gstControl = row.querySelector(".line-item-gst-control");
+        if (gstControl) {
+            gstControl.addEventListener("click", function (event) {
+                event.stopPropagation();
+            });
+            var gstCheckbox = row.querySelector(".item-gst-free-input");
+            if (gstCheckbox) {
+                gstCheckbox.addEventListener("change", function () {
+                    syncGstHidden(row);
+                });
+                syncGstHidden(row);
+            }
+        }
         updateLineItemPreview(row);
     }
 
@@ -184,10 +230,15 @@
         row.querySelectorAll("input").forEach(function (input) {
             if (input.classList.contains("item-quantity-input")) {
                 input.value = "1";
+            } else if (input.classList.contains("item-gst-free-hidden")) {
+                input.value = "";
+            } else if (input.type === "checkbox") {
+                input.checked = false;
             } else {
                 input.value = "";
             }
         });
+        row.classList.remove("line-item--gst-free");
         container.appendChild(row);
         bindLineItem(row);
         renumberLineItems();

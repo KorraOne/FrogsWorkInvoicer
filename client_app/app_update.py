@@ -111,6 +111,9 @@ def refresh_release_cache(force=False):
     if not force and (now - _cache["at"]) < _CACHE_SECONDS:
         return _cache["latest"]
 
+    if not force:
+        return _cache["latest"]
+
     latest = None
     failed = False
     try:
@@ -133,7 +136,9 @@ def refresh_release_cache(force=False):
 def get_pending_update(force_check=False):
     if not is_packaged():
         return None
-    latest = refresh_release_cache(force=force_check)
+    if force_check:
+        refresh_release_cache(force=True)
+    latest = _cache["latest"]
     if not latest or not version_less(APP_VERSION, latest["version"]):
         return None
     dismissed = (load_state().get("dismissed_version") or "").strip()

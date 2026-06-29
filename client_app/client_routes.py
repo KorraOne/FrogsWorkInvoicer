@@ -38,10 +38,7 @@ def register_client_routes(app, helpers):
 
     @app.context_processor
     def inject_usage_meter():
-        try:
-            usage = billing_client.get_usage()
-        except Exception:
-            usage = billing_local.local_usage_snapshot()
+        usage = billing_local.meter_snapshot()
         cap = usage.get("cap_amount_ex_gst")
         cap_label = "off"
         cap_detail = ""
@@ -53,7 +50,7 @@ def register_client_routes(app, helpers):
             max_fee = billing_core.max_fee_at_cap(cap)
             cap_detail = f"({format_money(room)} room · ~{format_money(max_fee)} max fee)"
         auth = billing_auth_store.load_auth()
-        email = auth.get("email", "") if billing_auth_store.is_authenticated() else ""
+        email = auth.get("email", "") if usage.get("account_authenticated") else ""
         month_total = Decimal(str(usage.get("month_total_ex_gst", 0)))
         free_tier = billing_core.FREE_TIER_EX_GST
         free_remaining = Decimal(str(usage.get("free_remaining", billing_core.free_remaining(month_total))))
@@ -80,7 +77,7 @@ def register_client_routes(app, helpers):
                 "free_allowance_over": free_allowance_over,
                 "cap_label": cap_label,
                 "cap_detail": cap_detail,
-                "authenticated": billing_auth_store.is_authenticated(),
+                "authenticated": usage.get("account_authenticated", False),
                 "email": email,
             },
         }
@@ -88,8 +85,6 @@ def register_client_routes(app, helpers):
     WELCOME_EXEMPT_ENDPOINTS = {
         "welcome_start",
         "welcome_pricing",
-        "welcome_data",
-        "welcome_pick_data_folder",
         "welcome_done",
         "ping",
         "static",
@@ -116,25 +111,7 @@ def register_client_routes(app, helpers):
 
     @app.route("/welcome/data")
     def welcome_data():
-        return render_template(
-            "welcome_data.html",
-            config_folder=storage.get_config_folder_display(),
-            pdf_folder=storage.get_pdf_folder_display(),
-            using_default=storage.is_using_default_pdf_folder(),
-        )
-
-    @app.route("/welcome/data/pick-folder", methods=["POST"])
-    def welcome_pick_data_folder():
-        from folder_picker import FolderPickerError, pick_folder
-
-        try:
-            path = pick_folder("Choose where to save invoice PDFs")
-            if path:
-                storage.set_pdf_folder(path)
-                flash("PDF folder updated.", "success")
-        except FolderPickerError as exc:
-            flash(f"Could not open folder picker: {exc}", "error")
-        return redirect(url_for("welcome_data"))
+        return redirect(url_for("welcome_done"))
 
     @app.route("/welcome/done", methods=["GET", "POST"])
     def welcome_done():
@@ -147,15 +124,14 @@ def register_client_routes(app, helpers):
 
     @app.route("/dashboard")
     def dashboard():
-        invoices = storage.load_invoices()
+        invoices = storage.load_active_invoices()
         groups, sent_total = helpers["invoices_by_status"](invoices)
-        usage = billing_client.get_usage()
-        if usage.get("session_expired"):
-            flash(billing_messages.SESSION_EXPIRED, "error")
+        usage = billing_local.meter_snapshot()
         paid_total = sum(Decimal(inv.get("total_inc_gst", "0")) for inv in groups["paid"])
         month_invoiced = Decimal("0")
-        for inv in invoices.values():
-            if inv.get("invoice_date", "").startswith(date.today().strftime("%Y-%m")):
+        month_prefix = date.today().strftime("%Y-%m")
+        for inv in storage.load_invoices().values():
+            if inv.get("invoice_date", "").startswith(month_prefix):
                 month_invoiced += Decimal(inv.get("amount_ex_gst", inv.get("total_inc_gst", "0")))
         return render_template(
             "dashboard.html",
@@ -176,6 +152,9 @@ def register_client_routes(app, helpers):
         if request.method == "POST":
             try:
                 billing_client.login(request.form.get("email", ""), request.form.get("password", ""))
+                import billing_sync
+
+                billing_sync.sync_usage_from_server()
                 if session.get("invoice_draft"):
                     return redirect(url_for("resume_preview"))
                 return redirect(url_for("home"))
@@ -278,23 +257,7 @@ def register_client_routes(app, helpers):
             cap_choice = request.form.get("cap_choice", "off")
             cap_amount = request.form.get("cap_amount", "").strip()
             email = request.form.get("email", email).strip()
-            password = request.form.get("password", "")
-            password_confirm = request.form.get("password_confirm", "")
             billing_cycle = request.form.get("billing_cycle", "quarterly")
-            if not password or len(password) < 8:
-                return render_template(
-                    "account_cap.html",
-                    error="Password must be at least 8 characters.",
-                    email=email,
-                    form=request.form,
-                )
-            if password != password_confirm:
-                return render_template(
-                    "account_cap.html",
-                    error="Passwords do not match.",
-                    email=email,
-                    form=request.form,
-                )
             cap_enabled = cap_choice == "on"
             cap_val = None
             if cap_enabled:
@@ -309,43 +272,78 @@ def register_client_routes(app, helpers):
                         email=email,
                         form=request.form,
                     )
+            session["signup_email"] = email
+            session["signup_cap"] = {
+                "cap_enabled": cap_enabled,
+                "cap_amount": str(cap_val) if cap_val is not None else None,
+                "billing_cycle": billing_cycle,
+            }
+            return redirect(url_for("account_password"))
+        if not email:
+            return redirect(url_for("account_create"))
+        return render_template("account_cap.html", error=None, email=email, form={})
+
+    @app.route("/account/password", methods=["GET", "POST"])
+    def account_password():
+        email = session.get("signup_email", "")
+        cap_data = session.get("signup_cap")
+        if not email or not cap_data:
+            return redirect(url_for("account_create"))
+        if request.method == "POST":
+            password = request.form.get("password", "")
+            password_confirm = request.form.get("password_confirm", "")
+            if not password or len(password) < 8:
+                return render_template(
+                    "account_password.html",
+                    error="Password must be at least 8 characters.",
+                    email=email,
+                )
+            if password != password_confirm:
+                return render_template(
+                    "account_password.html",
+                    error="Passwords do not match.",
+                    email=email,
+                )
+            cap_enabled = cap_data.get("cap_enabled", False)
+            cap_val = None
+            if cap_enabled and cap_data.get("cap_amount"):
+                cap_val = Decimal(cap_data["cap_amount"])
+            billing_cycle = cap_data.get("billing_cycle", "quarterly")
             try:
                 billing_client.register(email, password, cap_enabled, cap_val, billing_cycle)
                 billing_local.set_local_cap(cap_enabled, cap_val)
+                import billing_sync
+
+                billing_sync.sync_usage_from_server()
                 session.pop("signup_email", None)
+                session.pop("signup_cap", None)
                 return redirect(url_for("account_done"))
             except BillingOfflineError:
                 return render_template(
-                    "account_cap.html",
+                    "account_password.html",
                     error=billing_messages.SIGNUP_OFFLINE,
                     email=email,
-                    form=request.form,
                 )
             except BillingError as exc:
                 return render_template(
-                    "account_cap.html",
+                    "account_password.html",
                     error=billing_messages.map_http_auth_error(str(exc)),
                     email=email,
-                    form=request.form,
                 )
             except billing_ledger.BillingIntegrityError:
                 return render_template(
-                    "account_cap.html",
+                    "account_password.html",
                     error=billing_messages.LEDGER_INVALID,
                     email=email,
-                    form=request.form,
                 )
             except Exception:
                 log.exception("Account signup failed")
                 return render_template(
-                    "account_cap.html",
+                    "account_password.html",
                     error=billing_messages.GENERIC_BILLING_ERROR,
                     email=email,
-                    form=request.form,
                 )
-        if not email:
-            return redirect(url_for("account_create"))
-        return render_template("account_cap.html", error=None, email=email, form={})
+        return render_template("account_password.html", error=None, email=email)
 
     @app.route("/account/done")
     def account_done():

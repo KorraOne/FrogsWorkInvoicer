@@ -6,65 +6,37 @@
 
 <h1>Data storage</h1>
 
-<p class="home-intro">Settings and sales invoice records stay in AppData. You can choose where generated PDFs are saved.</p>
-
-
+<p class="home-intro">Settings and invoice records stay in AppData. Pick where PDFs are saved. Browsing for a folder adds a <code>pdfs</code> subfolder. Edit the path below if you don't want that.</p>
 
 <p class="storage-current-label">Config folder (fixed)</p>
-
 <code class="storage-current-path">{{ config_folder }}</code>
-
-<p class="storage-current-hint">Business settings, customers, sales invoices, and platform-fee cache.</p>
-
-
+<p class="storage-current-hint">Business settings, customers, invoices, usage cache, and a hidden <code>.deleted</code> folder for removed invoice PDFs.</p>
 
 <p class="storage-current-label">PDF folder{% if using_default %} (default){% endif %}</p>
 
+<form method="POST" action="{{ url_for('settings_storage_set') }}" class="folder-picker-row">
+    <input type="text" name="pdf_folder" class="folder-picker-path" value="{{ pdf_folder }}" aria-label="PDF folder">
+    <button type="submit" class="btn btn-primary folder-picker-save">Save</button>
+</form>
 
-
-<div class="folder-picker-row">
-
-    <input type="text" class="folder-picker-path" value="{{ pdf_folder }}" readonly aria-label="PDF folder">
-
-    <form method="POST" action="{{ url_for('settings_storage_pick') }}" class="folder-picker-browse-form">
-
-        <button type="submit" class="btn btn-secondary folder-picker-browse">Browse…</button>
-
-    </form>
-
-</div>
-
-
+<form method="POST" action="{{ url_for('settings_storage_pick') }}" class="folder-picker-browse-form storage-browse-form">
+    <button type="submit" class="btn btn-secondary folder-picker-browse">Browse…</button>
+</form>
 
 {% if using_default %}
-
 <p class="storage-current-hint">PDFs are saved in the <code>pdfs</code> subfolder under AppData.</p>
-
 {% else %}
-
 <p class="storage-current-hint">Custom PDF folder. Reset below to use the default.</p>
-
 {% endif %}
-
-
 
 {% if not using_default %}
-
 <div class="storage-actions">
-
     <form method="POST" action="{{ url_for('settings_storage_reset') }}">
-
         <button type="submit" class="btn btn-secondary">Reset PDF folder to default</button>
-
     </form>
-
 </div>
-
 {% endif %}
 
-
-
-<p class="storage-note">Changing the PDF folder does not move existing PDFs. Export a backup first if you need to transfer files. Default location: <code>{{ default_pdf_folder }}</code></p>
+<p class="storage-note">Changing the PDF folder does not move existing PDFs. Removing an invoice from your list keeps billing records and moves its PDF to the hidden <code>.deleted</code> folder in AppData. Default location: <code>{{ default_pdf_folder }}</code></p>
 
 {% endblock %}
-

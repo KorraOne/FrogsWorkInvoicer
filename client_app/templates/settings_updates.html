@@ -2,14 +2,14 @@
 {% block title %}App update · {{ brand_name }}{% endblock %}
 {% block content %}
 <h1>App update</h1>
-<p class="home-intro">Installed version <strong>{{ app_version }}</strong>. Your invoices and account data stay in AppData and are not changed by an update.</p>
+<p class="home-intro">Installed version <strong>{{ app_version }}</strong>. Updates don't change your invoices or account data in AppData.</p>
 
 {% if not packaged %}
 <div class="preview-section">
-    <p>Updates run in the packaged desktop app only. When developing with <code>python app.py</code>, rebuild with <code>build_client.ps1</code> instead.</p>
+    <p>Updates only run in the packaged app. For development, rebuild with <code>build_client.ps1</code>.</p>
 </div>
 {% elif server_unreachable %}
-<div class="error">Could not reach the billing server to check for updates. Try again when you are online.</div>
+<div class="error">Couldn't reach the server to check for updates. Try again when you're online.</div>
 {% elif pending %}
 <div class="preview-section update-panel">
     <h2 class="billing-section-heading">Version {{ pending.version }} available</h2>
@@ -25,11 +25,11 @@
         <input type="hidden" name="action" value="apply">
         <button type="submit" class="btn btn-primary">Update now</button>
     </form>
-    <p class="billing-panel-note">The app will download the update, close, replace its own files, and reopen. Your data in <code>%APPDATA%\FrogsWork\</code> is untouched.</p>
+    <p class="billing-panel-note">The app downloads the update, restarts, and replaces its files. Your data in <code>%APPDATA%\FrogsWork\</code> is not touched.</p>
 </div>
 {% else %}
 <div class="form-success">
-    <p>You are on the latest version we know about.</p>
+    <p>You are on the latest version.</p>
 </div>
 {% endif %}
 

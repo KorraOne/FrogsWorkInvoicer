@@ -221,7 +221,15 @@ def _wait_for_server(url, attempts=300):
     return False
 
 
+def _wait_for_splash_paint(timeout=10.0):
+    """Block until WebView reports first paint, or timeout."""
+    deadline = time.perf_counter() + timeout
+    while _splash_shown_at is None and time.perf_counter() < deadline:
+        time.sleep(0.05)
+
+
 def _ensure_min_splash_duration():
+    _wait_for_splash_paint()
     if _splash_shown_at is None:
         time.sleep(app_config.APP_SPLASH_MIN_SECONDS)
         return
@@ -337,7 +345,7 @@ def run_desktop_app(app_url, on_close, startup_error=None):
                     tagline="Already running",
                     error_message=(
                         f"{app_config.APP_BRAND_NAME} is already open. "
-                        "Check your taskbar for the existing window."
+                        "Check the taskbar for the existing window."
                     ),
                 )
             )
@@ -347,7 +355,7 @@ def run_desktop_app(app_url, on_close, startup_error=None):
             _main_window.load_html(
                 _splash_html(
                     tagline="Still starting…",
-                    error_message="The app is taking longer than usual. Close it and open it again.",
+                    error_message="Taking longer than usual. Close the app and open it again.",
                 )
             )
             while time.perf_counter() < deadline + 30:

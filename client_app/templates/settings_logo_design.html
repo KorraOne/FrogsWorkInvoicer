@@ -2,65 +2,13 @@
 {% block title %}Logo design · {{ brand_name }}{% endblock %}
 {% block content %}
 <h1>Logo design</h1>
-<p class="home-intro">Temporary page. FrogsWork is using a draft splash logo until final art is ready.</p>
+<p class="home-intro">We're using a draft logo for now. Email us if you'd like to help design the frog mark.</p>
 
-<div class="preview-section logo-design-brief">
-    <h2 class="billing-section-heading">What we are looking for</h2>
-    <ul class="welcome-list">
-        <li>A whimsical frog that still feels business-capable</li>
-        <li>Static artwork with an animated, lively character (not stiff corporate clipart)</li>
-        <li>Artsy and distinctive, not generic SaaS branding</li>
-        <li>Readable at small sizes (taskbar icon) and on the startup splash</li>
-    </ul>
+<p class="logo-design-email">
+    <a href="{{ mailto_href }}">{{ contact_email }}</a>
+</p>
+
+<div class="onboarding-actions onboarding-actions--center">
+    <a href="{{ mailto_href }}" class="btn btn-primary">Send email</a>
 </div>
-
-{% if submitted and composed_text %}
-<div class="form-success logo-design-sent">
-    <p>Thanks. Send the text below to us so we can follow up.</p>
-    {% if mailto_href %}
-    <p><a href="{{ mailto_href }}" class="btn btn-primary">Open email app</a></p>
-    {% else %}
-    <p><a href="{{ support_url }}" class="btn btn-primary" target="_blank" rel="noopener noreferrer">Open support</a></p>
-    <p class="billing-panel-note">Paste the message below into your email or support form.</p>
-    {% endif %}
-    <pre class="logo-design-compose" id="logo-design-compose">{{ composed_text }}</pre>
-    <button type="button" class="btn btn-secondary" id="logo-design-copy">Copy message</button>
-</div>
-{% else %}
-{% if error %}
-<div class="error">{{ error }}</div>
-{% endif %}
-<form method="POST" class="logo-design-form">
-    <div class="form-group">
-        <label for="contact">Your email (optional)</label>
-        <input type="email" name="contact" id="contact" value="{{ form_contact }}" placeholder="{{ ph.account_email }}">
-    </div>
-    <div class="form-group">
-        <label for="message">Your message</label>
-        <textarea name="message" id="message" rows="6" required placeholder="Tell us about your design skills, portfolio, or ideas for the frog.">{{ form_message }}</textarea>
-    </div>
-    <button type="submit" class="btn btn-primary">Prepare message</button>
-</form>
-{% endif %}
-{% endblock %}
-
-{% block scripts %}
-{% if submitted and composed_text %}
-<script>
-(function () {
-    var btn = document.getElementById("logo-design-copy");
-    var pre = document.getElementById("logo-design-compose");
-    if (!btn || !pre) {
-        return;
-    }
-    btn.addEventListener("click", function () {
-        navigator.clipboard.writeText(pre.textContent).then(function () {
-            btn.textContent = "Copied";
-        }).catch(function () {
-            btn.textContent = "Select and copy manually";
-        });
-    });
-})();
-</script>
-{% endif %}
 {% endblock %}

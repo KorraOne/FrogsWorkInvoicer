@@ -12,7 +12,7 @@
 
 <h1>Review invoice</h1>
 
-<p class="home-intro">Step 2 of 2. Check everything, then generate.</p>
+<p class="home-intro">Step 2 of 2. Check the details, then generate.</p>
 
 
 
@@ -66,7 +66,7 @@
 
         <h2 class="preview-card-heading">From</h2>
 
-        <p class="preview-party-name">{{ business_name or "Not set. Check Settings." }}</p>
+        <p class="preview-party-name">{{ business_name or "Not set. Add in Settings." }}</p>
 
         {% if business_address %}<p class="preview-party-detail">{{ business_address | replace('\n', '<br>') | safe }}</p>{% endif %}
 
@@ -104,6 +104,8 @@
 
                 <span>Unit (ex GST)</span>
 
+                <span>GST</span>
+
                 <span>Amount</span>
 
             </div>
@@ -117,6 +119,8 @@
                 <span>{{ item.qty }}</span>
 
                 <span>{{ item.unit_amount_fmt }}</span>
+
+                <span>{% if item.gst_applicable %}10%{% else %}No{% endif %}</span>
 
                 <span class="preview-items-amount">{{ item.amount_fmt }}</span>
 
@@ -142,6 +146,26 @@
 
         <dl class="preview-dl preview-dl-totals">
 
+            {% if has_mixed_gst %}
+
+            <div class="preview-dl-row">
+
+                <dt>Taxable subtotal (ex GST)</dt>
+
+                <dd>{{ taxable_ex_gst_fmt }}</dd>
+
+            </div>
+
+            <div class="preview-dl-row">
+
+                <dt>GST-free subtotal (ex GST)</dt>
+
+                <dd>{{ gst_free_ex_gst_fmt }}</dd>
+
+            </div>
+
+            {% endif %}
+
             <div class="preview-dl-row">
 
                 <dt>Subtotal (ex GST)</dt>
@@ -152,7 +176,7 @@
 
             <div class="preview-dl-row">
 
-                <dt>GST (10%)</dt>
+                <dt>GST (10%){% if not has_gst %} (not applicable){% endif %}</dt>
 
                 <dd>{{ gst_amount_fmt }}</dd>
 
@@ -230,7 +254,7 @@
 
         {% elif billing_preview %}
 
-        <p class="preview-billing-text">This invoice adds <strong>{{ fee_delta_fmt }}</strong> to your fee this month → new monthly fee <strong>{{ projected_fee_fmt }}</strong>.</p>
+        <p class="preview-billing-text">This invoice adds <strong>{{ fee_delta_fmt }}</strong> to your fee this month. New monthly fee: <strong>{{ projected_fee_fmt }}</strong>.</p>
 
         {% endif %}
 
@@ -242,7 +266,7 @@
 
             <p>Your fee for this month would be {{ projected_fee_fmt }}.</p>
 
-            <p>Raise your cap in Settings, or proceed to accept this fee.</p>
+            <p>Raise your cap in Settings, or tick below to accept this fee.</p>
 
         </div>
 
@@ -260,7 +284,7 @@
 
     <a href="{{ url_for('account_create') }}" class="btn btn-primary">Create account to continue</a>
 
-    <p class="home-intro">Your invoice details are saved. Return here after signing up.</p>
+    <p class="home-intro">Your draft is saved. Come back here after you sign up.</p>
 
     {% elif billing_notice_message %}
 
@@ -286,6 +310,8 @@
 
         <input type="hidden" name="item_quantity" value="{{ item.qty_raw }}">
 
+        <input type="hidden" name="item_gst_free" value="{% if item.gst_free %}on{% endif %}">
+
         {% endfor %}
 
         <input type="hidden" name="comment" value="{{ comment }}">
@@ -301,7 +327,6 @@
             <input type="checkbox" name="cap_bypass_confirm" value="1" id="cap-bypass">
 
             I accept the fee above and want to proceed
-
         </label>
 
         {% endif %}

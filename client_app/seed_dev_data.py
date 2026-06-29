@@ -89,6 +89,53 @@ def _invoice(number, customer, inv_date, description, ex_gst, status, sent_date=
     }
 
 
+def _mixed_gst_invoice(number, customer, inv_date, lines, status, sent_date=None, paid_date=None):
+    """lines: list of (description, ex_gst, gst_free bool)."""
+    inv_date = inv_date or _days_ago(7)
+    padded = f"{int(number):08d}"
+    taxable = Decimal("0")
+    gst_free_total = Decimal("0")
+    line_items = []
+    descriptions = []
+    for desc, ex_gst, gst_free in lines:
+        ex = Decimal(str(ex_gst))
+        gst_applicable = not gst_free
+        if gst_applicable:
+            taxable += ex
+        else:
+            gst_free_total += ex
+        line_items.append(
+            {
+                "description": desc,
+                "quantity": Decimal("1"),
+                "unit_amount_ex_gst": ex,
+                "amount_ex_gst": ex,
+                "gst_applicable": gst_applicable,
+                "gst_free": gst_free,
+            }
+        )
+        descriptions.append(desc)
+    gst_amount = (taxable * Decimal("0.10")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    amount_ex_gst = taxable + gst_free_total
+    total_inc_gst = amount_ex_gst + gst_amount
+    return {
+        "invoice_number": int(number),
+        "invoice_date": inv_date,
+        "customer_name": customer,
+        "description": "; ".join(descriptions[:2]) + (" (+more)" if len(descriptions) > 2 else ""),
+        "amount_ex_gst": str(amount_ex_gst),
+        "taxable_ex_gst": str(taxable),
+        "gst_free_ex_gst": str(gst_free_total),
+        "gst_amount": str(gst_amount),
+        "total_inc_gst": str(total_inc_gst),
+        "line_items": line_items,
+        "filename": f"Invoice_{padded}_{inv_date}.pdf",
+        "status": status,
+        "sent_date": sent_date,
+        "paid_date": paid_date,
+    }
+
+
 def _apply_due_fields(invoice, settings):
     inv_date = date.fromisoformat(invoice["invoice_date"])
     due = due_dates.invoice_due_summary(
@@ -105,9 +152,29 @@ def _apply_due_fields(invoice, settings):
 def _pdf_data_for_invoice(invoice, settings, customers):
     customer = customers.get(invoice["customer_name"], {})
     inv_date = date.fromisoformat(invoice["invoice_date"])
-    ex_gst = Decimal(invoice["amount_ex_gst"])
-    gst_amount = (ex_gst * Decimal("0.10")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    total_inc_gst = Decimal(invoice["total_inc_gst"])
+    if invoice.get("line_items"):
+        line_items = invoice["line_items"]
+        taxable_ex_gst = Decimal(invoice.get("taxable_ex_gst", invoice["amount_ex_gst"]))
+        gst_free_ex_gst = Decimal(invoice.get("gst_free_ex_gst", "0"))
+        amount_ex_gst = Decimal(invoice["amount_ex_gst"])
+        gst_amount = Decimal(invoice.get("gst_amount", "0"))
+        total_inc_gst = Decimal(invoice["total_inc_gst"])
+    else:
+        ex_gst = Decimal(invoice["amount_ex_gst"])
+        gst_amount = (ex_gst * Decimal("0.10")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        total_inc_gst = Decimal(invoice["total_inc_gst"])
+        taxable_ex_gst = ex_gst
+        gst_free_ex_gst = Decimal("0")
+        amount_ex_gst = ex_gst
+        line_items = [
+            {
+                "description": invoice["description"],
+                "quantity": Decimal("1"),
+                "unit_amount_ex_gst": ex_gst,
+                "amount_ex_gst": ex_gst,
+                "gst_applicable": True,
+            }
+        ]
     due = due_dates.invoice_due_summary(
         inv_date,
         invoice.get("due_rule_type") or settings.get("due_rule_type"),
@@ -128,15 +195,10 @@ def _pdf_data_for_invoice(invoice, settings, customers):
         "customer_name": invoice["customer_name"],
         "customer_address": customer.get("address", ""),
         "customer_abn": customer.get("abn", ""),
-        "line_items": [
-            {
-                "description": invoice["description"],
-                "quantity": Decimal("1"),
-                "unit_amount_ex_gst": ex_gst,
-                "amount_ex_gst": ex_gst,
-            }
-        ],
-        "amount_ex_gst": ex_gst,
+        "line_items": line_items,
+        "amount_ex_gst": amount_ex_gst,
+        "taxable_ex_gst": taxable_ex_gst,
+        "gst_free_ex_gst": gst_free_ex_gst,
         "gst_amount": gst_amount,
         "total_inc_gst": total_inc_gst,
         "comment": "",
@@ -182,6 +244,16 @@ def _seed_invoice_specs():
             _days_ago(0),
             "Hedge trim and green waste removal",
             420,
+            "not_sent",
+        ),
+        _mixed_gst_invoice(
+            9,
+            "West Coast Electrical",
+            _days_ago(1),
+            [
+                ("Labour — trenching (GST)", 600, False),
+                ("Council permit fee (GST-free)", 85, True),
+            ],
             "not_sent",
         ),
         _invoice(

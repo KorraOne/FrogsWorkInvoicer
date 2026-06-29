@@ -9,9 +9,9 @@
     <p class="account-services-status-label">Account services</p>
     <p class="account-services-status-value">
         {% if account_services_ok %}
-        Available. You can sign in and sync usage.
+        Available. You can sign in and sync.
         {% else %}
-        Unavailable. Check your internet connection and try again.
+        Unavailable. Check your connection and try again.
         {% endif %}
     </p>
 </div>
@@ -20,7 +20,7 @@
 {% if ledger_invalid %}
 <div class="ledger-repair-panel">
     <p class="ledger-repair-title">Usage records need attention</p>
-    <p class="ledger-repair-body">Local usage records could not be verified. This often happens after a restore or unexpected shutdown.</p>
+    <p class="ledger-repair-body">Local usage records couldn't be verified. This often happens after a restore or a crash.</p>
     <div class="ledger-repair-actions">
         <form method="POST" action="{{ url_for('account_repair_ledger') }}">
             <input type="hidden" name="action" value="rebuild">
@@ -31,7 +31,7 @@
             <button type="submit" class="btn btn-secondary">Reset usage cache</button>
         </form>
     </div>
-    <p class="ledger-repair-hint"><strong>Rebuild</strong> matches usage to your invoice history for this month. <strong>Reset</strong> clears local usage for this month.</p>
+    <p class="ledger-repair-hint"><strong>Rebuild</strong> matches usage to your invoices this month. <strong>Reset</strong> clears local usage for this month.</p>
 </div>
 {% endif %}
 
@@ -49,7 +49,7 @@
     {% else %}
     <a href="{{ url_for('account_create') }}" class="btn btn-secondary nav-card nav-card-utility">
         <span class="nav-card-title">Create account</span>
-        <span class="nav-card-hint">For usage above $2,000/month ex-GST</span>
+        <span class="nav-card-hint">For usage above $2,000 ex GST/month</span>
     </a>
     <a href="{{ url_for('account_login') }}" class="btn btn-secondary nav-card nav-card-utility">
         <span class="nav-card-title">Sign in</span>

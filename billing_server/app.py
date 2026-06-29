@@ -138,6 +138,21 @@ def commit_usage():
     return jsonify(result)
 
 
+@app.post("/usage/revert")
+@require_auth
+def revert_usage():
+    data = request.get_json(force=True)
+    try:
+        result = auth_service.revert_usage(
+            g.account_id,
+            data["invoice_number"],
+            data.get("usage_month", current_month()),
+        )
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify(result)
+
+
 @app.patch("/account/cap")
 @require_auth
 def patch_cap():

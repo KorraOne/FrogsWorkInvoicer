@@ -165,6 +165,21 @@ Backups: nightly cron from bootstrap → `/home/frogswork/backups/frogswork-bill
 
 ---
 
+## Go-live: ABN and platform autobilling
+
+Before KorraOne can email platform-fee invoices to users, complete these operator steps (not client-app code):
+
+1. **Obtain an ABN** for the billing entity (KorraOne).
+2. Edit `/etc/frogswork/billing.env` on the Pi — set letterhead and payment fields from [`billing_server/deploy/production.env.example`](../../billing_server/deploy/production.env.example):
+   - `KORRAONE_ABN`, business name and address
+   - BSB, account number, and/or PayID for fee payments
+   - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` for outbound invoice emails
+3. Enable and test the autobilling timer/cron (`auto_billing.py`) on a staging month first.
+4. Send a test platform invoice to yourself; confirm PDF and payment details.
+5. Document the live SMTP sender in your runbook and monitor `journalctl -u frogswork-billing` after the first production run.
+
+---
+
 ## Related docs
 
 - [PI-SETUP.md](../../billing_server/deploy/PI-SETUP.md) — Pi from scratch

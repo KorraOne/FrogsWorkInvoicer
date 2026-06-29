@@ -10,12 +10,13 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 from urllib.parse import unquote
 
-from flask import Flask, abort, flash, redirect, render_template, request, send_file, session, url_for
+from flask import Flask, abort, flash, g, redirect, render_template, request, send_file, session, url_for
+from werkzeug.exceptions import HTTPException
 from werkzeug.serving import make_server
 
 import storage
 from due_dates import due_rule_from_form_data, merge_due_rule_into_form, invoice_due_summary
-from email_compose import EmailComposeError, build_invoice_email_context, prepare_manual_send
+from email_compose import build_invoice_email_context, format_clipboard_text
 from folder_picker import process_pending_picks
 from ui_config import IDLE_TIMEOUT_SECONDS, PLACEHOLDERS, SELECT_LABELS
 
@@ -40,6 +41,9 @@ def exe_dir():
 def resolve_pdf_path(filename):
     if ".." in filename or "/" in filename or "\\" in filename:
         abort(404)
+    for inv in storage.load_invoices().values():
+        if inv.get("filename") == filename and storage.is_invoice_deleted(inv):
+            abort(404)
     primary = os.path.join(storage.get_pdf_dir(), filename)
     if os.path.isfile(primary):
         return primary
@@ -55,6 +59,48 @@ app = Flask(
     static_folder=resource_path("static"),
 )
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or storage.get_or_create_flask_secret()
+
+log = logging.getLogger(__name__)
+
+
+@app.errorhandler(404)
+def page_not_found(exc):
+    return (
+        render_template(
+            "error.html",
+            code=404,
+            message="Page not found.",
+        ),
+        404,
+    )
+
+
+@app.errorhandler(500)
+def internal_server_error(exc):
+    log.exception("Internal server error")
+    return (
+        render_template(
+            "error.html",
+            code=500,
+            message="Something went wrong. Your invoices and settings on this PC are safe.",
+        ),
+        500,
+    )
+
+
+@app.errorhandler(Exception)
+def handle_unexpected_error(exc):
+    if isinstance(exc, HTTPException):
+        return exc
+    log.exception("Unhandled application error")
+    return (
+        render_template(
+            "error.html",
+            code=500,
+            message="Something went wrong. Your invoices and settings on this PC are safe.",
+        ),
+        500,
+    )
 
 
 @app.context_processor
@@ -73,7 +119,9 @@ def _inject_brand():
         APP_BRAND_NAME,
         APP_BRAND_TAGLINE,
         APP_BRAND_URL,
+        APP_PRIVACY_URL,
         APP_SUPPORT_URL,
+        APP_TERMS_URL,
         SHOW_LOGO_DESIGN_SETTINGS,
     )
 
@@ -84,6 +132,8 @@ def _inject_brand():
         "brand_developer": APP_BRAND_DEVELOPER,
         "brand_developer_url": APP_BRAND_DEVELOPER_URL,
         "brand_support_url": APP_SUPPORT_URL,
+        "brand_privacy_url": APP_PRIVACY_URL,
+        "brand_terms_url": APP_TERMS_URL,
         "show_logo_design_settings": SHOW_LOGO_DESIGN_SETTINGS,
     }
 
@@ -99,14 +149,6 @@ def _inject_update():
         "pending_update": pending,
         "show_update_banner": bool(pending and not pending.get("banner_hidden")),
     }
-
-
-@app.context_processor
-def _inject_email_started_helper():
-    def email_started_for(number):
-        return session.get(f"email_started_{format_invoice_number(number)}", False)
-
-    return {"email_started_for": email_started_for}
 
 
 @app.template_filter("fmt_invoice_number")
@@ -128,7 +170,8 @@ def _fmt_invoice_amount(inv):
 def _invoice_due_countdown(inv):
     from due_dates import due_countdown_for_invoice
 
-    return due_countdown_for_invoice(inv)
+    settings = getattr(g, "invoice_list_settings", None)
+    return due_countdown_for_invoice(inv, settings=settings)
 
 
 @app.before_request
@@ -163,7 +206,7 @@ def format_account(acc):
 def parse_amount(raw):
     cleaned = raw.strip().replace("$", "").replace(",", "")
     if not cleaned:
-        raise ValueError("Please enter an amount.")
+        raise ValueError("Enter an amount.")
     value = Decimal(cleaned)
     if value < 0:
         raise ValueError("Amount cannot be negative.")
@@ -174,6 +217,10 @@ def compute_gst(amount_ex_gst):
     gst = (amount_ex_gst * Decimal("0.10")).quantize(Decimal("0.01"))
     total = amount_ex_gst + gst
     return gst, total
+
+
+def _is_gst_free_flag(raw):
+    return str(raw).strip().lower() in ("1", "on", "true", "yes")
 
 
 def parse_quantity(raw):
@@ -193,47 +240,55 @@ def format_qty(qty):
     return format(q, "f").rstrip("0").rstrip(".")
 
 
-def parse_line_items(descriptions, amounts, quantities=None):
+def parse_line_items(descriptions, amounts, quantities=None, gst_free_flags=None):
     """Parse parallel description/amount/qty lists into validated line items."""
     if quantities is None:
         quantities = []
+    if gst_free_flags is None:
+        gst_free_flags = []
     items = []
     row_num = 0
     for i, (desc_raw, amt_raw) in enumerate(zip(descriptions, amounts)):
         desc = desc_raw.strip()
         amt = amt_raw.strip()
         qty_raw = quantities[i] if i < len(quantities) else ""
+        gst_flag = gst_free_flags[i] if i < len(gst_free_flags) else ""
         if not desc and not amt and not qty_raw.strip():
             continue
         row_num += 1
         if not desc:
-            raise ValueError(f"Item {row_num}: please enter a description.")
+            raise ValueError(f"Item {row_num}: add a description.")
         try:
             unit_amount_ex_gst = parse_amount(amt)
         except (ValueError, InvalidOperation):
             raise ValueError(
-                f"Item {row_num}: please enter a valid amount (for example: 4500.00)."
+                f"Item {row_num}: enter a valid amount (e.g. 4500.00)."
             )
         try:
             qty = parse_quantity(qty_raw)
         except (ValueError, InvalidOperation):
-            raise ValueError(f"Item {row_num}: please enter a valid quantity (for example: 1).")
+            raise ValueError(f"Item {row_num}: enter a valid quantity (e.g. 1).")
         line_total = (qty * unit_amount_ex_gst).quantize(Decimal("0.01"))
+        gst_applicable = not _is_gst_free_flag(gst_flag)
         items.append(
             {
                 "description": desc,
                 "quantity": qty,
                 "unit_amount_ex_gst": unit_amount_ex_gst,
                 "amount_ex_gst": line_total,
+                "gst_applicable": gst_applicable,
             }
         )
 
     if not items:
-        raise ValueError("Please add at least one item with a description and amount.")
+        raise ValueError("Add at least one line item with a description and amount.")
 
-    subtotal = sum(item["amount_ex_gst"] for item in items)
-    gst_amount, total_inc_gst = compute_gst(subtotal)
-    return items, subtotal, gst_amount, total_inc_gst
+    taxable_ex_gst = sum(item["amount_ex_gst"] for item in items if item["gst_applicable"])
+    gst_free_ex_gst = sum(item["amount_ex_gst"] for item in items if not item["gst_applicable"])
+    subtotal = taxable_ex_gst + gst_free_ex_gst
+    gst_amount = (taxable_ex_gst * Decimal("0.10")).quantize(Decimal("0.01"))
+    total_inc_gst = taxable_ex_gst + gst_free_ex_gst + gst_amount
+    return items, subtotal, gst_amount, total_inc_gst, taxable_ex_gst, gst_free_ex_gst
 
 
 def line_items_from_request(form):
@@ -241,6 +296,7 @@ def line_items_from_request(form):
         form.getlist("item_description"),
         form.getlist("item_amount"),
         form.getlist("item_quantity"),
+        form.getlist("item_gst_free"),
     )
 
 
@@ -255,6 +311,7 @@ def create_form_from_request(req):
         descriptions = req.form.getlist("item_description")
         amounts = req.form.getlist("item_amount")
         quantities = req.form.getlist("item_quantity")
+        gst_free_flags = req.form.getlist("item_gst_free")
         customer = req.form.get("customer", "").strip()
         comment = req.form.get("comment", "").strip()
         due_rule_type = req.form.get("due_rule_type", "").strip()
@@ -263,6 +320,7 @@ def create_form_from_request(req):
         descriptions = req.args.getlist("item_description")
         amounts = req.args.getlist("item_amount")
         quantities = req.args.getlist("item_quantity")
+        gst_free_flags = req.args.getlist("item_gst_free")
         customer = req.args.get("customer", "")
         comment = req.args.get("comment", "")
         due_rule_type = req.args.get("due_rule_type", "")
@@ -271,9 +329,10 @@ def create_form_from_request(req):
     items = []
     for i, (desc, amt) in enumerate(zip(descriptions, amounts)):
         qty = quantities[i] if i < len(quantities) else "1"
-        items.append({"description": desc, "amount": amt, "qty": qty or "1"})
+        gst_free = _is_gst_free_flag(gst_free_flags[i] if i < len(gst_free_flags) else "")
+        items.append({"description": desc, "amount": amt, "qty": qty or "1", "gst_free": gst_free})
     if not items:
-        items = [{"description": "", "amount": "", "qty": "1"}]
+        items = [{"description": "", "amount": "", "qty": "1", "gst_free": False}]
     return {
         "customer": customer,
         "comment": comment,
@@ -305,7 +364,8 @@ def _line_items_from_form_dict(form):
     descriptions = [item["description"] for item in form["line_items"]]
     amounts = [item["amount"] for item in form["line_items"]]
     quantities = [item["qty"] for item in form["line_items"]]
-    return parse_line_items(descriptions, amounts, quantities)
+    gst_free_flags = ["on" if item.get("gst_free") else "" for item in form["line_items"]]
+    return parse_line_items(descriptions, amounts, quantities, gst_free_flags)
 
 
 def _render_preview_from_form(form):
@@ -315,10 +375,10 @@ def _render_preview_from_form(form):
     comment = form["comment"]
 
     if not customer_name or customer_name not in customers:
-        return render_create_invoice(form, error="Please select a customer.")
+        return render_create_invoice(form, error="Select a customer.")
 
     try:
-        items, subtotal, gst_amount, total_inc_gst = _line_items_from_form_dict(form)
+        items, subtotal, gst_amount, total_inc_gst, taxable_ex_gst, gst_free_ex_gst = _line_items_from_form_dict(form)
     except ValueError as exc:
         return render_create_invoice(form, error=str(exc))
 
@@ -335,6 +395,8 @@ def _render_preview_from_form(form):
             "unit_amount_raw": str(item["unit_amount_ex_gst"]),
             "amount_fmt": format_money(item["amount_ex_gst"]),
             "amount_raw": str(item["unit_amount_ex_gst"]),
+            "gst_applicable": item["gst_applicable"],
+            "gst_free": not item["gst_applicable"],
         }
         for item in items
     ]
@@ -357,8 +419,12 @@ def _render_preview_from_form(form):
         items=preview_items,
         comment=comment,
         amount_ex_gst_fmt=format_money(subtotal),
+        taxable_ex_gst_fmt=format_money(taxable_ex_gst),
+        gst_free_ex_gst_fmt=format_money(gst_free_ex_gst),
         gst_amount_fmt=format_money(gst_amount),
         total_inc_gst_fmt=format_money(total_inc_gst),
+        has_mixed_gst=gst_free_ex_gst > 0 and taxable_ex_gst > 0,
+        has_gst=gst_amount > 0,
         invoice_number=format_invoice_number(settings["invoice_counter"]),
         invoice_date=invoice_date.strftime("%d %B %Y"),
         subtotal_raw=str(subtotal),
@@ -371,6 +437,7 @@ NAV_PARENTS = {
     "resume_preview": ("create_invoice", "Edit invoice"),
     "dashboard": ("home", "Home"),
     "invoices_list": ("home", "Home"),
+    "invoice_send": ("invoices_list", "Past invoices"),
     "customers_list": ("home", "Home"),
     "customers_add": ("customers_list", "Customers"),
     "customers_edit": ("customers_list", "Customers"),
@@ -389,8 +456,7 @@ NAV_PARENTS = {
     "account_cap_settings": ("settings_billing", "Billing"),
     "account_repair_ledger": ("settings_account", "Your account"),
     "welcome_pricing": ("welcome_start", "Welcome"),
-    "welcome_data": ("welcome_pricing", "Pricing"),
-    "welcome_done": ("welcome_data", "Your data"),
+    "welcome_done": ("welcome_pricing", "Pricing"),
 }
 
 
@@ -449,6 +515,8 @@ def invoices_by_status(invoices):
 
     groups = {"not_sent": [], "sent": [], "paid": []}
     for invoice in invoices.values():
+        if storage.is_invoice_deleted(invoice):
+            continue
         status = invoice.get("status", "not_sent")
         if status in groups:
             groups[status].append(invoice)
@@ -549,7 +617,7 @@ def create_invoice_add_customer():
     email = request.form.get("new_customer_email", "").strip()
 
     if not name:
-        return redirect(url_for("create_invoice", error="Please enter a customer name."))
+        return redirect(url_for("create_invoice", error="Enter a customer name."))
 
     if storage.customer_name_exists(name):
         return redirect(url_for("create_invoice", error="A customer with this name already exists."))
@@ -625,7 +693,7 @@ def _billing_preview_template(subtotal):
             account_required=account_required or preview.get("cap_enabled"),
         )
         if notice:
-            return _with_preview(preview, "Connection needed", notice, "warning")
+            return _with_preview(preview, "You're offline", notice, "warning")
         return _with_preview(preview)
     except billing_client.BillingError as exc:
         preview = billing_local.local_usage_snapshot(subtotal)
@@ -634,7 +702,7 @@ def _billing_preview_template(subtotal):
         if authenticated:
             return _with_preview(
                 preview,
-                "Could not update usage",
+                "Couldn't update usage",
                 billing_messages.map_http_auth_error(str(exc)),
             )
         return _with_preview(preview)
@@ -655,10 +723,10 @@ def generate():
     cap_bypassed = request.form.get("cap_bypass_confirm") == "1"
 
     if not customer_name or customer_name not in customers:
-        return redirect(url_for("create_invoice", error="Please select a customer."))
+        return redirect(url_for("create_invoice", error="Select a customer."))
 
     try:
-        items, subtotal, gst_amount, total_inc_gst = line_items_from_request(request.form)
+        items, subtotal, gst_amount, total_inc_gst, taxable_ex_gst, gst_free_ex_gst = line_items_from_request(request.form)
     except ValueError as exc:
         return redirect(url_for("create_invoice", error=str(exc)))
 
@@ -707,6 +775,8 @@ def generate():
         "customer_abn": customer.get("abn", ""),
         "line_items": items,
         "amount_ex_gst": subtotal,
+        "taxable_ex_gst": taxable_ex_gst,
+        "gst_free_ex_gst": gst_free_ex_gst,
         "gst_amount": gst_amount,
         "total_inc_gst": total_inc_gst,
         "comment": comment,
@@ -726,6 +796,7 @@ def generate():
             "description": invoice_summary_description(items),
             "total_inc_gst": str(total_inc_gst),
             "amount_ex_gst": str(subtotal),
+            "gst_amount": str(gst_amount),
             "filename": filename,
             "due_date": due["due_date_iso"],
             "due_rule_type": due["due_rule_type"],
@@ -758,7 +829,6 @@ def done():
     marked_sent = request.args.get("sent") == "1"
     sent_date = None
     send_later = False
-    email_started = False
     inv = None
 
     if invoice_number:
@@ -772,15 +842,9 @@ def done():
             if inv.get("status") in ("sent", "paid"):
                 marked_sent = True
                 sent_date = inv.get("sent_date")
-            email_started = session.get(f"email_started_{inv_key}", False)
             send_later = session.get(f"send_later_{inv_key}", False)
 
     step2_complete = marked_sent or send_later
-    email_details = None
-
-    if invoice_number and inv and not step2_complete:
-        _, ctx = _invoice_email_context(invoice_number)
-        email_details = ctx
 
     return render_template(
         "done.html",
@@ -790,9 +854,7 @@ def done():
         marked_sent=marked_sent,
         sent_date=sent_date,
         send_later=send_later,
-        email_started=email_started,
         step2_complete=step2_complete,
-        email_details=email_details,
     )
 
 
@@ -811,7 +873,7 @@ def shutdown():
 
 @app.route("/invoices")
 def invoices_list():
-    invoices = storage.load_invoices()
+    invoices = storage.load_active_invoices()
     q = request.args.get("q", "").strip().lower()
     status_filter = request.args.get("status", "")
     customer_filter = request.args.get("customer", "")
@@ -844,6 +906,7 @@ def invoices_list():
 
     groups, sent_total = invoices_by_status(invoices)
     customers = sorted(storage.load_customers().keys())
+    g.invoice_list_settings = storage.load_settings()
 
     filters_active = bool(q or status_filter or customer_filter or date_from or date_to)
     filter_summary_parts = []
@@ -886,17 +949,62 @@ def _clear_invoice_send_session(number):
     session.pop(f"send_later_{key}", None)
 
 
+def _revert_billing_for_invoice(invoice_number):
+    import billing_auth_store
+    import billing_client
+    import billing_local
+
+    try:
+        if billing_auth_store.is_authenticated():
+            billing_client.revert_commit(invoice_number)
+        else:
+            if not billing_local.revert_local_commit(invoice_number):
+                log.warning("No local billing event to revert for invoice %s", invoice_number)
+    except billing_client.BillingOfflineError:
+        billing_local.revert_local_commit(invoice_number)
+    except Exception:
+        log.exception("Billing revert failed for invoice %s", invoice_number)
+        raise
+
+
+def _is_cancel_allowed(inv):
+    if storage.is_invoice_deleted(inv):
+        return False
+    if inv.get("status") != "not_sent":
+        return False
+    invoices = storage.load_invoices()
+    if not invoices:
+        return False
+    latest = max(int(record["invoice_number"]) for record in invoices.values())
+    return int(inv["invoice_number"]) == latest
+
+
+def _delete_invoice_files(filename):
+    storage.remove_invoice_pdf(filename)
+    legacy = os.path.join(exe_dir(), filename)
+    if filename and os.path.isfile(legacy):
+        try:
+            os.remove(legacy)
+        except OSError:
+            pass
+
+
 @app.route("/invoices/<number>/status", methods=["POST"])
 def invoice_update_status(number):
     number = unquote(number)
     status = request.form.get("status", "").strip()
     try:
-        storage.update_invoice_status(number, status)
+        storage.set_invoice_status(number, status)
     except (KeyError, ValueError):
         abort(404)
 
     if status == "sent":
         _clear_invoice_send_session(number)
+    elif status == "not_sent":
+        _clear_invoice_send_session(number)
+
+    status_labels = {"not_sent": "Not sent", "sent": "Sent", "paid": "Paid"}
+    flash(f"Invoice moved to {status_labels.get(status, status)}.", "success")
 
     next_page = request.form.get("next", "invoices")
     if next_page == "done" and status == "sent":
@@ -911,6 +1019,64 @@ def invoice_update_status(number):
                     sent=1,
                 )
             )
+    return redirect(url_for("invoices_list"))
+
+
+@app.route("/invoices/<number>/cancel", methods=["POST"])
+def invoice_cancel(number):
+    number = unquote(number)
+    inv = storage.get_invoice(number)
+    if not inv:
+        abort(404)
+    if not _is_cancel_allowed(inv):
+        flash("Only your newest not-sent invoice can be cancelled.", "error")
+        return redirect(url_for("home"))
+
+    try:
+        _revert_billing_for_invoice(number)
+    except Exception:
+        flash(
+            "Couldn't update usage for this cancellation. The invoice wasn't removed. Try again.",
+            "error",
+        )
+        return redirect(
+            url_for(
+                "done",
+                file=inv.get("filename", ""),
+                invoice=format_invoice_number(number),
+                customer=inv.get("customer_name", ""),
+            )
+        )
+
+    filename = inv.get("filename", "")
+    storage.hard_delete_invoice(number)
+    _clear_invoice_send_session(number)
+    _delete_invoice_files(filename)
+
+    flash("Invoice cancelled. It will not count toward this month's usage.", "success")
+    return redirect(url_for("home"))
+
+
+@app.route("/invoices/<number>/delete", methods=["POST"])
+def invoice_delete(number):
+    number = unquote(number)
+    inv = storage.get_invoice(number)
+    if not inv:
+        abort(404)
+
+    filename = inv.get("filename", "")
+    try:
+        storage.soft_delete_invoice(number)
+    except ValueError:
+        abort(404)
+
+    storage.archive_invoice_pdf(filename)
+    _clear_invoice_send_session(number)
+
+    flash(
+        "Invoice removed from your list. This month's usage is unchanged.",
+        "success",
+    )
     return redirect(url_for("invoices_list"))
 
 
@@ -938,21 +1104,53 @@ def _invoice_email_context(number):
     return inv, ctx
 
 
+@app.route("/invoices/<number>/send")
+def invoice_send(number):
+    number = unquote(number)
+    next_page = request.args.get("next", "invoices")
+    inv, ctx = _invoice_email_context(number)
+    return render_template(
+        "send_invoice.html",
+        invoice_number=number,
+        email_details=ctx,
+        clipboard_text=format_clipboard_text(ctx),
+        view_pdf_url=url_for("view_pdf", filename=inv.get("filename", "")),
+        reveal_url=url_for("invoice_send_reveal_pdf", number=number),
+        next_page=next_page,
+        show_send_later=next_page == "done",
+    )
+
+
+@app.route("/invoices/<number>/send/reveal-pdf", methods=["POST"])
+def invoice_send_reveal_pdf(number):
+    from email_compose import EmailComposeError, reveal_pdf_in_folder
+
+    number = unquote(number)
+    next_page = request.form.get("next", request.args.get("next", "invoices"))
+    inv, ctx = _invoice_email_context(number)
+    try:
+        reveal_pdf_in_folder(ctx["pdf_path"])
+        flash("PDF folder opened.", "success")
+    except EmailComposeError as exc:
+        message = str(exc)
+        if message.startswith("Opened the invoice folder"):
+            flash(message, "info")
+        else:
+            flash(message, "error")
+    except Exception:
+        log.exception("Reveal PDF in folder failed for invoice %s", number)
+        flash(
+            "Couldn't open the PDF folder. Close any Explorer windows for this folder and try again.",
+            "error",
+        )
+    return redirect(url_for("invoice_send", number=number, next=next_page))
+
+
 @app.route("/invoices/<number>/email/send")
 def invoice_email_send(number):
     number = unquote(number)
     next_page = request.args.get("next", "invoices")
-    inv, ctx = _invoice_email_context(number)
-    try:
-        prepare_manual_send(ctx)
-        session[f"email_started_{format_invoice_number(number)}"] = True
-        flash(
-            "Email details copied and PDF folder opened. Paste into your email, attach the PDF, and mark as sent.",
-            "success",
-        )
-    except EmailComposeError as exc:
-        flash(f"Could not prepare email: {exc}", "error")
-    return _invoice_email_redirect(next_page, inv)
+    return redirect(url_for("invoice_send", number=number, next=next_page))
 
 
 @app.route("/invoices/<number>/send-later")
@@ -994,7 +1192,7 @@ def customers_add():
                 "edit_customer.html",
                 customer=None,
                 form={"name": name, "address": address, "abn": abn, "email": email},
-                error="Please enter a customer name.",
+                error="Enter a customer name.",
                 is_add=True,
             )
 
@@ -1096,7 +1294,7 @@ def settings_updates():
 
     error = None
     server_unreachable = False
-    force_check = request.method == "GET" or request.form.get("action") in ("check", "apply")
+    force_check = request.method == "POST" and request.form.get("action") in ("check", "apply")
     pending = app_update.get_pending_update(force_check=force_check)
 
     if request.method == "POST":
@@ -1123,57 +1321,21 @@ def settings_updates():
     )
 
 
-LOGO_DESIGN_BRIEF = """FrogsWork logo brief:
-- Whimsical, business-capable frog (not corporate clipart)
-- Static image, but should feel lively and animated in character
-- Artsy and distinctive, not generic SaaS branding
-- Must read clearly at 16px (taskbar icon) and on a startup splash
-- Green palette aligned with FrogsWork (see frogswork.com)"""
-
-
-@app.route("/settings/logo-design", methods=["GET", "POST"])
+@app.route("/settings/logo-design", methods=["GET"])
 def settings_logo_design():
     from urllib.parse import quote
 
-    from app_config import APP_SUPPORT_EMAIL, APP_SUPPORT_URL, SHOW_LOGO_DESIGN_SETTINGS
+    from app_config import APP_LOGO_DESIGN_EMAIL, SHOW_LOGO_DESIGN_SETTINGS
 
     if not SHOW_LOGO_DESIGN_SETTINGS:
         abort(404)
 
-    error = None
-    submitted = False
-    mailto_href = None
-    composed_text = None
-
-    if request.method == "POST":
-        contact = request.form.get("contact", "").strip()
-        message = request.form.get("message", "").strip()
-        if not message:
-            error = "Add a short message about your interest or ideas."
-        else:
-            submitted = True
-            composed_text = (
-                "FrogsWork logo design help\n\n"
-                f"Contact: {contact or 'not provided'}\n\n"
-                f"{message}\n\n"
-                f"---\n{LOGO_DESIGN_BRIEF}"
-            )
-            if APP_SUPPORT_EMAIL:
-                mailto_href = (
-                    f"mailto:{APP_SUPPORT_EMAIL}"
-                    f"?subject={quote('FrogsWork logo design help')}"
-                    f"&body={quote(composed_text)}"
-                )
+    mailto_href = f"mailto:{APP_LOGO_DESIGN_EMAIL}?subject={quote('FrogsWork logo design')}"
 
     return render_template(
         "settings_logo_design.html",
-        error=error,
-        submitted=submitted,
+        contact_email=APP_LOGO_DESIGN_EMAIL,
         mailto_href=mailto_href,
-        composed_text=composed_text,
-        support_url=APP_SUPPORT_URL,
-        form_contact=request.form.get("contact", "") if request.method == "POST" else "",
-        form_message=request.form.get("message", "") if request.method == "POST" else "",
     )
 
 
@@ -1235,6 +1397,10 @@ def settings_account():
     import billing_auth_store
     import billing_client
     import billing_local
+    import billing_sync
+
+    if billing_auth_store.is_authenticated():
+        billing_sync.sync_usage_from_server()
 
     return render_template(
         "settings_account.html",
@@ -1248,6 +1414,10 @@ def settings_billing():
     import billing_auth_store
     import billing_client
     import billing_messages
+    import billing_sync
+
+    if billing_auth_store.is_authenticated():
+        billing_sync.sync_usage_from_server()
 
     if not billing_auth_store.is_authenticated():
         return render_template(
@@ -1307,6 +1477,17 @@ def settings_storage():
     )
 
 
+@app.route("/settings/storage/set", methods=["POST"])
+def settings_storage_set():
+    path = request.form.get("pdf_folder", "").strip()
+    if not path:
+        flash("Enter a folder path or use Browse.", "error")
+    else:
+        storage.set_pdf_folder(path, from_picker=False)
+        flash("PDF folder updated.", "success")
+    return redirect(url_for("settings_storage"))
+
+
 @app.route("/settings/storage/pick", methods=["POST"])
 def settings_storage_pick():
     from folder_picker import FolderPickerError, pick_folder
@@ -1314,10 +1495,10 @@ def settings_storage_pick():
     try:
         path = pick_folder("Choose where to save invoice PDFs")
         if path:
-            storage.set_pdf_folder(path)
-            flash("PDF folder updated.", "success")
+            storage.set_pdf_folder(path, from_picker=True)
+            flash("PDF folder updated. A pdfs subfolder was added to your chosen location.", "success")
     except FolderPickerError as exc:
-        flash(f"Could not open folder picker: {exc}", "error")
+        flash(f"Couldn't open the folder picker: {exc}", "error")
     return redirect(url_for("settings_storage"))
 
 
@@ -1462,6 +1643,9 @@ def main():
             _show_already_running_message()
             return
         threading.Thread(target=open_browser_when_ready, daemon=True).start()
+        import billing_sync
+
+        billing_sync.start_background_sync()
         try:
             while not shutdown_requested:
                 process_pending_picks()
@@ -1476,6 +1660,9 @@ def main():
             daemon=True,
             name="flask-backend",
         ).start()
+        import billing_sync
+
+        billing_sync.start_background_sync()
         from desktop_shell import run_desktop_app
 
         run_desktop_app(LOCAL_APP_URL, request_shutdown, startup_error=startup_error)

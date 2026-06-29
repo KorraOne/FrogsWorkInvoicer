@@ -1,15 +1,5 @@
 <div class="invoice-send-actions{% if show_send_later|default(false) %} invoice-send-actions-pair{% else %} invoice-send-actions-inline{% endif %}">
-    {% if email_started %}
-    <form method="POST" action="{{ url_for('invoice_update_status', number=invoice_number) }}" class="invoice-send-form">
-        <input type="hidden" name="status" value="sent">
-        {% if next_page %}
-        <input type="hidden" name="next" value="{{ next_page }}">
-        {% endif %}
-        <button type="submit" class="btn btn-primary btn-small">Mark as sent</button>
-    </form>
-    {% else %}
-    <a href="{{ url_for('invoice_email_send', number=invoice_number, next=next_page|default('invoices')) }}" class="btn btn-primary btn-small">Copy details &amp; open PDF</a>
-    {% endif %}
+    <a href="{{ url_for('invoice_send', number=invoice_number, next=next_page|default('invoices')) }}" class="btn btn-primary btn-small">Prepare to send</a>
     {% if show_send_later|default(false) %}
     <a href="{{ url_for('invoice_send_later', number=invoice_number, next=next_page|default('invoices')) }}" class="btn btn-secondary btn-small">I'll send this later</a>
     {% endif %}

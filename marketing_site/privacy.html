@@ -16,7 +16,7 @@
                 <a href="/">Home</a>
                 <a href="/pricing.html">Pricing</a>
                 <a href="/download.html">Download</a>
-                <a href="https://korraone.com/support" rel="noopener noreferrer">Support</a>
+                <a href="/support.html">Support</a>
             </nav>
         </div>
     </header>
@@ -26,10 +26,12 @@
         <p class="section-lead">Last updated: June 2026. FrogsWork is operated by KorraOne.</p>
 
         <h2>Local data on your computer</h2>
-        <p>FrogsWork stores customers, sales invoices, settings, and PDFs on your PC, primarily under <code>%APPDATA%\FrogsWork\</code>. This data stays on your machine unless you choose to back it up or sign in to a KorraOne account.</p>
+        <p>FrogsWork stores customers, invoices, settings, and billing cache on your PC, mainly under <code>%APPDATA%\FrogsWork\</code>. PDFs go in a <code>pdfs</code> folder, by default under AppData or wherever you chose at install or in Settings.</p>
+        <p>If you remove an invoice from your list, FrogsWork keeps a minimal billing record and moves the PDF to a hidden <code>.deleted</code> folder under AppData, separate from your PDF folder.</p>
+        <p>This data stays on your machine unless you choose to back it up or sign in to a KorraOne account.</p>
 
         <h2>When you create an account</h2>
-        <p>If you register, we store your email, hashed password, and usage billing records on the KorraOne billing server so fees can be calculated and platform invoices issued. Invoice PDFs you generate for customers are not uploaded unless you use a feature that explicitly sends data to the server.</p>
+        <p>If you register, we store your email, hashed password, and usage billing records on the KorraOne server so fees can be calculated and platform invoices sent. Customer invoice PDFs are not uploaded unless a feature explicitly sends data to the server.</p>
 
         <h2>What we do not do</h2>
         <ul>
@@ -42,7 +44,7 @@
         <p>The app may contact the billing server to check for updates and download new versions from this website. Download requests use standard HTTPS.</p>
 
         <h2>Support</h2>
-        <p>For access, correction, or deletion requests related to account data, contact us via <a href="https://korraone.com/support">KorraOne support</a>.</p>
+        <p>For access, correction, or deletion requests related to account data, contact us via <a href="/contact.html">FrogsWork support</a>.</p>
     </main>
 
     <footer class="site-footer">
@@ -51,7 +53,7 @@
             <div class="footer-links">
                 <a href="/privacy.html" aria-current="page">Privacy</a>
                 <a href="/terms.html">Terms</a>
-                <a href="https://korraone.com/support" rel="noopener noreferrer">Support</a>
+                <a href="/support.html">Support</a>
             </div>
         </div>
     </footer>

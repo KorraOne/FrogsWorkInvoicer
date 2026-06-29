@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frequent issues · FrogsWork</title>
+    <link rel="stylesheet" href="/css/site.css">
+</head>
+<body>
+    <header class="site-header">
+        <div class="site-header-inner">
+            <a class="site-brand" href="/">FrogsWork</a>
+            <button class="site-nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
+            <nav class="site-nav" id="site-nav" aria-label="Main">
+                <a href="/">Home</a>
+                <a href="/pricing.html">Pricing</a>
+                <a href="/download.html">Download</a>
+                <a href="/support.html">Support</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="site-main prose">
+        <p class="hero-eyebrow"><a href="/support.html">Support</a> · Using FrogsWork</p>
+        <h1>Frequent issues</h1>
+
+        <h2>Installer won't run</h2>
+        <p>Download again from <a href="/download.html">Download</a>. Windows may block files from the internet: right-click the setup file, open Properties, tick Unblock, then run. You need Windows 10 or 11 (64-bit).</p>
+
+        <h2>WebView2 missing</h2>
+        <p>FrogsWork needs Microsoft Edge WebView2. The installer usually installs it. If you see a blank window, install the <a href="https://developer.microsoft.com/microsoft-edge/webview2/" rel="noopener noreferrer">WebView2 runtime</a> and restart FrogsWork.</p>
+
+        <h2>Can't reach the billing server</h2>
+        <p>Invoicing within the free tier works offline. Sign-in, sync, and usage above $2,000 ex GST need <code>api.frogswork.com</code>. Check your connection and firewall. Pages should still load quickly. Open <strong>Settings → Your account</strong> to retry sync.</p>
+
+        <h2>Update failed</h2>
+        <p>Use <strong>Settings → App update → Check for updates</strong> when online. If download fails, get the latest installer from this site and run it over your existing install.</p>
+
+        <h2>PDF missing or wrong folder</h2>
+        <p>PDFs save in the folder you chose at install (usually <code>…\pdfs</code>). Change it in <strong>Settings → Data storage</strong>. On the send page, use <strong>Show PDF in folder</strong>.</p>
+
+        <h2>Can't sign in</h2>
+        <p>Reset your password through KorraOne if you forgot it. If the server is down, you can still use the free tier offline with your local data.</p>
+
+        <p><a href="/troubleshooting.html">Troubleshooting</a> · <a href="/contact.html">Contact support</a></p>
+    </main>
+
+    <footer class="site-footer">
+        <div class="site-footer-inner">
+            <span>FrogsWork by <a href="https://korraone.com" rel="noopener noreferrer">KorraOne</a></span>
+            <div class="footer-links">
+                <a href="/privacy.html">Privacy</a>
+                <a href="/terms.html">Terms</a>
+                <a href="/support.html">Support</a>
+            </div>
+        </div>
+    </footer>
+    <script src="/js/site.js"></script>
+</body>
+</html>

@@ -32,8 +32,12 @@
     {% if show_logo_design_settings %}
     <a href="{{ url_for('settings_logo_design') }}" class="btn btn-secondary nav-card nav-card-utility">
         <span class="nav-card-title">Logo design</span>
-        <span class="nav-card-hint">Help us with a whimsical frog mark (temporary)</span>
+        <span class="nav-card-hint">Email us if you'd like to help with the frog logo</span>
     </a>
     {% endif %}
+    <a href="{{ brand_support_url }}" class="btn btn-secondary nav-card nav-card-utility" target="_blank" rel="noopener noreferrer">
+        <span class="nav-card-title">Help &amp; support</span>
+        <span class="nav-card-hint">Install help, troubleshooting, contact</span>
+    </a>
 </div>
 {% endblock %}

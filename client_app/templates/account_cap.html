@@ -5,9 +5,9 @@
 {% include "_onboarding_stepper.html" %}
 {% endwith %}
 <h1>Platform fee setup</h1>
-<p class="home-intro">Set usage-fee warnings and how often you receive platform fee invoices. Separate from sales invoices you send customers.</p>
+<p class="home-intro">Set fee warnings and how often you get platform fee invoices. This is separate from sales invoices you send customers.</p>
 {% if error %}
-{% with message=error, kind='error', title='Could not create account' %}
+{% with message=error, kind='error', title="Couldn't create account" %}
 {% include "_notice_panel.html" %}
 {% endwith %}
 {% endif %}
@@ -27,21 +27,8 @@
     {% set billing_cycle = form.get('billing_cycle', 'quarterly') if form else 'quarterly' %}
     {% include "_billing_cycle_section.html" %}
 
-    <section class="billing-section">
-        <h2 class="billing-section-title">Account password</h2>
-        <div class="form-group">
-            <label for="password">Password</label>
-            <input type="password" name="password" id="password" required minlength="8" autocomplete="new-password">
-            <p class="form-hint">At least 8 characters</p>
-        </div>
-        <div class="form-group">
-            <label for="password_confirm">Confirm password</label>
-            <input type="password" name="password_confirm" id="password_confirm" required minlength="8" autocomplete="new-password">
-        </div>
-    </section>
-
     <div class="form-actions">
-        <button type="submit" class="btn btn-primary">Create account</button>
+        <button type="submit" class="btn btn-primary">Continue</button>
     </div>
 </form>
 <script src="{{ url_for('static', filename='billing_ui.js') }}"></script>

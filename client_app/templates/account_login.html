@@ -3,10 +3,10 @@
 {% block content %}
 <div class="account-auth-page">
     <h1>Sign in</h1>
-    <p class="home-intro">Sign in to sync usage above $2,000/month ex-GST or when using a monthly cap.</p>
+    <p class="home-intro">Sign in to sync usage above $2,000 ex GST in a month, or when you use a monthly cap.</p>
 
     {% if error %}
-    {% with message=error, kind='error', title='Could not sign in' %}
+    {% with message=error, kind='error', title="Couldn't sign in" %}
     {% include "_notice_panel.html" %}
     {% endwith %}
     {% endif %}

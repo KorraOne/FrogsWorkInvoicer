@@ -64,7 +64,7 @@
 
 <section class="billing-panel">
     <h2 class="dashboard-section-heading">Billing cycle</h2>
-    <p class="billing-panel-intro">Usage is calculated monthly. Choose how often KorraOne sends a platform fee invoice.</p>
+    <p class="billing-panel-intro">Usage is calculated monthly. Choose how often KorraOne sends platform fee invoices.</p>
     <form method="POST" class="billing-cycle-form">
         <div class="billing-cycle-card">
             <div class="form-group billing-cycle-field">
@@ -74,7 +74,7 @@
                     <option value="annual" {% if billing.billing_cycle == 'annual' %}selected{% endif %}>Annual, once per year</option>
                 </select>
             </div>
-            <p class="billing-panel-note billing-panel-note--compact">Switching from annual to quarterly bills any closed quarters with unbilled fees immediately.</p>
+            <p class="billing-panel-note billing-panel-note--compact">Switching from annual to quarterly bills any closed quarters with unbilled fees straight away.</p>
             <button type="submit" class="btn btn-primary">Save</button>
         </div>
     </form>
@@ -139,7 +139,7 @@
                 {% for inv in billing.platform_invoices %}
                 <tr{% if not inv.paid_at %} class="billing-row-attention"{% endif %}>
                     <td>{{ inv.invoice_number or inv.id }}</td>
-                    <td>{{ inv.billing_cycle_start }} – {{ inv.billing_cycle_end }}</td>
+                    <td>{{ inv.billing_cycle_start }} to {{ inv.billing_cycle_end }}</td>
                     <td class="text-right">${{ "{:,.2f}".format(inv.amount_due|float) }}</td>
                     <td>{{ inv.payment_due }}</td>
                     <td>
@@ -160,7 +160,7 @@
 
 {% elif services_ok is not none and not services_ok %}
 <div class="billing-panel">
-    <p class="billing-panel-intro">Billing services are unavailable. Try again when you are online.</p>
+    <p class="billing-panel-intro">Billing services are unavailable. Try again when you're online.</p>
 </div>
 {% endif %}
 

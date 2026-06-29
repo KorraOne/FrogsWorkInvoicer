@@ -4,12 +4,12 @@
 {% block content %}
 <div class="home-page">
 <h1 class="home-brand">{{ brand_name }}</h1>
-<p class="home-intro">{{ brand_tagline }}. Create and track <strong>sales invoices</strong> you send to customers. Not supplier bills.</p>
+<p class="home-intro">{{ brand_tagline }}. Create and send <strong>sales invoices</strong> to customers. Not for supplier bills.</p>
 
 <div class="nav-buttons">
     <a href="{{ url_for('create_invoice', fresh=1) }}" class="btn btn-primary nav-card nav-card-hero">
         <span class="nav-card-title">Create sales invoice</span>
-        <span class="nav-card-hint">New tax invoice PDF for a customer</span>
+        <span class="nav-card-hint">New tax invoice PDF</span>
     </a>
 
     <div class="nav-section">
@@ -29,7 +29,7 @@
         <div class="setup-grid">
             <a href="{{ url_for('customers_list') }}" class="btn btn-secondary nav-card nav-card-utility">
                 <span class="nav-card-title">Customers</span>
-                <span class="nav-card-hint">People you send sales invoices to</span>
+                <span class="nav-card-hint">People you invoice</span>
             </a>
             <a href="{{ url_for('settings_page') }}" class="btn btn-secondary nav-card nav-card-utility">
                 <span class="nav-card-title">Settings</span>
@@ -50,7 +50,7 @@
             <div class="setup-account-row">
                 <a href="{{ url_for('account_create') }}" class="btn btn-secondary nav-card nav-card-utility">
                     <span class="nav-card-title">Create account</span>
-                    <span class="nav-card-hint">For usage above $2,000/month ex-GST</span>
+                    <span class="nav-card-hint">For usage above $2,000 ex GST/month</span>
                 </a>
                 <a href="{{ url_for('account_login') }}" class="btn btn-secondary nav-card nav-card-utility">
                     <span class="nav-card-title">Sign in</span>

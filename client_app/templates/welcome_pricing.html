@@ -1,19 +1,19 @@
 {% extends "base.html" %}
 {% block title %}Pricing · {{ brand_name }}{% endblock %}
 {% block content %}
-{% with step=2, total=4, title="Pricing" %}
+{% with step=2, total=3, title="Pricing" %}
 {% include "_onboarding_stepper.html" %}
 {% endwith %}
 <h1>Pricing</h1>
-<p class="home-intro">Send sales invoices right away. No account needed.</p>
+<p class="home-intro">Start invoicing straight away. No account needed.</p>
 <ul class="welcome-list">
-    <li><strong>$2,000/month ex-GST free.</strong> No fees, no account</li>
+    <li><strong>$2,000/month ex GST free.</strong> No fees, no account</li>
     <li><strong>0.05% fee</strong> on amounts above $2,000 in a calendar month</li>
     <li>Works offline within the free allowance</li>
 </ul>
-<p>Above $2,000 ex-GST in a month, you need an account before generating more invoices. You can sign up anytime.</p>
-<p class="home-intro">Use <strong>Settings → Fee calculator</strong> to estimate fees for a monthly total.</p>
+<p>Above $2,000 ex GST in a month, you need an account before generating more invoices. You can sign up anytime.</p>
+<p class="home-intro">Use <strong>Settings → Fee calculator</strong> to estimate fees.</p>
 <div class="onboarding-actions onboarding-actions--center onboarding-actions--fill">
-    <a href="{{ url_for('welcome_data') }}" class="btn btn-primary">Continue</a>
+    <a href="{{ url_for('welcome_done') }}" class="btn btn-primary">Continue</a>
 </div>
 {% endblock %}

@@ -18,9 +18,13 @@ APP_BRAND_TAGLINE = "Sales invoicing for Australian sole traders"
 APP_BRAND_URL = "https://frogswork.com"
 APP_BRAND_DEVELOPER = "KorraOne"
 APP_BRAND_DEVELOPER_URL = "https://korraone.com"
-APP_SUPPORT_URL = "https://korraone.com/support"
-# Optional. If set, logo-design form offers a mailto link after submit.
-APP_SUPPORT_EMAIL = os.environ.get("FROGSWORK_SUPPORT_EMAIL", "").strip()
+APP_SUPPORT_URL = "https://frogswork.com/support.html"
+APP_PRIVACY_URL = "https://frogswork.com/privacy.html"
+APP_TERMS_URL = "https://frogswork.com/terms.html"
+# Shown on Settings → Logo design (temporary).
+APP_LOGO_DESIGN_EMAIL = "crombie@korraone.com"
+# Legacy env alias for logo-design mailto.
+APP_SUPPORT_EMAIL = APP_LOGO_DESIGN_EMAIL
 
 APP_WINDOW_TITLE = APP_BRAND_NAME
 APP_WINDOW_WIDTH = 1100

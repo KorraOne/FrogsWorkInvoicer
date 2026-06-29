@@ -1,0 +1,34 @@
+{% set inv_num = inv.invoice_number | fmt_invoice_number %}
+{% set current_status = inv.status %}
+<details class="invoice-actions-menu">
+    <summary class="btn btn-secondary btn-small invoice-actions-toggle">Actions</summary>
+    <div class="invoice-actions-panel">
+        {% if current_status != 'not_sent' %}
+        <form method="POST" action="{{ url_for('invoice_update_status', number=inv_num) }}">
+            <input type="hidden" name="status" value="not_sent">
+            <input type="hidden" name="next" value="{{ next_page | default('invoices') }}">
+            <button type="submit" class="invoice-action-btn">Move to Not sent</button>
+        </form>
+        {% endif %}
+        {% if current_status != 'sent' %}
+        <form method="POST" action="{{ url_for('invoice_update_status', number=inv_num) }}">
+            <input type="hidden" name="status" value="sent">
+            <input type="hidden" name="next" value="{{ next_page | default('invoices') }}">
+            <button type="submit" class="invoice-action-btn">Move to Sent</button>
+        </form>
+        {% endif %}
+        {% if current_status != 'paid' %}
+        <form method="POST" action="{{ url_for('invoice_update_status', number=inv_num) }}">
+            <input type="hidden" name="status" value="paid">
+            <input type="hidden" name="next" value="{{ next_page | default('invoices') }}">
+            <button type="submit" class="invoice-action-btn">Move to Paid</button>
+        </form>
+        {% endif %}
+        <form method="POST"
+              action="{{ url_for('invoice_delete', number=inv_num) }}"
+              onsubmit="return confirm('Remove invoice #{{ inv_num }} from your list? Usage for this month will not change.');">
+            <input type="hidden" name="next" value="{{ next_page | default('invoices') }}">
+            <button type="submit" class="invoice-action-btn invoice-action-btn--danger">Remove invoice</button>
+        </form>
+    </div>
+</details>

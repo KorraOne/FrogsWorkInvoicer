@@ -74,6 +74,38 @@ Type: filesandordirs; Name: "{userappdata}\FrogsWork"
 [Code]
 var
   DeveloperLink: TNewStaticText;
+  PdfFolderPage: TInputDirWizardPage;
+
+function JsonEscapePath(const S: String): String;
+var
+  I: Integer;
+begin
+  Result := '';
+  for I := 1 to Length(S) do
+  begin
+    if S[I] = '\' then
+      Result := Result + '\\'
+    else if S[I] = '"' then
+      Result := Result + '\"'
+    else
+      Result := Result + S[I];
+  end;
+end;
+
+procedure WriteBootstrapPdfFolder(const PdfFolder: String);
+var
+  AppDataDir, BootstrapPath, JsonContent: String;
+begin
+  AppDataDir := ExpandConstant('{userappdata}\FrogsWork');
+  ForceDirectories(AppDataDir);
+  BootstrapPath := AppDataDir + '\bootstrap.json';
+  if FileExists(BootstrapPath) then
+    Exit;
+  JsonContent := '{' + #13#10 +
+    '  "pdf_folder": "' + JsonEscapePath(PdfFolder) + '"' + #13#10 +
+    '}';
+  SaveStringToFile(BootstrapPath, JsonContent, False);
+end;
 
 procedure DeveloperLinkClick(Sender: TObject);
 var
@@ -84,6 +116,14 @@ end;
 
 procedure InitializeWizard();
 begin
+  PdfFolderPage := CreateInputDirPage(wpSelectDir,
+    'Invoice PDF folder',
+    'Where should FrogsWork save invoice PDFs?',
+    'A "pdfs" subfolder will be created inside the location you choose. You can edit the path below to remove "\pdfs" if you prefer. Change this later in Settings.',
+    False, 'New Folder');
+  PdfFolderPage.Add('');
+  PdfFolderPage.Values[0] := ExpandConstant('{userdocs}');
+
   DeveloperLink := TNewStaticText.Create(WizardForm);
   DeveloperLink.Parent := WizardForm.FinishedPage;
   DeveloperLink.Caption := 'Developed by {#AppPublisher} ({#AppPublisherURL})';
@@ -97,6 +137,27 @@ begin
   DeveloperLink.Font.Color := clNavy;
   DeveloperLink.Cursor := crHand;
   DeveloperLink.OnClick := @DeveloperLinkClick;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  PdfParent, PdfFolder, BaseName: String;
+begin
+  if CurStep <> ssPostInstall then
+    Exit;
+
+  PdfParent := PdfFolderPage.Values[0];
+  if PdfParent = '' then
+    Exit;
+
+  BaseName := ExtractFileName(RemoveBackslashUnlessRoot(PdfParent));
+  if (CompareText(BaseName, 'pdfs') = 0) or (CompareText(BaseName, 'pdf') = 0) then
+    PdfFolder := PdfParent
+  else
+    PdfFolder := AddBackslash(PdfParent) + 'pdfs';
+
+  ForceDirectories(PdfFolder);
+  WriteBootstrapPdfFolder(PdfFolder);
 end;
 
 procedure StopFrogsWorkProcesses();

@@ -2,7 +2,7 @@
 {% block title %}Past sales invoices · {{ brand_name }}{% endblock %}
 {% block content %}
 <h1>Past sales invoices</h1>
-<p class="home-intro">Sales invoices you sent to customers. Not supplier bills. Tap a section to expand or collapse it.</p>
+<p class="home-intro">Sales invoices you sent. Not supplier bills. Tap a section to expand or collapse.</p>
 
 <details class="invoice-filters-panel"{% if filters_active %} open{% endif %}>
     <summary class="invoice-filters-toggle">
@@ -81,7 +81,10 @@
                 {% endif %}
                 <div class="customer-actions">
                     <a href="{{ url_for('view_pdf', filename=inv.filename) }}" class="btn btn-secondary btn-small" target="_blank">View PDF</a>
-                    {% with invoice_number=inv.invoice_number | fmt_invoice_number, next_page='invoices', email_started=email_started_for(inv.invoice_number) %}
+                    {% with next_page='invoices' %}
+                    {% include "_invoice_manage_actions.html" %}
+                    {% endwith %}
+                    {% with invoice_number=inv.invoice_number | fmt_invoice_number, next_page='invoices' %}
                     {% include "_invoice_send_actions.html" %}
                     {% endwith %}
                 </div>
@@ -107,7 +110,7 @@
     <div class="invoice-section-body">
         {% if sent %}
         <p class="invoice-summary">{{ sent_count }} invoice{% if sent_count != 1 %}s{% endif %} owing, {{ sent_total_fmt }} total</p>
-        <p class="invoice-hint">Mark as paid after the payment shows on your bank statement.</p>
+        <p class="invoice-hint">Mark as paid once the money is in your account.</p>
             {% for inv in sent %}
             {% set due_info = inv | invoice_due_countdown %}
             <div class="customer-card invoice-card">
@@ -131,6 +134,9 @@
                 {% endif %}
                 <div class="customer-actions">
                     <a href="{{ url_for('view_pdf', filename=inv.filename) }}" class="btn btn-secondary btn-small" target="_blank">View PDF</a>
+                    {% with next_page='invoices' %}
+                    {% include "_invoice_manage_actions.html" %}
+                    {% endwith %}
                     <form method="POST" action="{{ url_for('invoice_update_status', number=inv.invoice_number | fmt_invoice_number) }}" style="display:inline;">
                         <input type="hidden" name="status" value="paid">
                         <button type="submit" class="btn btn-primary btn-small">Mark as paid</button>
@@ -168,6 +174,9 @@
                 {% endif %}
                 <div class="customer-actions">
                     <a href="{{ url_for('view_pdf', filename=inv.filename) }}" class="btn btn-secondary btn-small" target="_blank">View PDF</a>
+                    {% with next_page='invoices' %}
+                    {% include "_invoice_manage_actions.html" %}
+                    {% endwith %}
                 </div>
             </div>
             {% endfor %}
