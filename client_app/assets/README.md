@@ -47,6 +47,6 @@ Restart the dev app to preview the splash (`python app.py` from `client_app/`).
 
 ## Logo design contact (Settings → Logo design)
 
-`crombie@korraone.com` in `app_config.py` (`APP_LOGO_DESIGN_EMAIL`).
+`APP_SUPPORT_EMAIL` in `app_config.py` (currently `crombie@korraone.com`).
 
 Override with `FROGSWORK_LOGO_DESIGN_EMAIL` or `FROGSWORK_SUPPORT_EMAIL` before starting the app.

@@ -21,10 +21,9 @@ APP_BRAND_DEVELOPER_URL = "https://korraone.com"
 APP_SUPPORT_URL = "https://frogswork.com/support.html"
 APP_PRIVACY_URL = "https://frogswork.com/privacy.html"
 APP_TERMS_URL = "https://frogswork.com/terms.html"
-# Shown on Settings → Logo design (temporary).
-APP_LOGO_DESIGN_EMAIL = "crombie@korraone.com"
-# Legacy env alias for logo-design mailto.
-APP_SUPPORT_EMAIL = APP_LOGO_DESIGN_EMAIL
+# User-facing support and logo-design contact.
+APP_SUPPORT_EMAIL = "crombie@korraone.com"
+APP_LOGO_DESIGN_EMAIL = APP_SUPPORT_EMAIL
 
 APP_WINDOW_TITLE = APP_BRAND_NAME
 APP_WINDOW_WIDTH = 1100
