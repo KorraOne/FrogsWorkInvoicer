@@ -5,3 +5,4 @@ pyinstaller>=6.0
 pyjwt>=2.8
 cryptography>=42.0
 pywebview>=5.0
+platformdirs>=4.0

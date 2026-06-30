@@ -2,11 +2,12 @@
 
 import io
 import os
-import sys
 import zipfile
 from datetime import datetime
 
 import storage
+
+from .capabilities import is_desktop, is_windows
 
 
 class BackupExportError(Exception):
@@ -61,7 +62,7 @@ def _save_with_webview(default_name):
 
 
 def _save_with_tk(default_name):
-    if sys.platform != "win32":
+    if not is_windows():
         raise BackupExportError("Save dialog is only supported on Windows.")
 
     import tkinter as tk
@@ -82,9 +83,7 @@ def _save_with_tk(default_name):
 
 
 def pick_save_path(default_name):
-    from desktop_shell import is_desktop_mode
-
-    if is_desktop_mode():
+    if is_desktop():
         return _save_with_webview(default_name)
     return _save_with_tk(default_name)
 

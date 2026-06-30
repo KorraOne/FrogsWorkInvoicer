@@ -12,7 +12,7 @@
     <li>Works offline. Your invoice data stays on this PC.</li>
 </ul>
 <p>After the trial, subscribe to keep generating invoices.</p>
-<div class="onboarding-actions onboarding-actions--center onboarding-actions--fill">
-    <a href="{{ url_for('welcome_done') }}" class="btn btn-primary">Continue</a>
-</div>
+<form method="POST" action="{{ url_for('welcome_pricing') }}" class="onboarding-actions onboarding-actions--center onboarding-actions--fill">
+    <button type="submit" class="btn btn-primary">Continue</button>
+</form>
 {% endblock %}

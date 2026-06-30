@@ -5,22 +5,20 @@ import logging
 import os
 from datetime import datetime, timezone
 
-import account_client
-import billing_auth_store
-import entitlement_cache
+from . import auth_store, client, entitlement_cache
 import storage
 
 log = logging.getLogger(__name__)
 
 
 def sync_entitlements_from_server():
-    if not billing_auth_store.is_authenticated():
+    if not auth_store.is_authenticated():
         return None
     try:
-        payload = account_client.get_entitlements()
+        payload = client.get_entitlements()
         entitlement_cache.update_from_entitlements(payload)
         return payload
-    except account_client.AccountOfflineError:
+    except client.AccountOfflineError:
         log.warning("Entitlement sync offline")
         cached = entitlement_cache.load_cache()
         return cached if cached else None
@@ -39,7 +37,7 @@ def start_background_sync():
         except Exception:
             log.exception("Background entitlement sync failed")
         try:
-            import app_update
+            import app_platform.updates as app_update
 
             app_update.refresh_release_cache(force=True)
         except Exception:

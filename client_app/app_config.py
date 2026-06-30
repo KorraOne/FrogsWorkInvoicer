@@ -2,13 +2,7 @@
 
 import os
 
-DEFAULT_ACCOUNT_API_URL = os.environ.get("FROGSWORK_ACCOUNT_API_URL") or os.environ.get(
-    "BILLING_SERVER_URL"
-) or os.environ.get("FROGSWORK_BILLING_URL") or "http://127.0.0.1:8787"
-
-# Legacy alias used by auth store until fully renamed.
-DEFAULT_BILLING_SERVER_URL = DEFAULT_ACCOUNT_API_URL
-
+DEFAULT_ACCOUNT_API_URL = os.environ.get("FROGSWORK_ACCOUNT_API_URL") or "http://127.0.0.1:8787"
 # Windows: %APPDATA%\<APP_DATA_DIR_NAME>\ — macOS/Linux use platformdirs later.
 APP_DATA_DIR_NAME = "FrogsWork"
 

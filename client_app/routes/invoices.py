@@ -7,13 +7,13 @@ from urllib.parse import unquote
 
 from flask import abort, flash, g, redirect, render_template, request, send_file, session, url_for
 
-import entitlement_guard
 import storage
-from due_dates import due_rule_from_form_data, merge_due_rule_into_form, save_last_due_prefs
-from email_compose import EmailComposeError, build_invoice_email_context, format_clipboard_text, reveal_pdf_in_folder
-from gst_settings import is_gst_registered, validate_business_gst_settings
-from invoice_format import format_invoice_number, format_money, parse_invoice_number_input, persist_invoice_counter
-from invoice_form import (
+from account import entitlement_guard
+from invoicing.due_dates import due_rule_from_form_data, merge_due_rule_into_form, save_last_due_prefs
+from invoicing.email_compose import EmailComposeError, build_invoice_email_context, format_clipboard_text, reveal_pdf_in_folder
+from invoicing.gst_settings import is_gst_registered, validate_business_gst_settings
+from invoicing.format import format_invoice_number, format_money, parse_invoice_number_input, persist_invoice_counter
+from invoicing.form import (
     clear_invoice_draft,
     create_form_from_request,
     create_invoice_template_context,
@@ -26,7 +26,7 @@ from invoice_form import (
     render_preview_from_form,
     save_invoice_draft,
 )
-from paths import exe_dir, resolve_pdf_path
+from app_platform import exe_dir, resolve_pdf_path
 
 log = logging.getLogger(__name__)
 
@@ -105,7 +105,7 @@ def register_invoice_routes(app):
 
     @app.route("/generate", methods=["POST"])
     def generate():
-        import pdf_generator
+        from invoicing import pdf_generator
 
         settings = storage.load_settings()
         customers = storage.load_customers()

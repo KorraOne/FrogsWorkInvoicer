@@ -14,9 +14,10 @@ import urllib.error
 import urllib.request
 import zipfile
 
-import billing_auth_store
-import account_client
+from account import auth_store, client
 from app_config import APP_VERSION
+
+from .capabilities import is_packaged
 
 log = logging.getLogger(__name__)
 
@@ -26,10 +27,6 @@ _CREATE_NO_WINDOW = 0x08000000
 _DETACHED_PROCESS = 0x00000008
 
 _cache = {"at": 0.0, "latest": None, "failed": False}
-
-
-def is_packaged():
-    return getattr(sys, "frozen", False)
 
 
 def install_dir():
@@ -77,10 +74,10 @@ def version_less(left, right):
 
 
 def fetch_latest_release():
-    if not account_client.check_server_available():
+    if not client.check_server_available():
         return None
-    url = billing_auth_store.get_server_url().rstrip("/") + "/releases/latest"
-    req = urllib.request.Request(url, headers=account_client.api_headers(), method="GET")
+    url = auth_store.get_server_url().rstrip("/") + "/releases/latest"
+    req = urllib.request.Request(url, headers=client.api_headers(), method="GET")
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             if resp.status == 204:
@@ -164,7 +161,7 @@ def _sha256_file(path):
 
 
 def _download_file(url, dest):
-    req = urllib.request.Request(url, headers=account_client.api_headers(), method="GET")
+    req = urllib.request.Request(url, headers=client.api_headers(), method="GET")
     with urllib.request.urlopen(req, timeout=300) as resp, open(dest, "wb") as out:
         shutil.copyfileobj(resp, out)
 

@@ -6,7 +6,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-import billing_auth_store
+from . import auth_store
 from app_config import STRIPE_PAYMENT_LINK_ANNUAL, STRIPE_PAYMENT_LINK_MONTHLY
 
 log = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ class SubscriptionRequiredError(AccountError):
 
 
 def _api_url(path):
-    return billing_auth_store.get_server_url().rstrip("/") + path
+    return auth_store.get_server_url().rstrip("/") + path
 
 
 def _request(method, path, body=None, auth=False, timeout=15):
@@ -35,7 +35,7 @@ def _request(method, path, body=None, auth=False, timeout=15):
         data = json.dumps(body).encode("utf-8")
         headers["Content-Type"] = "application/json"
     if auth:
-        auth_data = billing_auth_store.load_auth()
+        auth_data = auth_store.load_auth()
         token = auth_data.get("access_token")
         if token:
             headers["Authorization"] = f"Bearer {token}"
@@ -75,12 +75,12 @@ def check_server_available():
 
 def login(email, password):
     payload = _request("POST", "/auth/login", {"email": email, "password": password})
-    billing_auth_store.save_auth(
+    auth_store.save_auth(
         {
             "email": email.strip().lower(),
             "access_token": payload["access_token"],
             "refresh_token": payload.get("refresh_token", ""),
-            "server_url": billing_auth_store.get_server_url(),
+            "server_url": auth_store.get_server_url(),
         }
     )
     return payload
@@ -93,12 +93,12 @@ def register(password, checkout_session_id):
     }
     payload = _request("POST", "/auth/register", body)
     email = (payload.get("email") or "").strip().lower()
-    billing_auth_store.save_auth(
+    auth_store.save_auth(
         {
             "email": email,
             "access_token": payload["access_token"],
             "refresh_token": payload.get("refresh_token", ""),
-            "server_url": billing_auth_store.get_server_url(),
+            "server_url": auth_store.get_server_url(),
         }
     )
     return payload
@@ -119,14 +119,14 @@ def attach_checkout_session(checkout_session_id):
 
 
 def logout():
-    billing_auth_store.clear_auth()
-    import entitlement_cache
+    auth_store.clear_auth()
+    from . import entitlement_cache
 
     entitlement_cache.clear_cache()
 
 
 def _refresh_if_needed():
-    auth = billing_auth_store.load_auth()
+    auth = auth_store.load_auth()
     refresh = auth.get("refresh_token")
     if not refresh:
         return
@@ -135,7 +135,7 @@ def _refresh_if_needed():
         auth["access_token"] = payload["access_token"]
         if payload.get("refresh_token"):
             auth["refresh_token"] = payload["refresh_token"]
-        billing_auth_store.save_auth(auth)
+        auth_store.save_auth(auth)
     except AccountError:
         logout()
         raise
@@ -159,6 +159,6 @@ def payment_link_for_plan(plan, email=None):
 
 
 def map_http_auth_error(message):
-    from subscription_messages import map_http_auth_error as _map
+    from . import messages
 
-    return _map(message)
+    return messages.map_http_auth_error(message)

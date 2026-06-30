@@ -5,7 +5,7 @@ import os
 import subprocess
 import sys
 
-from gst_settings import invoice_uses_tax_invoice
+from .gst_settings import invoice_uses_tax_invoice
 
 log = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ def build_invoice_email_context(invoice, customer, settings, pdf_path):
     due_date = invoice.get("due_date", "").strip()
     if due_date:
         try:
-            from due_dates import format_due_date
+            from .due_dates import format_due_date
             from datetime import date as date_cls
 
             parts = due_date.split("-")

@@ -13,8 +13,7 @@ import sys
 from datetime import date, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 
-import due_dates
-import pdf_generator
+from invoicing import due_dates, pdf_generator
 import storage
 
 # --- Seed content (edit freely for your dev scenarios) ---

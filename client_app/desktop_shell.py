@@ -11,7 +11,7 @@ import urllib.error
 import urllib.request
 
 import app_config
-import window_state
+import app_platform.window_state as window_state
 
 _main_window = None
 _desktop_mode = False

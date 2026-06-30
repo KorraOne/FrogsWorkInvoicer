@@ -1,7 +1,9 @@
-"""Windows folder picker — pywebview dialog in desktop mode, tkinter queue otherwise."""
+"""Folder picker — pywebview dialog in desktop mode, tkinter queue otherwise."""
 
 import queue
 import sys
+
+from .capabilities import is_desktop, is_windows
 
 _pick_requests = queue.Queue()
 
@@ -36,7 +38,7 @@ def _pick_with_webview(title):
 
 
 def _show_tk_dialog(title):
-    if sys.platform != "win32":
+    if not is_windows():
         raise FolderPickerError("Folder picker is only supported on Windows.")
 
     import tkinter as tk
@@ -52,9 +54,7 @@ def _show_tk_dialog(title):
 
 
 def pick_folder(title="Choose a folder", timeout=300):
-    from desktop_shell import is_desktop_mode
-
-    if is_desktop_mode():
+    if is_desktop():
         return _pick_with_webview(title)
 
     request_id = object()

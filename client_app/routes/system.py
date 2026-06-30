@@ -1,4 +1,4 @@
-"""Ping, shutdown, and idle watchdog."""
+"""Ping, shutdown, idle watchdog, and shared server lifecycle state."""
 
 import os
 import threading
@@ -6,27 +6,31 @@ import time
 
 from flask import request
 
-import app_state
 from ui_config import IDLE_TIMEOUT_SECONDS
+
+server = None
+last_request_time = time.time()
+shutdown_requested = False
 
 
 def request_shutdown():
-    if app_state.shutdown_requested:
+    global shutdown_requested
+    if shutdown_requested:
         return
-    app_state.shutdown_requested = True
+    shutdown_requested = True
 
     def _exit():
-        if app_state.server is not None:
-            app_state.server.shutdown()
+        if server is not None:
+            server.shutdown()
         os._exit(0)
 
     threading.Timer(0.3, _exit).start()
 
 
 def idle_watchdog():
-    while not app_state.shutdown_requested:
+    while not shutdown_requested:
         time.sleep(60)
-        if time.time() - app_state.last_request_time > IDLE_TIMEOUT_SECONDS:
+        if time.time() - last_request_time > IDLE_TIMEOUT_SECONDS:
             request_shutdown()
             break
 
@@ -43,5 +47,6 @@ def register_system_routes(app):
 
     @app.before_request
     def touch_last_request():
+        global last_request_time
         if request.path != "/shutdown":
-            app_state.last_request_time = time.time()
+            last_request_time = time.time()

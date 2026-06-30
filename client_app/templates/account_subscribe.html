@@ -77,23 +77,7 @@
 </div>
 
 {% if awaiting_payment %}
-<script>
-(function () {
-    var statusUrl = {{ url_for('account_subscribe_status') | tojson }};
-    function poll() {
-        fetch(statusUrl, { credentials: 'same-origin' })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-                if (data.ready && data.redirect) {
-                    window.location.href = data.redirect;
-                    return;
-                }
-                setTimeout(poll, 1500);
-            })
-            .catch(function () { setTimeout(poll, 3000); });
-    }
-    setTimeout(poll, 1500);
-})();
-</script>
+<script type="application/json" id="account-subscribe-config">{{ {"statusUrl": url_for('account_subscribe_status')} | tojson }}</script>
+<script src="{{ url_for('static', filename='account_subscribe_poll.js') }}"></script>
 {% endif %}
 {% endblock %}

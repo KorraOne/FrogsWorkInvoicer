@@ -13,19 +13,22 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.serving import make_server
 
 import storage
-from invoice_format import (
+from invoicing.format import (
     format_invoice_date,
     format_invoice_number,
     format_iso_date,
     format_iso_datetime,
     format_money,
 )
-from invoice_form import has_invoice_draft, invoices_by_status
-from paths import exe_dir, resource_path
+from invoicing.form import has_invoice_draft, invoices_by_status
+from app_platform import exe_dir, resource_path
+from routes.account import register_account_routes
+from routes.backup import register_backup_routes
 from routes.customers import register_customer_routes
 from routes.invoices import register_invoice_routes
 from routes.settings import register_settings_routes
 from routes.system import idle_watchdog, register_system_routes, request_shutdown
+from routes.welcome import register_welcome_routes
 from ui_config import PLACEHOLDERS, SELECT_LABELS
 
 logging.getLogger("werkzeug").setLevel(logging.ERROR)
@@ -51,19 +54,13 @@ NAV_PARENTS = {
     "settings_page": ("home", "Home"),
     "settings_details": ("home", "Home"),
     "settings_account": ("settings_page", "Settings"),
-    "settings_billing": ("settings_page", "Settings"),
-    "settings_fee_calculator": ("settings_page", "Settings"),
     "settings_storage": ("settings_page", "Settings"),
     "settings_logo_design": ("settings_page", "Settings"),
     "settings_updates": ("settings_page", "Settings"),
     "backup_import": ("settings_page", "Settings"),
     "account_subscribe": ("home", "Home"),
     "account_password": ("account_subscribe", "Subscribe"),
-    "account_cap": ("account_subscribe", "Subscribe"),
-    "account_cap_settings": ("settings_account", "Your account"),
-    "account_repair_ledger": ("settings_account", "Your account"),
     "welcome_pricing": ("welcome_start", "Welcome"),
-    "welcome_done": ("welcome_pricing", "Pricing"),
 }
 
 
@@ -146,7 +143,7 @@ def _inject_brand():
 
 @app.context_processor
 def _inject_update():
-    import app_update
+    from app_platform import updates as app_update
     from app_config import APP_VERSION
 
     pending = app_update.get_pending_update()
@@ -184,7 +181,7 @@ def _fmt_invoice_amount(inv):
 
 @app.template_filter("invoice_due_countdown")
 def _invoice_due_countdown(inv):
-    from due_dates import due_countdown_for_invoice
+    from invoicing.due_dates import due_countdown_for_invoice
 
     settings = getattr(g, "invoice_list_settings", None)
     return due_countdown_for_invoice(inv, settings=settings)
@@ -197,13 +194,11 @@ def inject_navigation():
     back_label = "Home"
 
     if endpoint in (
-        "account_create",
         "account_login",
         "account_onboard_business",
         "account_onboard_customer",
         "account_subscribe",
         "account_password",
-        "account_cap",
     ) and has_invoice_draft():
         back_url = url_for("resume_preview")
         back_label = "Back to invoice review"
@@ -220,23 +215,20 @@ def inject_navigation():
 
 
 def _register_all_routes():
+    helpers = {
+        "format_money": format_money,
+        "format_invoice_number": format_invoice_number,
+        "exe_dir": exe_dir,
+        "invoices_by_status": invoices_by_status,
+        "unquote": unquote,
+    }
     register_system_routes(app)
     register_invoice_routes(app)
     register_customer_routes(app)
     register_settings_routes(app, request_shutdown)
-
-    from client_routes import register_client_routes
-
-    register_client_routes(
-        app,
-        {
-            "format_money": format_money,
-            "format_invoice_number": format_invoice_number,
-            "exe_dir": exe_dir,
-            "invoices_by_status": invoices_by_status,
-            "unquote": unquote,
-        },
-    )
+    register_welcome_routes(app, helpers)
+    register_account_routes(app)
+    register_backup_routes(app, helpers)
 
 
 def open_browser_when_ready():
@@ -278,16 +270,16 @@ def _show_already_running_message():
 
 def _start_flask_server():
     """Start the local server. Returns None on success, or 'port_in_use'."""
-    import app_state
+    import routes.system as system
 
     from app_config import LOCAL_APP_HOST, LOCAL_APP_PORT
 
     storage.ensure_app_identity()
     try:
-        app_state.server = make_server(LOCAL_APP_HOST, LOCAL_APP_PORT, app, threaded=True)
+        system.server = make_server(LOCAL_APP_HOST, LOCAL_APP_PORT, app, threaded=True)
     except OSError:
         return "port_in_use"
-    threading.Thread(target=app_state.server.serve_forever, daemon=True, name="flask-server").start()
+    threading.Thread(target=system.server.serve_forever, daemon=True, name="flask-server").start()
     threading.Thread(target=idle_watchdog, daemon=True, name="idle-watchdog").start()
     return None
 
@@ -298,20 +290,20 @@ def _start_backend(startup_error):
 
 def main():
     from app_config import LOCAL_APP_URL
-    from folder_picker import process_pending_picks
+    from app_platform.folder_picker import process_pending_picks
 
     if use_dev_browser():
         if _start_flask_server() == "port_in_use":
             _show_already_running_message()
             return
         threading.Thread(target=open_browser_when_ready, daemon=True).start()
-        import account_sync
+        from account import sync as account_sync
 
         account_sync.start_background_sync()
         try:
-            import app_state
+            import routes.system as system
 
-            while not app_state.shutdown_requested:
+            while not system.shutdown_requested:
                 process_pending_picks()
                 time.sleep(0.05)
         except KeyboardInterrupt:
@@ -324,7 +316,7 @@ def main():
             daemon=True,
             name="flask-backend",
         ).start()
-        import account_sync
+        from account import sync as account_sync
 
         account_sync.start_background_sync()
         from desktop_shell import run_desktop_app
@@ -337,7 +329,7 @@ _register_all_routes()
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--export-uninstall-data":
-        from uninstall_export import export_for_uninstall
+        from app_platform.win.uninstall import export_for_uninstall
 
         raise SystemExit(export_for_uninstall())
     main()

@@ -1,4 +1,4 @@
-"""Export invoice PDFs before uninstall (called via FrogsWork.exe --export-uninstall-data)."""
+"""Export invoice PDFs before uninstall (Windows; FrogsWork.exe --export-uninstall-data)."""
 
 import os
 import shutil
