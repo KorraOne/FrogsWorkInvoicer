@@ -1,12 +1,14 @@
 # FrogsWork (client_app)
 
-Commercial desktop sales invoicing app. Forked from [`../invoice_app/`](../invoice_app/). **No Python imports** from the grandparents app.
+Commercial desktop sales invoicing app.
 
 - **Product name:** FrogsWork
 - **Repo folder:** `client_app/`
 - **Build output:** `FrogsWork.exe`
 - **Entry:** `app.py` (+ `desktop_shell.py` for windowed mode)
 - **AppData:** `%APPDATA%\FrogsWork\`
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for module layout and request flow.
 
 ## Docs
 
@@ -16,7 +18,13 @@ Commercial desktop sales invoicing app. Forked from [`../invoice_app/`](../invoi
 
 ```powershell
 # From repo root
-.\scripts\dev-test.ps1 -Action StartAll
+.\scripts\start-dev.ps1 -DevBrowser
+```
+
+Seed test data:
+
+```powershell
+python client_app/seed_dev_data.py
 ```
 
 ## Build

@@ -320,11 +320,6 @@ def _invoice_key(number):
     return f"{int(number):08d}"
 
 
-def _seed_billing_from_invoices(invoices, reset):
-    """No-op — trial totals derive from invoices.json."""
-    del invoices, reset
-
-
 def run_seed(reset=False):
     if reset:
         storage.save_customers({})
@@ -378,7 +373,6 @@ def run_seed(reset=False):
         reset=reset,
     )
 
-    _seed_billing_from_invoices(invoices, reset=reset)
     storage.ensure_app_identity()
 
     return {

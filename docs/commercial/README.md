@@ -6,8 +6,6 @@ Australian sole-trader desktop **sales invoicing** app (**FrogsWork**) with a fr
 
 **Code:** [`client_app/`](../../client_app/) (desktop) · [`workers/frogswork-api/`](../../workers/frogswork-api/) (API) · [`frogswork_api/`](../../frogswork_api/) (local dev API)
 
-The grandparents app in [`invoice_app/`](../../invoice_app/) is a separate copy with no shared imports.
-
 ---
 
 ## Quick start (local dev)

@@ -1,70 +1,34 @@
 import logging
 import os
-import re
 import sys
 import threading
 import time
 import urllib.request
 import webbrowser
-from datetime import date, datetime, timezone
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from urllib.parse import unquote
 
-from flask import Flask, abort, flash, g, jsonify, redirect, render_template, request, send_file, session, url_for
+from flask import Flask, g, render_template, request, url_for
 from werkzeug.exceptions import HTTPException
 from werkzeug.serving import make_server
 
 import storage
-from due_dates import (
-    due_rule_from_form_data,
-    merge_due_rule_into_form,
-    invoice_due_summary,
-    due_rule_template_context,
-    save_last_due_prefs,
+from invoice_format import (
+    format_invoice_date,
+    format_invoice_number,
+    format_iso_date,
+    format_iso_datetime,
+    format_money,
 )
-from gst_settings import (
-    apply_registration_to_parsed_items,
-    is_gst_registered,
-    apply_gst_registered_to_settings,
-    validate_business_gst_settings,
-)
-import entitlement_guard
-from email_compose import build_invoice_email_context, format_clipboard_text
-from folder_picker import process_pending_picks
-from ui_config import IDLE_TIMEOUT_SECONDS, PLACEHOLDERS, SELECT_LABELS
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+from invoice_form import has_invoice_draft, invoices_by_status
+from paths import exe_dir, resource_path
+from routes.customers import register_customer_routes
+from routes.invoices import register_invoice_routes
+from routes.settings import register_settings_routes
+from routes.system import idle_watchdog, register_system_routes, request_shutdown
+from ui_config import PLACEHOLDERS, SELECT_LABELS
 
 logging.getLogger("werkzeug").setLevel(logging.ERROR)
-
-server = None
-last_request_time = time.time()
-shutdown_requested = False
-
-
-def resource_path(relative):
-    base = sys._MEIPASS if getattr(sys, "frozen", False) else BASE_DIR
-    return os.path.join(base, relative)
-
-
-def exe_dir():
-    return os.path.dirname(os.path.abspath(sys.argv[0]))
-
-
-def resolve_pdf_path(filename):
-    if ".." in filename or "/" in filename or "\\" in filename:
-        abort(404)
-    for inv in storage.load_invoices().values():
-        if inv.get("filename") == filename and storage.is_invoice_deleted(inv):
-            abort(404)
-    primary = os.path.join(storage.get_pdf_dir(), filename)
-    if os.path.isfile(primary):
-        return primary
-    legacy = os.path.join(exe_dir(), filename)
-    if os.path.isfile(legacy):
-        return legacy
-    abort(404)
-
 
 app = Flask(
     __name__,
@@ -74,6 +38,33 @@ app = Flask(
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or storage.get_or_create_flask_secret()
 
 log = logging.getLogger(__name__)
+
+NAV_PARENTS = {
+    "create_invoice": ("home", "Home"),
+    "resume_preview": ("create_invoice", "Edit invoice"),
+    "dashboard": ("home", "Home"),
+    "invoices_list": ("home", "Home"),
+    "invoice_send": ("invoices_list", "Past invoices"),
+    "customers_list": ("home", "Home"),
+    "customers_add": ("customers_list", "Customers"),
+    "customers_edit": ("customers_list", "Customers"),
+    "settings_page": ("home", "Home"),
+    "settings_details": ("home", "Home"),
+    "settings_account": ("settings_page", "Settings"),
+    "settings_billing": ("settings_page", "Settings"),
+    "settings_fee_calculator": ("settings_page", "Settings"),
+    "settings_storage": ("settings_page", "Settings"),
+    "settings_logo_design": ("settings_page", "Settings"),
+    "settings_updates": ("settings_page", "Settings"),
+    "backup_import": ("settings_page", "Settings"),
+    "account_subscribe": ("home", "Home"),
+    "account_password": ("account_subscribe", "Subscribe"),
+    "account_cap": ("account_subscribe", "Subscribe"),
+    "account_cap_settings": ("settings_account", "Your account"),
+    "account_repair_ledger": ("settings_account", "Your account"),
+    "welcome_pricing": ("welcome_start", "Welcome"),
+    "welcome_done": ("welcome_pricing", "Pricing"),
+}
 
 
 @app.errorhandler(404)
@@ -176,34 +167,14 @@ def _fmt_invoice_date(iso_date):
     return format_invoice_date(iso_date)
 
 
-def _parse_iso_datetime(iso):
-    if not iso:
-        return None
-    try:
-        if iso.endswith("Z"):
-            iso = iso[:-1] + "+00:00"
-        dt = datetime.fromisoformat(iso)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        return dt
-    except ValueError:
-        return None
-
-
 @app.template_filter("fmt_iso_datetime")
 def _fmt_iso_datetime(iso):
-    dt = _parse_iso_datetime(iso)
-    if not dt:
-        return (iso or "")[:16]
-    return dt.astimezone().strftime("%d %B %Y, %H:%M")
+    return format_iso_datetime(iso)
 
 
 @app.template_filter("fmt_iso_date")
 def _fmt_iso_date(iso):
-    dt = _parse_iso_datetime(iso)
-    if not dt:
-        return (iso or "")[:10]
-    return dt.astimezone().strftime("%d %B %Y")
+    return format_iso_date(iso)
 
 
 @app.template_filter("fmt_invoice_amount")
@@ -219,350 +190,21 @@ def _invoice_due_countdown(inv):
     return due_countdown_for_invoice(inv, settings=settings)
 
 
-@app.before_request
-def touch_last_request():
-    global last_request_time
-    if request.path != "/shutdown":
-        last_request_time = time.time()
-
-
-def format_money(amount):
-    return f"${amount:,.2f}"
-
-
-def format_invoice_number(number):
-    return f"{int(number):08d}"
-
-
-def parse_invoice_number_input(raw):
-    digits = re.sub(r"\D", "", str(raw or "").strip())
-    if not digits:
-        raise ValueError("Enter an invoice number.")
-    number = int(digits)
-    if number < 1:
-        raise ValueError("Invoice number must be at least 1.")
-    return number
-
-
-def suggested_invoice_number(settings):
-    counter = int(settings.get("invoice_counter", 1))
-    invoices = storage.load_invoices()
-    if not invoices:
-        return counter
-    max_number = max(int(inv.get("invoice_number", 0)) for inv in invoices.values())
-    return max(counter, max_number + 1)
-
-
-def persist_invoice_counter(settings, used_number):
-    settings["invoice_counter"] = max(
-        int(settings.get("invoice_counter", 1)),
-        int(used_number) + 1,
-    )
-
-
-def format_abn(abn):
-    digits = re.sub(r"\D", "", str(abn))
-    if len(digits) == 11:
-        return f"{digits[0:2]} {digits[2:5]} {digits[5:8]} {digits[8:11]}"
-    return abn
-
-
-def format_account(acc):
-    digits = re.sub(r"\D", "", str(acc))
-    if len(digits) == 6:
-        return f"{digits[0:3]} {digits[3:6]}"
-    return acc
-
-
-def parse_amount(raw):
-    cleaned = raw.strip().replace("$", "").replace(",", "")
-    if not cleaned:
-        raise ValueError("Enter an amount.")
-    value = Decimal(cleaned)
-    if value < 0:
-        raise ValueError("Amount cannot be negative.")
-    return value
-
-
-def compute_gst(amount_ex_gst):
-    gst = (amount_ex_gst * Decimal("0.10")).quantize(Decimal("0.01"))
-    total = amount_ex_gst + gst
-    return gst, total
-
-
-def _is_gst_free_flag(raw):
-    return str(raw).strip().lower() in ("1", "on", "true", "yes")
-
-
-def parse_quantity(raw):
-    cleaned = raw.strip()
-    if not cleaned:
-        return Decimal("1")
-    value = Decimal(cleaned)
-    if value <= 0:
-        raise ValueError("Quantity must be more than zero.")
-    return value
-
-
-def format_qty(qty):
-    q = Decimal(qty)
-    if q == q.to_integral_value():
-        return str(int(q))
-    return format(q, "f").rstrip("0").rstrip(".")
-
-
-def parse_line_items(descriptions, amounts, quantities=None, gst_free_flags=None, gst_registered=True):
-    """Parse parallel description/amount/qty lists into validated line items."""
-    if quantities is None:
-        quantities = []
-    if gst_free_flags is None:
-        gst_free_flags = []
-    items = []
-    row_num = 0
-    for i, (desc_raw, amt_raw) in enumerate(zip(descriptions, amounts)):
-        desc = desc_raw.strip()
-        amt = amt_raw.strip()
-        qty_raw = quantities[i] if i < len(quantities) else ""
-        gst_flag = gst_free_flags[i] if i < len(gst_free_flags) else ""
-        if not desc and not amt and not qty_raw.strip():
-            continue
-        row_num += 1
-        if not desc:
-            raise ValueError(f"Item {row_num}: add a description.")
-        try:
-            unit_amount_ex_gst = parse_amount(amt)
-        except (ValueError, InvalidOperation):
-            raise ValueError(
-                f"Item {row_num}: enter a valid amount (e.g. 4500.00)."
-            )
-        try:
-            qty = parse_quantity(qty_raw)
-        except (ValueError, InvalidOperation):
-            raise ValueError(f"Item {row_num}: enter a valid quantity (e.g. 1).")
-        line_total = (qty * unit_amount_ex_gst).quantize(Decimal("0.01"))
-        gst_applicable = not _is_gst_free_flag(gst_flag)
-        items.append(
-            {
-                "description": desc,
-                "quantity": qty,
-                "unit_amount_ex_gst": unit_amount_ex_gst,
-                "amount_ex_gst": line_total,
-                "gst_applicable": gst_applicable,
-            }
-        )
-
-    if not items:
-        raise ValueError("Add at least one line item with a description and amount.")
-
-    subtotal = sum(item["amount_ex_gst"] for item in items)
-    return apply_registration_to_parsed_items(items, subtotal, gst_registered)
-
-
-def line_items_from_request(form, gst_registered=None):
-    if gst_registered is None:
-        gst_registered = is_gst_registered(storage.load_settings())
-    return parse_line_items(
-        form.getlist("item_description"),
-        form.getlist("item_amount"),
-        form.getlist("item_quantity"),
-        form.getlist("item_gst_free"),
-        gst_registered=gst_registered,
-    )
-
-
-def invoice_summary_description(items):
-    if len(items) == 1:
-        return items[0]["description"]
-    return f"{items[0]['description']} (+{len(items) - 1} more)"
-
-
-def create_form_from_request(req):
-    if req.method == "POST":
-        descriptions = req.form.getlist("item_description")
-        amounts = req.form.getlist("item_amount")
-        quantities = req.form.getlist("item_quantity")
-        gst_free_flags = req.form.getlist("item_gst_free")
-        customer = req.form.get("customer", "").strip()
-        comment = req.form.get("comment", "").strip()
-        due_rule_type = req.form.get("due_rule_type", "").strip()
-        due_net_days = req.form.get("due_net_days", "").strip()
-        due_fixed_date = req.form.get("due_fixed_date", "").strip()
-        invoice_number = req.form.get("invoice_number", "").strip()
-    else:
-        descriptions = req.args.getlist("item_description")
-        amounts = req.args.getlist("item_amount")
-        quantities = req.args.getlist("item_quantity")
-        gst_free_flags = req.args.getlist("item_gst_free")
-        customer = req.args.get("customer", "")
-        comment = req.args.get("comment", "")
-        due_rule_type = req.args.get("due_rule_type", "")
-        due_net_days = req.args.get("due_net_days", "")
-        due_fixed_date = req.args.get("due_fixed_date", "")
-        invoice_number = req.args.get("invoice_number", "")
-
-    items = []
-    for i, (desc, amt) in enumerate(zip(descriptions, amounts)):
-        qty = quantities[i] if i < len(quantities) else "1"
-        gst_free = _is_gst_free_flag(gst_free_flags[i] if i < len(gst_free_flags) else "")
-        items.append({"description": desc, "amount": amt, "qty": qty or "1", "gst_free": gst_free})
-    if not items:
-        items = [{"description": "", "amount": "", "qty": "1", "gst_free": False}]
-    return {
-        "customer": customer,
-        "comment": comment,
-        "line_items": items,
-        "due_rule_type": due_rule_type,
-        "due_net_days": due_net_days,
-        "due_fixed_date": due_fixed_date,
-        "invoice_number": invoice_number,
-    }
-
-
-def save_invoice_draft(form):
-    session["invoice_draft"] = form
-    session.modified = True
-
-
-def get_invoice_draft():
-    return session.get("invoice_draft")
-
-
-def clear_invoice_draft():
-    session.pop("invoice_draft", None)
-    session.modified = True
-
-
-def has_invoice_draft():
-    return bool(session.get("invoice_draft"))
-
-
-def _line_items_from_form_dict(form, gst_registered=None):
-    if gst_registered is None:
-        gst_registered = is_gst_registered(storage.load_settings())
-    descriptions = [item["description"] for item in form["line_items"]]
-    amounts = [item["amount"] for item in form["line_items"]]
-    quantities = [item["qty"] for item in form["line_items"]]
-    gst_free_flags = ["on" if item.get("gst_free") else "" for item in form["line_items"]]
-    return parse_line_items(
-        descriptions, amounts, quantities, gst_free_flags, gst_registered=gst_registered
-    )
-
-
-def _render_preview_from_form(form):
-    settings = storage.load_settings()
-    customers = storage.load_customers()
-    customer_name = form["customer"]
-    comment = form["comment"]
-
-    if not customer_name or customer_name not in customers:
-        return render_create_invoice(form, error="Select a customer.")
-
-    gst_err = validate_business_gst_settings(settings)
-    if gst_err:
-        return render_create_invoice(form, error=gst_err)
-
-    gst_registered = is_gst_registered(settings)
-    try:
-        items, subtotal, gst_amount, total_inc_gst, taxable_ex_gst, gst_free_ex_gst = _line_items_from_form_dict(
-            form, gst_registered=gst_registered
-        )
-    except ValueError as exc:
-        return render_create_invoice(form, error=str(exc))
-
-    save_invoice_draft(form)
-    customer = customers[customer_name]
-    invoice_date = date.today()
-    due = _due_context_from_form(form, invoice_date)
-    try:
-        invoice_number_int = parse_invoice_number_input(form.get("invoice_number"))
-    except ValueError as exc:
-        return render_create_invoice(form, error=str(exc))
-    invoice_number_fmt = format_invoice_number(invoice_number_int)
-    preview_items = [
-        {
-            "description": item["description"],
-            "qty": format_qty(item["quantity"]),
-            "qty_raw": str(item["quantity"]),
-            "unit_amount_fmt": format_money(item["unit_amount_ex_gst"]),
-            "unit_amount_raw": str(item["unit_amount_ex_gst"]),
-            "amount_fmt": format_money(item["amount_ex_gst"]),
-            "amount_raw": str(item["unit_amount_ex_gst"]),
-            "gst_applicable": item["gst_applicable"],
-            "gst_free": not item["gst_applicable"],
-        }
-        for item in items
-    ]
-
-    return render_template(
-        "preview_invoice.html",
-        business_name=settings.get("business_name", ""),
-        business_address=settings.get("business_address", ""),
-        business_abn=format_abn(settings.get("business_abn", "")),
-        account_name=settings.get("account_name", ""),
-        bsb=settings.get("bsb", ""),
-        acc=format_account(settings.get("acc", "")),
-        due_date_fmt=due["due_date_fmt"],
-        due_rule_label=due["due_rule_label"],
-        due_rule_type=due["due_rule_type"],
-        due_net_days=due["due_net_days"],
-        due_fixed_date=due.get("due_fixed_date") or "",
-        customer_name=customer_name,
-        customer_address=customer.get("address", ""),
-        customer_abn=format_abn(customer.get("abn", "")),
-        items=preview_items,
-        comment=comment,
-        amount_ex_gst_fmt=format_money(subtotal),
-        taxable_ex_gst_fmt=format_money(taxable_ex_gst),
-        gst_free_ex_gst_fmt=format_money(gst_free_ex_gst),
-        gst_amount_fmt=format_money(gst_amount),
-        total_inc_gst_fmt=format_money(total_inc_gst),
-        gst_registered=gst_registered,
-        invoice_title="Tax Invoice" if gst_registered else "Invoice",
-        has_mixed_gst=gst_registered and gst_free_ex_gst > 0 and taxable_ex_gst > 0,
-        has_gst=gst_registered and gst_amount > 0,
-        invoice_number=invoice_number_fmt,
-        invoice_number_raw=invoice_number_int,
-        invoice_date=invoice_date.strftime("%d %B %Y"),
-        subtotal_raw=str(subtotal),
-        **entitlement_guard.preview_context(format_money),
-    )
-
-
-NAV_PARENTS = {
-    "create_invoice": ("home", "Home"),
-    "resume_preview": ("create_invoice", "Edit invoice"),
-    "dashboard": ("home", "Home"),
-    "invoices_list": ("home", "Home"),
-    "invoice_send": ("invoices_list", "Past invoices"),
-    "customers_list": ("home", "Home"),
-    "customers_add": ("customers_list", "Customers"),
-    "customers_edit": ("customers_list", "Customers"),
-    "settings_page": ("home", "Home"),
-    "settings_details": ("home", "Home"),
-    "settings_account": ("settings_page", "Settings"),
-    "settings_billing": ("settings_page", "Settings"),
-    "settings_fee_calculator": ("settings_page", "Settings"),
-    "settings_storage": ("settings_page", "Settings"),
-    "settings_logo_design": ("settings_page", "Settings"),
-    "settings_updates": ("settings_page", "Settings"),
-    "backup_import": ("settings_page", "Settings"),
-    "account_subscribe": ("home", "Home"),
-    "account_password": ("account_subscribe", "Subscribe"),
-    "account_cap": ("account_subscribe", "Subscribe"),
-    "account_cap_settings": ("settings_account", "Your account"),
-    "account_repair_ledger": ("settings_account", "Your account"),
-    "welcome_pricing": ("welcome_start", "Welcome"),
-    "welcome_done": ("welcome_pricing", "Pricing"),
-}
-
-
 @app.context_processor
 def inject_navigation():
     endpoint = request.endpoint
     back_url = url_for("home")
     back_label = "Home"
 
-    if endpoint in ("account_create", "account_login", "account_onboard_business", "account_onboard_customer", "account_subscribe", "account_password", "account_cap") and has_invoice_draft():
+    if endpoint in (
+        "account_create",
+        "account_login",
+        "account_onboard_business",
+        "account_onboard_customer",
+        "account_subscribe",
+        "account_password",
+        "account_cap",
+    ) and has_invoice_draft():
         back_url = url_for("resume_preview")
         back_label = "Back to invoice review"
     elif endpoint in NAV_PARENTS:
@@ -577,950 +219,24 @@ def inject_navigation():
     }
 
 
-def _due_context_from_form(form, invoice_date=None):
-    settings = storage.load_settings()
-    invoice_date = invoice_date or date.today()
-    rule = due_rule_from_form_data(form, settings)
-    return invoice_due_summary(
-        invoice_date,
-        rule["due_rule_type"],
-        rule["due_net_days"],
-        rule["due_fixed_date"],
-    )
+def _register_all_routes():
+    register_system_routes(app)
+    register_invoice_routes(app)
+    register_customer_routes(app)
+    register_settings_routes(app, request_shutdown)
 
+    from client_routes import register_client_routes
 
-def _create_invoice_template_context(form, error=None):
-    settings = storage.load_settings()
-    customers = storage.load_customers()
-    merge_due_rule_into_form(form, settings)
-    due_ctx = due_rule_template_context(date.today(), settings, form)
-    try:
-        invoice_number_raw = parse_invoice_number_input(
-            form.get("invoice_number") or suggested_invoice_number(settings)
-        )
-    except ValueError:
-        invoice_number_raw = suggested_invoice_number(settings)
-    return {
-        "customers": customers,
-        "form": form,
-        "error": error,
-        "gst_registered": is_gst_registered(settings),
-        "invoice_number_raw": invoice_number_raw,
-        "invoice_number_display": format_invoice_number(invoice_number_raw),
-        **due_ctx,
-    }
-
-
-def render_create_invoice(form, error=None):
-    ctx = _create_invoice_template_context(form, error=error)
-    return render_template("create_invoice.html", **ctx)
-
-
-def invoices_by_status(invoices):
-    from due_dates import sent_invoice_sort_key
-
-    groups = {"not_sent": [], "sent": [], "paid": []}
-    for invoice in invoices.values():
-        if storage.is_invoice_deleted(invoice):
-            continue
-        status = invoice.get("status", "not_sent")
-        if status in groups:
-            groups[status].append(invoice)
-
-    def sort_key(inv):
-        return (inv.get("invoice_date", ""), inv.get("invoice_number", 0))
-
-    settings = storage.load_settings()
-    for status in groups:
-        if status == "sent":
-            groups[status].sort(key=lambda inv: sent_invoice_sort_key(inv, settings))
-        else:
-            groups[status].sort(key=sort_key, reverse=True)
-
-    sent_total = sum(
-        Decimal(inv.get("total_inc_gst", "0")) for inv in groups["sent"]
-    )
-    return groups, sent_total
-
-
-def format_invoice_date(iso_date):
-    try:
-        parts = iso_date.split("-")
-        d = date(int(parts[0]), int(parts[1]), int(parts[2]))
-        return d.strftime("%d %B %Y")
-    except (ValueError, IndexError):
-        return iso_date
-
-
-def request_shutdown():
-    global shutdown_requested
-    if shutdown_requested:
-        return
-    shutdown_requested = True
-
-    def _exit():
-        if server is not None:
-            server.shutdown()
-        os._exit(0)
-
-    threading.Timer(0.3, _exit).start()
-
-
-def idle_watchdog():
-    while not shutdown_requested:
-        time.sleep(60)
-        if time.time() - last_request_time > IDLE_TIMEOUT_SECONDS:
-            request_shutdown()
-            break
-
-
-@app.route("/")
-def home():
-    return render_template("home.html")
-
-
-@app.route("/create", methods=["GET", "POST"])
-def create_invoice():
-    if request.method == "POST":
-        form = create_form_from_request(request)
-        save_invoice_draft(form)
-        return render_create_invoice(form)
-
-    if request.args.get("fresh"):
-        clear_invoice_draft()
-
-    if request.args.get("customer"):
-        form = {
-            "customer": request.args.get("customer", ""),
-            "comment": request.args.get("comment", ""),
-            "line_items": [{"description": "", "amount": "", "qty": "1"}],
-        }
-    elif get_invoice_draft():
-        form = get_invoice_draft()
-    else:
-        form = {
-            "customer": "",
-            "comment": "",
-            "line_items": [{"description": "", "amount": "", "qty": "1"}],
-        }
-
-    settings = storage.load_settings()
-    customers = storage.load_customers()
-    merge_due_rule_into_form(form, settings)
-    ctx = _create_invoice_template_context(form, error=request.args.get("error"))
-    ctx["customer_added"] = request.args.get("customer_added") == "1"
-    return render_template("create_invoice.html", **ctx)
-
-
-@app.route("/create/add-customer", methods=["POST"])
-def create_invoice_add_customer():
-    form = create_form_from_request(request)
-    save_invoice_draft(form)
-
-    name = request.form.get("new_customer_name", "").strip()
-    address = request.form.get("new_customer_address", "").strip()
-    abn = request.form.get("new_customer_abn", "").strip()
-    email = request.form.get("new_customer_email", "").strip()
-
-    if not name:
-        return redirect(url_for("create_invoice", error="Enter a customer name."))
-
-    if storage.customer_name_exists(name):
-        return redirect(url_for("create_invoice", error="A customer with this name already exists."))
-
-    customers = storage.load_customers()
-    customers[name] = {"address": address, "abn": abn, "email": email}
-    storage.save_customers(customers)
-
-    form["customer"] = name
-    save_invoice_draft(form)
-    return redirect(url_for("create_invoice", customer_added=1))
-
-
-@app.route("/preview", methods=["POST"])
-def preview_invoice():
-    form = create_form_from_request(request)
-    return _render_preview_from_form(form)
-
-
-@app.route("/preview/resume", methods=["GET"])
-def resume_preview():
-    draft = get_invoice_draft()
-    if not draft:
-        return redirect(url_for("create_invoice"))
-    return _render_preview_from_form(draft)
-
-
-def _billing_preview_template(subtotal):
-    """Deprecated — kept so old imports fail loudly if referenced."""
-    return entitlement_guard.preview_context(format_money)
-
-
-@app.route("/generate", methods=["POST"])
-def generate():
-    import pdf_generator
-
-    settings = storage.load_settings()
-    customers = storage.load_customers()
-
-    customer_name = request.form.get("customer", "").strip()
-    comment = request.form.get("comment", "").strip()
-
-    if not customer_name or customer_name not in customers:
-        return redirect(url_for("create_invoice", error="Select a customer."))
-
-    gst_err = validate_business_gst_settings(settings)
-    if gst_err:
-        return redirect(url_for("create_invoice", error=gst_err))
-
-    gst_registered = is_gst_registered(settings)
-    try:
-        items, subtotal, gst_amount, total_inc_gst, taxable_ex_gst, gst_free_ex_gst = line_items_from_request(
-            request.form, gst_registered=gst_registered
-        )
-    except ValueError as exc:
-        return redirect(url_for("create_invoice", error=str(exc)))
-
-    allowed, gate_status, gate_message = entitlement_guard.check_generate_access()
-    if not allowed:
-        save_invoice_draft(create_form_from_request(request))
-        if gate_status == "account_required":
-            flash(gate_message, "info")
-            return redirect(url_for("account_subscribe"))
-        if gate_status == "subscribe_required":
-            flash(gate_message, "info")
-            return redirect(url_for("account_subscribe"))
-        flash(gate_message, "error")
-        return redirect(url_for("resume_preview"))
-
-    customer = customers[customer_name]
-    invoice_date = date.today()
-    form_data = create_form_from_request(request)
-    due = _due_context_from_form(form_data, invoice_date)
-
-    try:
-        invoice_number = parse_invoice_number_input(request.form.get("invoice_number"))
-    except ValueError as exc:
-        save_invoice_draft(form_data)
-        return redirect(url_for("create_invoice", error=str(exc)))
-
-    if storage.get_invoice(invoice_number):
-        save_invoice_draft(form_data)
-        return redirect(
-            url_for(
-                "create_invoice",
-                error=f"Invoice number {format_invoice_number(invoice_number)} is already used.",
-            )
-        )
-
-    invoice_data = {
-        "invoice_number": invoice_number,
-        "invoice_date": invoice_date,
-        "business_name": settings.get("business_name", ""),
-        "business_address": settings.get("business_address", ""),
-        "business_abn": settings.get("business_abn", ""),
-        "account_name": settings.get("account_name", ""),
-        "bsb": settings.get("bsb", ""),
-        "acc": settings.get("acc", ""),
-        "due_date": due["due_date"],
-        "due_date_fmt": due["due_date_fmt"],
-        "due_rule_label": due["due_rule_label"],
-        "customer_name": customer_name,
-        "customer_address": customer.get("address", ""),
-        "customer_abn": customer.get("abn", ""),
-        "line_items": items,
-        "amount_ex_gst": subtotal,
-        "taxable_ex_gst": taxable_ex_gst,
-        "gst_free_ex_gst": gst_free_ex_gst,
-        "gst_amount": gst_amount,
-        "total_inc_gst": total_inc_gst,
-        "comment": comment,
-        "gst_registered": gst_registered,
-    }
-
-    filepath = pdf_generator.generate_invoice(storage.get_pdf_dir(), invoice_data)
-    filename = os.path.basename(filepath)
-
-    rule = due_rule_from_form_data(form_data, settings)
-    save_last_due_prefs(settings, rule)
-    persist_invoice_counter(settings, invoice_number)
-    storage.save_settings(settings)
-
-    storage.add_invoice(
+    register_client_routes(
+        app,
         {
-            "invoice_number": invoice_number,
-            "invoice_date": invoice_date.isoformat(),
-            "customer_name": customer_name,
-            "description": invoice_summary_description(items),
-            "total_inc_gst": str(total_inc_gst),
-            "amount_ex_gst": str(subtotal),
-            "gst_amount": str(gst_amount),
-            "gst_registered": gst_registered,
-            "filename": filename,
-            "due_date": due["due_date_iso"],
-            "due_rule_type": due["due_rule_type"],
-            "due_net_days": due["due_net_days"],
-            "due_fixed_date": due.get("due_fixed_date"),
-        }
+            "format_money": format_money,
+            "format_invoice_number": format_invoice_number,
+            "exe_dir": exe_dir,
+            "invoices_by_status": invoices_by_status,
+            "unquote": unquote,
+        },
     )
-
-    clear_invoice_draft()
-    return redirect(
-        url_for(
-            "done",
-            file=filename,
-            invoice=format_invoice_number(invoice_number),
-            customer=customer_name,
-        )
-    )
-
-
-@app.route("/view-pdf/<filename>")
-def view_pdf(filename):
-    filepath = resolve_pdf_path(filename)
-    return send_file(filepath, mimetype="application/pdf")
-
-
-@app.route("/done")
-def done():
-    filename = request.args.get("file", "")
-    invoice_number = request.args.get("invoice", "")
-    customer = request.args.get("customer", "")
-    marked_sent = request.args.get("sent") == "1"
-    sent_date = None
-    send_later = False
-    inv = None
-
-    if invoice_number:
-        inv = storage.get_invoice(invoice_number)
-        inv_key = format_invoice_number(invoice_number)
-        if inv:
-            if not filename:
-                filename = inv.get("filename", "")
-            if not customer:
-                customer = inv.get("customer_name", "")
-            if inv.get("status") in ("sent", "paid"):
-                marked_sent = True
-                sent_date = inv.get("sent_date")
-            send_later = session.get(f"send_later_{inv_key}", False)
-
-    step2_complete = marked_sent or send_later
-
-    return render_template(
-        "done.html",
-        filename=filename,
-        invoice_number=invoice_number,
-        customer=customer,
-        marked_sent=marked_sent,
-        sent_date=sent_date,
-        send_later=send_later,
-        step2_complete=step2_complete,
-    )
-
-
-
-
-@app.route("/ping", methods=["GET", "POST"])
-def ping():
-    return "", 204
-
-
-@app.route("/shutdown", methods=["GET", "POST"])
-def shutdown():
-    request_shutdown()
-    return "OK", 200
-
-
-@app.route("/invoices")
-def invoices_list():
-    invoices = storage.load_active_invoices()
-    q = request.args.get("q", "").strip().lower()
-    status_filter = request.args.get("status", "")
-    customer_filter = request.args.get("customer", "")
-    date_from = request.args.get("from", "")
-    date_to = request.args.get("to", "")
-
-    if q or status_filter or customer_filter or date_from or date_to:
-        filtered = {}
-        for key, inv in invoices.items():
-            if status_filter and inv.get("status") != status_filter:
-                continue
-            if customer_filter and inv.get("customer_name") != customer_filter:
-                continue
-            if date_from and inv.get("invoice_date", "") < date_from:
-                continue
-            if date_to and inv.get("invoice_date", "") > date_to:
-                continue
-            if q:
-                hay = " ".join(
-                    [
-                        str(inv.get("invoice_number", "")),
-                        inv.get("customer_name", ""),
-                        inv.get("description", ""),
-                    ]
-                ).lower()
-                if q not in hay:
-                    continue
-            filtered[key] = inv
-        invoices = filtered
-
-    groups, sent_total = invoices_by_status(invoices)
-    customers = sorted(storage.load_customers().keys())
-    g.invoice_list_settings = storage.load_settings()
-
-    filters_active = bool(q or status_filter or customer_filter or date_from or date_to)
-    filter_summary_parts = []
-    if q:
-        filter_summary_parts.append(f'Search: "{q}"')
-    if status_filter:
-        labels = {"not_sent": "Not sent", "sent": "Sent", "paid": "Paid"}
-        filter_summary_parts.append(labels.get(status_filter, status_filter))
-    if customer_filter:
-        filter_summary_parts.append(customer_filter)
-    if date_from or date_to:
-        if date_from and date_to:
-            filter_summary_parts.append(f"{date_from} to {date_to}")
-        elif date_from:
-            filter_summary_parts.append(f"From {date_from}")
-        else:
-            filter_summary_parts.append(f"Until {date_to}")
-
-    return render_template(
-        "invoices.html",
-        not_sent=groups["not_sent"],
-        sent=groups["sent"],
-        paid=groups["paid"],
-        sent_total_fmt=format_money(sent_total),
-        sent_count=len(groups["sent"]),
-        q=q,
-        status_filter=status_filter,
-        customer_filter=customer_filter,
-        date_from=date_from,
-        date_to=date_to,
-        customers=customers,
-        filters_active=filters_active,
-        filter_summary=filter_summary_parts,
-    )
-
-
-def _clear_invoice_send_session(number):
-    key = format_invoice_number(number)
-    session.pop(f"email_started_{key}", None)
-    session.pop(f"send_later_{key}", None)
-
-
-def _revert_billing_for_invoice(invoice_number):
-    """Legacy hook after invoice delete — trial totals derive from invoices.json."""
-    del invoice_number
-
-
-def _billing_generate_guard(invoice_number, subtotal, cap_bypassed=False):
-    del invoice_number, subtotal, cap_bypassed
-    allowed, status, message = entitlement_guard.check_generate_access()
-    if allowed:
-        return None, None
-    return message, status
-
-
-def _is_cancel_allowed(inv):
-    if storage.is_invoice_deleted(inv):
-        return False
-    if inv.get("status") != "not_sent":
-        return False
-    invoices = storage.load_invoices()
-    if not invoices:
-        return False
-    latest = max(int(record["invoice_number"]) for record in invoices.values())
-    return int(inv["invoice_number"]) == latest
-
-
-def _delete_invoice_files(filename):
-    storage.remove_invoice_pdf(filename)
-    legacy = os.path.join(exe_dir(), filename)
-    if filename and os.path.isfile(legacy):
-        try:
-            os.remove(legacy)
-        except OSError:
-            pass
-
-
-@app.route("/invoices/<number>/status", methods=["POST"])
-def invoice_update_status(number):
-    number = unquote(number)
-    status = request.form.get("status", "").strip()
-    try:
-        storage.set_invoice_status(number, status)
-    except (KeyError, ValueError):
-        abort(404)
-
-    if status == "sent":
-        _clear_invoice_send_session(number)
-    elif status == "not_sent":
-        _clear_invoice_send_session(number)
-
-    status_labels = {"not_sent": "Not sent", "sent": "Sent", "paid": "Paid"}
-    flash(f"Invoice moved to {status_labels.get(status, status)}.", "success")
-
-    next_page = request.form.get("next", "invoices")
-    if next_page == "done" and status == "sent":
-        return redirect(url_for("home"))
-    return redirect(url_for("invoices_list"))
-
-
-@app.route("/invoices/<number>/cancel", methods=["POST"])
-def invoice_cancel(number):
-    number = unquote(number)
-    inv = storage.get_invoice(number)
-    if not inv:
-        abort(404)
-    if not _is_cancel_allowed(inv):
-        flash("Only your newest not-sent invoice can be cancelled.", "error")
-        return redirect(url_for("home"))
-
-    filename = inv.get("filename", "")
-    storage.hard_delete_invoice(number)
-    _clear_invoice_send_session(number)
-    _delete_invoice_files(filename)
-
-    flash("Invoice cancelled.", "success")
-    return redirect(url_for("home"))
-
-
-@app.route("/invoices/<number>/delete", methods=["POST"])
-def invoice_delete(number):
-    number = unquote(number)
-    inv = storage.get_invoice(number)
-    if not inv:
-        abort(404)
-
-    filename = inv.get("filename", "")
-    try:
-        storage.soft_delete_invoice(number)
-    except ValueError:
-        abort(404)
-
-    storage.archive_invoice_pdf(filename)
-    _clear_invoice_send_session(number)
-
-    flash(
-        "Invoice removed from your list. This month's usage stays the same.",
-        "success",
-    )
-    return redirect(url_for("invoices_list"))
-
-
-def _invoice_email_redirect(next_page, inv):
-    if next_page == "done":
-        return redirect(url_for("home"))
-    return redirect(url_for("invoices_list"))
-
-
-def _invoice_email_context(number):
-    inv = storage.get_invoice(number)
-    if not inv:
-        abort(404)
-    customer = storage.load_customers().get(inv.get("customer_name", ""), {})
-    settings = storage.load_settings()
-    pdf_path = resolve_pdf_path(inv.get("filename", ""))
-    ctx = build_invoice_email_context(inv, customer, settings, pdf_path)
-    return inv, ctx
-
-
-@app.route("/invoices/<number>/send")
-def invoice_send(number):
-    number = unquote(number)
-    next_page = request.args.get("next", "invoices")
-    inv, ctx = _invoice_email_context(number)
-    return render_template(
-        "send_invoice.html",
-        invoice_number=number,
-        email_details=ctx,
-        clipboard_text=format_clipboard_text(ctx),
-        view_pdf_url=url_for("view_pdf", filename=inv.get("filename", "")),
-        reveal_url=url_for("invoice_send_reveal_pdf", number=number),
-        next_page=next_page,
-        show_send_later=next_page == "done",
-    )
-
-
-@app.route("/invoices/<number>/send/reveal-pdf", methods=["POST"])
-def invoice_send_reveal_pdf(number):
-    from email_compose import EmailComposeError, reveal_pdf_in_folder
-
-    number = unquote(number)
-    next_page = request.form.get("next", request.args.get("next", "invoices"))
-    inv, ctx = _invoice_email_context(number)
-    try:
-        reveal_pdf_in_folder(ctx["pdf_path"])
-        flash("PDF folder opened.", "success")
-    except EmailComposeError as exc:
-        message = str(exc)
-        if message.startswith("Opened the invoice folder"):
-            flash(message, "info")
-        else:
-            flash(message, "error")
-    except Exception:
-        log.exception("Reveal PDF in folder failed for invoice %s", number)
-        flash(
-            "Couldn't open the PDF folder. Close any Explorer windows for this folder and try again.",
-            "error",
-        )
-    return redirect(url_for("invoice_send", number=number, next=next_page))
-
-
-@app.route("/invoices/<number>/email/send")
-def invoice_email_send(number):
-    number = unquote(number)
-    next_page = request.args.get("next", "invoices")
-    return redirect(url_for("invoice_send", number=number, next=next_page))
-
-
-@app.route("/invoices/<number>/send-later")
-def invoice_send_later(number):
-    number = unquote(number)
-    inv = storage.get_invoice(number)
-    if not inv:
-        abort(404)
-    session[f"send_later_{format_invoice_number(number)}"] = True
-    next_page = request.args.get("next", "invoices")
-    if next_page == "done":
-        return redirect(url_for("home"))
-    return redirect(url_for("invoices_list"))
-
-
-@app.route("/customers")
-def customers_list():
-    customers = storage.load_customers()
-    return render_template("customers.html", customers=customers)
-
-
-@app.route("/customers/add", methods=["GET", "POST"])
-def customers_add():
-    if request.method == "POST":
-        name = request.form.get("name", "").strip()
-        address = request.form.get("address", "").strip()
-        abn = request.form.get("abn", "").strip()
-        email = request.form.get("email", "").strip()
-
-        if not name:
-            return render_template(
-                "edit_customer.html",
-                customer=None,
-                form={"name": name, "address": address, "abn": abn, "email": email},
-                error="Enter a customer name.",
-                is_add=True,
-            )
-
-        if storage.customer_name_exists(name):
-            return render_template(
-                "edit_customer.html",
-                customer=None,
-                form={"name": name, "address": address, "abn": abn, "email": email},
-                error="A customer with this name already exists.",
-                is_add=True,
-            )
-
-        customers = storage.load_customers()
-        customers[name] = {"address": address, "abn": abn, "email": email}
-        storage.save_customers(customers)
-        return redirect(url_for("customers_list"))
-
-    return render_template(
-        "edit_customer.html",
-        customer=None,
-        form={"name": "", "address": "", "abn": "", "email": ""},
-        error=None,
-        is_add=True,
-    )
-
-
-@app.route("/customers/edit/<name>", methods=["GET", "POST"])
-def customers_edit(name):
-    name = unquote(name)
-    customers = storage.load_customers()
-
-    if name not in customers:
-        return redirect(url_for("customers_list"))
-
-    customer = customers[name]
-
-    if request.method == "POST":
-        address = request.form.get("address", "").strip()
-        abn = request.form.get("abn", "").strip()
-        email = request.form.get("email", "").strip()
-        customers[name] = {"address": address, "abn": abn, "email": email}
-        storage.save_customers(customers)
-        return redirect(url_for("customers_list"))
-
-    return render_template(
-        "edit_customer.html",
-        customer=name,
-        form={"name": name, "address": customer.get("address", ""), "abn": customer.get("abn", ""), "email": customer.get("email", "")},
-        error=None,
-        is_add=False,
-    )
-
-
-@app.route("/customers/delete/<name>", methods=["POST"])
-def customers_delete(name):
-    name = unquote(name)
-    customers = storage.load_customers()
-    if name in customers:
-        del customers[name]
-        storage.save_customers(customers)
-    return redirect(url_for("customers_list"))
-
-
-@app.route("/settings")
-def settings_page():
-    return render_template("settings.html")
-
-
-@app.route("/updates/dismiss", methods=["POST"])
-def updates_dismiss():
-    import app_update
-
-    version = request.form.get("version", "").strip()
-    if version:
-        app_update.dismiss_update(version)
-    return redirect(request.referrer or url_for("home"))
-
-
-@app.route("/updates/apply", methods=["POST"])
-def updates_apply():
-    import app_update
-
-    pending = app_update.get_pending_update(force_check=True)
-    if not pending:
-        flash("No update is available right now.", "info")
-        return redirect(request.referrer or url_for("home"))
-    try:
-        app_update.apply_update(pending, request_shutdown)
-        flash("Downloading update. The app will restart shortly.", "info")
-    except Exception as exc:
-        flash(f"Update failed: {exc}", "error")
-    return redirect(request.referrer or url_for("settings_updates"))
-
-
-@app.route("/settings/updates", methods=["GET", "POST"])
-def settings_updates():
-    import app_update
-    import account_client
-
-    error = None
-    server_unreachable = False
-    force_check = request.method == "POST" and request.form.get("action") in ("check", "apply")
-    pending = app_update.get_pending_update(force_check=force_check)
-
-    if request.method == "POST":
-        action = request.form.get("action", "")
-        if action == "check":
-            if not account_client.check_server_available():
-                server_unreachable = True
-            else:
-                pending = app_update.get_pending_update(force_check=True)
-        elif action == "apply" and pending:
-            try:
-                app_update.apply_update(pending, request_shutdown)
-                flash("Downloading update. The app will restart shortly.", "info")
-                return redirect(url_for("settings_updates"))
-            except Exception as exc:
-                error = str(exc)
-
-    return render_template(
-        "settings_updates.html",
-        pending=pending,
-        error=error,
-        packaged=app_update.is_packaged(),
-        server_unreachable=server_unreachable,
-    )
-
-
-@app.route("/settings/logo-design", methods=["GET"])
-def settings_logo_design():
-    from urllib.parse import quote
-
-    from app_config import APP_LOGO_DESIGN_EMAIL, SHOW_LOGO_DESIGN_SETTINGS
-
-    if not SHOW_LOGO_DESIGN_SETTINGS:
-        abort(404)
-
-    mailto_href = f"mailto:{APP_LOGO_DESIGN_EMAIL}?subject={quote('FrogsWork logo design')}"
-
-    return render_template(
-        "settings_logo_design.html",
-        contact_email=APP_LOGO_DESIGN_EMAIL,
-        mailto_href=mailto_href,
-    )
-
-
-@app.route("/settings/details", methods=["GET", "POST"])
-def settings_details():
-    def _render(settings, error=None, form=None):
-        ctx = due_rule_template_context(date.today(), settings, form)
-        return render_template(
-            "settings_details.html",
-            settings=settings,
-            error=error,
-            **ctx,
-        )
-
-    if request.method == "POST":
-        settings = storage.load_settings()
-        settings["business_name"] = request.form.get("business_name", "").strip()
-        settings["business_address"] = request.form.get("business_address", "").strip()
-        settings["business_abn"] = request.form.get("business_abn", "").strip()
-        apply_gst_registered_to_settings(settings, request.form)
-        settings["account_name"] = request.form.get("account_name", "").strip()
-        settings["bsb"] = request.form.get("bsb", "").strip()
-        settings["acc"] = request.form.get("acc", "").strip()
-        rule = due_rule_from_form_data(request.form, settings)
-        settings["due_rule_type"] = rule["due_rule_type"]
-        settings["due_net_days"] = rule["due_net_days"]
-
-        gst_err = validate_business_gst_settings(settings)
-        if gst_err:
-            return _render(settings, error=gst_err, form=request.form)
-
-        storage.save_settings(settings)
-        flash("Saved.", "success")
-        return redirect(url_for("settings_page"))
-
-    settings = storage.load_settings()
-    return _render(settings)
-
-
-@app.route("/settings/account", methods=["GET", "POST"])
-def settings_account():
-    import account_client
-    import account_sync
-    import billing_auth_store
-    import entitlement_cache
-
-    verify_message = None
-    entitlement_just_synced = False
-    if request.method == "POST":
-        action = request.form.get("action", "")
-        if action == "verify":
-            try:
-                account_sync.sync_entitlements_from_server()
-                verify_message = ("Subscription verified.", "success")
-                entitlement_just_synced = True
-            except account_client.AccountOfflineError:
-                verify_message = ("Couldn't reach the server. Check your connection.", "error")
-            except account_client.AccountError as exc:
-                verify_message = (account_client.map_http_auth_error(str(exc)), "error")
-        elif action == "portal":
-            try:
-                payload = account_sync.sync_entitlements_from_server() or {}
-                entitlement_just_synced = True
-                portal_url = payload.get("portal_url") or entitlement_cache.load_cache().get("portal_url")
-                if portal_url:
-                    webbrowser.open(portal_url)
-                    verify_message = ("Opened Stripe billing portal in your browser.", "success")
-                else:
-                    verify_message = (
-                        "Billing portal not available yet. Try Verify subscription first.",
-                        "error",
-                    )
-            except account_client.AccountOfflineError:
-                verify_message = ("Couldn't reach the server. Check your connection.", "error")
-            except account_client.AccountError as exc:
-                verify_message = (account_client.map_http_auth_error(str(exc)), "error")
-
-    cache = entitlement_cache.load_cache()
-    return render_template(
-        "settings_account.html",
-        account_services_ok=None,
-        entitlement=cache or {},
-        verify_flash=verify_message,
-        entitlement_sync_async=billing_auth_store.is_authenticated() and not entitlement_just_synced,
-    )
-
-
-@app.route("/settings/account/status")
-def settings_account_status():
-    import account_client
-    import account_sync
-    import billing_auth_store
-    import entitlement_cache
-
-    if not billing_auth_store.is_authenticated():
-        return jsonify({"authenticated": False})
-
-    account_sync.sync_entitlements_from_server()
-    cache = entitlement_cache.load_cache() or {}
-    auth = billing_auth_store.load_auth()
-    return jsonify(
-        {
-            "authenticated": True,
-            "email": auth.get("email", ""),
-            "account_services_ok": account_client.check_server_available(),
-            "entitlement": cache,
-        }
-    )
-
-
-@app.route("/settings/billing")
-def settings_billing():
-    return redirect(url_for("settings_account"))
-
-
-@app.route("/settings/fee-calculator")
-def settings_fee_calculator():
-    return redirect(url_for("settings_page"))
-
-
-@app.route("/settings/storage", methods=["GET"])
-def settings_storage():
-    return render_template(
-        "settings_storage.html",
-        config_folder=storage.get_config_folder_display(),
-        pdf_folder=storage.get_pdf_folder_display(),
-        using_default=storage.is_using_default_pdf_folder(),
-        default_pdf_folder=os.path.join(storage.get_default_data_path(), "pdfs"),
-    )
-
-
-@app.route("/settings/storage/set", methods=["POST"])
-def settings_storage_set():
-    path = request.form.get("pdf_folder", "").strip()
-    if not path:
-        flash("Enter a folder path or use Browse.", "error")
-    else:
-        try:
-            storage.set_pdf_folder(path, from_picker=False)
-            flash("PDF folder moved.", "success")
-        except OSError as exc:
-            flash(f"Couldn't move the PDF folder: {exc}", "error")
-    return redirect(url_for("settings_page"))
-
-
-@app.route("/settings/storage/pick", methods=["POST"])
-def settings_storage_pick():
-    from folder_picker import FolderPickerError, pick_folder
-
-    try:
-        path = pick_folder("Choose where to save invoice PDFs")
-        if path:
-            try:
-                storage.set_pdf_folder(path, from_picker=True)
-                flash("PDF folder moved.", "success")
-            except OSError as exc:
-                flash(f"Couldn't move the PDF folder: {exc}", "error")
-    except FolderPickerError as exc:
-        flash(f"Couldn't open the folder picker: {exc}", "error")
-    return redirect(url_for("settings_page"))
-
-
-@app.route("/settings/storage/reset", methods=["POST"])
-def settings_storage_reset():
-    try:
-        storage.reset_pdf_folder()
-        flash("PDF folder moved back to default location.", "success")
-    except OSError as exc:
-        flash(f"Couldn't move the PDF folder: {exc}", "error")
-    return redirect(url_for("settings_page"))
 
 
 def open_browser_when_ready():
@@ -1560,33 +276,18 @@ def _show_already_running_message():
         pass
 
 
-def _register_client_routes():
-    from client_routes import register_client_routes
-
-    register_client_routes(
-        app,
-        {
-            "format_money": format_money,
-            "format_invoice_number": format_invoice_number,
-            "exe_dir": exe_dir,
-            "invoices_by_status": invoices_by_status,
-            "unquote": unquote,
-        },
-    )
-
-
 def _start_flask_server():
     """Start the local server. Returns None on success, or 'port_in_use'."""
-    global server
+    import app_state
+
     from app_config import LOCAL_APP_HOST, LOCAL_APP_PORT
 
-    _register_client_routes()
     storage.ensure_app_identity()
     try:
-        server = make_server(LOCAL_APP_HOST, LOCAL_APP_PORT, app, threaded=True)
+        app_state.server = make_server(LOCAL_APP_HOST, LOCAL_APP_PORT, app, threaded=True)
     except OSError:
         return "port_in_use"
-    threading.Thread(target=server.serve_forever, daemon=True, name="flask-server").start()
+    threading.Thread(target=app_state.server.serve_forever, daemon=True, name="flask-server").start()
     threading.Thread(target=idle_watchdog, daemon=True, name="idle-watchdog").start()
     return None
 
@@ -1597,6 +298,7 @@ def _start_backend(startup_error):
 
 def main():
     from app_config import LOCAL_APP_URL
+    from folder_picker import process_pending_picks
 
     if use_dev_browser():
         if _start_flask_server() == "port_in_use":
@@ -1607,7 +309,9 @@ def main():
 
         account_sync.start_background_sync()
         try:
-            while not shutdown_requested:
+            import app_state
+
+            while not app_state.shutdown_requested:
                 process_pending_picks()
                 time.sleep(0.05)
         except KeyboardInterrupt:
@@ -1626,6 +330,9 @@ def main():
         from desktop_shell import run_desktop_app
 
         run_desktop_app(LOCAL_APP_URL, request_shutdown, startup_error=startup_error)
+
+
+_register_all_routes()
 
 
 if __name__ == "__main__":

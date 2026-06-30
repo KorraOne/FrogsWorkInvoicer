@@ -62,7 +62,7 @@ Once logo is finalised ill remove the setting requesting help, ill probably remo
 
 ### Welcome privacy acknowledgement
 
-- [ ] Optional “I understand” checkbox on welcome final step (pairs with privacy blurb on `welcome_done.html`)
+- [ ] Optional "I understand" checkbox on welcome final step (privacy blurb on welcome pricing page)
 
 **Notes:** This is necessary, if i can integrate this into the installer instead of the app welcome setup that would be better. else then a i understand check box is needed.
 

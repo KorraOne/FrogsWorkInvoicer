@@ -96,12 +96,6 @@ Binaries on R2, not in git.
 
 ---
 
-## Retired: Pi billing server
-
-The usage-based **billing_server** on Raspberry Pi is archived under [`archive/billing_server/`](../../archive/billing_server/). Do not deploy it for new installs.
-
----
-
 ## Related docs
 
 - [STRIPE_SETUP.md](STRIPE_SETUP.md)

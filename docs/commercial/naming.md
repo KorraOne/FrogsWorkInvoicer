@@ -6,12 +6,10 @@ How the apps in this repo are named in code, docs, and builds.
 
 | Role | Folder | Product / purpose |
 |------|--------|-------------------|
-| Grandparents app | `invoice_app/` | **Invoice App**: personal/family invoicing |
 | Desktop client | `client_app/` | **FrogsWork**: sales invoicing UI |
 | Account API | `workers/frogswork-api/` | Auth, Stripe, entitlements (production) |
 | Local dev API | `frogswork_api/` | Same routes as Worker, Flask on port 8787 |
-
-There are **no Python imports** between `invoice_app/` and `client_app/`.
+| Marketing site | `marketing_site/` | frogswork.com static pages |
 
 ## Desktop client (`client_app/`)
 
@@ -34,24 +32,10 @@ Integration is **HTTP only** via `client_app/account_client.py`.
 | **`frogswork_api/`** | Flask dev server |
 | **D1 / SQLite** | User accounts and Stripe customer IDs |
 
-Retired usage billing: [`archive/billing_server/`](../../archive/billing_server/).
-
-## Grandparents app (`invoice_app/`)
-
-| Name | Meaning |
-|------|---------|
-| **Invoice App** | User-facing name |
-| **`invoice_app/`** | Repo folder |
-| **`InvoiceApp.exe`** | Build output |
-| **`%APPDATA%\InvoiceApp\`** | User data |
-
-No billing, accounts, or FrogsWork branding.
-
 ## Build scripts (repo root)
 
 | Script | Builds |
 |--------|--------|
-| `build.ps1` | `invoice_app/` → `InvoiceApp.exe` |
 | `build_client.ps1` | `client_app/` → `FrogsWork.exe` |
 
-Requirements: `requirements-client.txt` (FrogsWork), `requirements.txt` (Invoice App).
+Requirements: `requirements-client.txt`.

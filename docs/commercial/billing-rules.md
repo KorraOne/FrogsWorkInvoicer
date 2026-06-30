@@ -32,10 +32,6 @@ Configurable in `client_app/app_config.py`: `TRIAL_MAX_INVOICES`, `TRIAL_MAX_EX_
 
 Verify via **Settings → Your account** (calls `GET /entitlements` on api.frogswork.com).
 
-## What we removed
-
-Usage-based platform fees, monthly caps, local usage ledger, and Pi autobilling are retired. See [`archive/billing_server/README.md`](../../archive/billing_server/README.md).
-
 ## Related docs
 
 - [STRIPE_SETUP.md](STRIPE_SETUP.md) — Stripe Dashboard, webhooks, Buy Buttons

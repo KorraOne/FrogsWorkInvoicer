@@ -34,10 +34,6 @@ PLACEHOLDERS = {
     "invoice_comment": "e.g. Payment due within 30 days",
     # Past invoices filter
     "invoice_search": "Customer, description, or invoice number",
-    # Billing / caps
-    "fee_calculator_amount": "e.g. 8000",
-    "cap_amount_ex_gst": "e.g. 5000",
-    "cap_fee_amount": "e.g. 1.50",
 }
 
 # First / empty options on dropdowns.

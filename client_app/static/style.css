@@ -3038,54 +3038,6 @@ button.onboarding-skip {
     line-height: 1.5;
 }
 
-.fee-calculator {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    padding: 1.25rem;
-}
-
-.fee-calculator-details {
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    background: #fafbfc;
-    margin-bottom: 0;
-}
-
-.fee-calculator-details summary {
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 1.05rem;
-    color: var(--fw-link);
-    padding: 0.85rem 1.25rem;
-    list-style: none;
-}
-
-.fee-calculator-details summary::-webkit-details-marker {
-    display: none;
-}
-
-.fee-calculator-details summary::before {
-    content: "▸ ";
-    display: inline-block;
-    transition: transform 0.15s ease;
-}
-
-.fee-calculator-details[open] summary::before {
-    transform: rotate(90deg);
-}
-
-.fee-calculator-details summary:hover {
-    text-decoration: underline;
-}
-
-.fee-calculator-details .fee-calculator {
-    border: none;
-    border-top: 1px solid #e2e8f0;
-    border-radius: 0 0 8px 8px;
-    margin: 0;
-}
-
 .billing-section-compact {
     padding-bottom: 1rem;
     margin-bottom: 1.5rem;
@@ -3347,22 +3299,6 @@ button.onboarding-skip {
     .settings-nav {
         grid-template-columns: 1fr;
     }
-}
-
-.fee-calculator-field {
-    margin-bottom: 0.75rem;
-}
-
-.fee-calculator-result {
-    font-size: 1.1rem;
-    margin: 0 0 0.35rem 0;
-    color: var(--fw-text);
-}
-
-.fee-calculator-breakdown {
-    font-size: 0.95rem;
-    color: #64748b;
-    margin: 0;
 }
 
 @media (max-width: 640px) {
