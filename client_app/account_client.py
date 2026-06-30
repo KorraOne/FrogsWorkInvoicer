@@ -51,7 +51,7 @@ def _request(method, path, body=None, auth=False, timeout=15):
             message = payload.get("error") or payload.get("message") or detail
         except json.JSONDecodeError:
             if exc.code == 404:
-                message = "Account server endpoint not found. Restart frogswork_api (python server.py)."
+                message = "Account server endpoint not found. Restart account_api dev server (python server.py)."
             elif "<html" in detail.lower():
                 message = f"Account server error ({exc.code}). Is the API running on port 8787?"
             else:

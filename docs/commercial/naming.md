@@ -7,8 +7,9 @@ How the apps in this repo are named in code, docs, and builds.
 | Role | Folder | Product / purpose |
 |------|--------|-------------------|
 | Desktop client | `client_app/` | **FrogsWork**: sales invoicing UI |
-| Account API | `workers/frogswork-api/` | Auth, Stripe, entitlements (production) |
-| Local dev API | `frogswork_api/` | Same routes as Worker, Flask on port 8787 |
+| Account API | `account_api/` | Auth, Stripe, entitlements |
+| Account API (dev) | `account_api/dev/` | Flask dev server, port 8787 |
+| Account API (prod) | `account_api/worker/` | Cloudflare Worker, api.frogswork.com |
 | Marketing site | `marketing_site/` | frogswork.com static pages |
 
 ## Desktop client (`client_app/`)
@@ -24,18 +25,20 @@ Env vars: `FROGSWORK_DEV_BROWSER`, `FROGSWORK_ONEFILE` (build). Account API URL:
 
 Integration is **HTTP only** via `client_app/account_client.py`.
 
-## Account API
+## Account API (`account_api/`)
 
 | Name | Meaning |
 |------|---------|
-| **`workers/frogswork-api/`** | Cloudflare Worker (production `api.frogswork.com`) |
-| **`frogswork_api/`** | Flask dev server |
+| **`account_api/dev/`** | Flask dev server |
+| **`account_api/worker/`** | Cloudflare Worker (production) |
 | **D1 / SQLite** | User accounts and Stripe customer IDs |
 
-## Build scripts (repo root)
+## Build scripts
 
 | Script | Builds |
 |--------|--------|
-| `build_client.ps1` | `client_app/` → `FrogsWork.exe` |
+| `client_app/build.ps1` | `client_app/` → `FrogsWork.exe` |
+| `client_app/scripts/build_installer.ps1` | Inno Setup installer |
+| `scripts/package_client_release.ps1` | Full release (exe + zip + manifest) |
 
-Requirements: `requirements-client.txt`.
+Requirements: `client_app/requirements.txt`.

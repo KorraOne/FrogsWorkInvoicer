@@ -8,10 +8,10 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$Root = Split-Path $PSScriptRoot -Parent
-$IssFile = Join-Path $Root "installer\FrogsWork.iss"
-$DistDir = Join-Path $Root "client_app\dist\FrogsWork"
-$OutDir = Join-Path $Root "client_app\dist"
+$ClientRoot = Split-Path $PSScriptRoot -Parent
+$IssFile = Join-Path $ClientRoot "installer\FrogsWork.iss"
+$DistDir = Join-Path $ClientRoot "dist\FrogsWork"
+$OutDir = Join-Path $ClientRoot "dist"
 $SetupName = "FrogsWork-$Version-setup.exe"
 $SetupPath = Join-Path $OutDir $SetupName
 
@@ -20,7 +20,7 @@ if (-not $AppSource) {
 }
 
 if (-not (Test-Path (Join-Path $AppSource "FrogsWork.exe"))) {
-    throw "PyInstaller output not found: $AppSource\FrogsWork.exe (run build_client.ps1 first)"
+    throw "PyInstaller output not found: $AppSource\FrogsWork.exe (run client_app\build.ps1 first)"
 }
 
 if (-not $InnoSetupPath) {

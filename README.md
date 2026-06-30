@@ -5,19 +5,19 @@ Monorepo for the **FrogsWork** desktop invoicing app, account API, and marketing
 | App | Folder | Purpose |
 |-----|--------|---------|
 | **FrogsWork** (desktop client) | [`client_app/`](client_app/) | Sales invoicing UI, Stripe subscription |
-| **Account API** | [`workers/frogswork-api/`](workers/frogswork-api/) | Cloudflare Worker: auth, Stripe, entitlements (local dev: [`frogswork_api/`](frogswork_api/)) |
+| **Account API** | [`account_api/`](account_api/) | Auth, Stripe, entitlements (`dev/` Flask, `worker/` Cloudflare) |
 | **Marketing site** | [`marketing_site/`](marketing_site/) | Static site (frogswork.com) + releases.json |
 
 ## Quick links
 
-- Desktop app: [`client_app/README.md`](client_app/README.md) · [`docs/commercial/DEPLOY.md`](docs/commercial/DEPLOY.md) · [billing rules](docs/commercial/billing-rules.md)
-- Account API: [`workers/frogswork-api/README.md`](workers/frogswork-api/README.md)
+- Desktop app: [`client_app/README.md`](client_app/README.md) · [`docs/commercial/DEPLOY.md`](docs/commercial/DEPLOY.md)
+- Account API: [`account_api/README.md`](account_api/README.md)
 - Marketing: [`marketing_site/README.md`](marketing_site/README.md)
 
 ## Build
 
 ```powershell
-.\build_client.ps1
+.\client_app\build.ps1
 ```
 
 ## Local dev
@@ -29,11 +29,13 @@ Monorepo for the **FrogsWork** desktop invoicing app, account API, and marketing
 ## Repo layout
 
 ```
-client_app/               FrogsWork desktop client (Flask + pywebview)
-workers/frogswork-api/    Production account API (Cloudflare Worker)
-frogswork_api/            Local dev account API (Flask)
-marketing_site/           Static site (frogswork.com) + releases.json
-docs/commercial/          FrogsWork docs (billing, security, deploy, …)
+client_app/               FrogsWork desktop client + installer build
+account_api/
+  dev/                    Local Flask API (port 8787)
+  worker/                 Production Cloudflare Worker (api.frogswork.com)
+marketing_site/           Static site + wrangler.toml
+scripts/                  Dev orchestration and release packaging
+docs/commercial/          Operator docs
 ```
 
 ## Data

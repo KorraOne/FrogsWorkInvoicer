@@ -12,6 +12,6 @@ param(
 Import-FrogsWorkDevVars
 Write-Host "Starting FrogsWork app (API: $(Get-FrogsWorkAccountApiUrl)) ..."
 if (-not $env:STRIPE_PAYMENT_LINK_MONTHLY -or -not $env:STRIPE_PAYMENT_LINK_ANNUAL) {
-    Write-Host "Tip: add STRIPE_PAYMENT_LINK_MONTHLY and STRIPE_PAYMENT_LINK_ANNUAL to frogswork_api\.dev.vars"
+    Write-Host "Tip: add STRIPE_PAYMENT_LINK_MONTHLY and STRIPE_PAYMENT_LINK_ANNUAL to account_api\dev\.dev.vars"
 }
 Start-FrogsWorkAppTerminal -DevBrowser:$DevBrowser

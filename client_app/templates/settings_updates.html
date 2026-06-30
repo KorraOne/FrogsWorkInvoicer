@@ -7,7 +7,7 @@
 
 {% if not packaged %}
 <section class="settings-panel">
-    <p class="settings-section-hint">Updates only run in the packaged app. For development, rebuild with <code>build_client.ps1</code>.</p>
+    <p class="settings-section-hint">Updates only run in the packaged app. For development, rebuild with <code>client_app\build.ps1</code>.</p>
 </section>
 {% elif server_unreachable %}
 <div class="error">Couldn't reach the server to check for updates. Try again when you're online.</div>

@@ -1,9 +1,0 @@
-# Cloudflare Workers static assets — marketing site (frogswork.com)
-# Deploy: Git push to main → Cloudflare runs `npx wrangler deploy`
-# Dashboard project: frogswork-invoicer
-
-name = "frogswork-invoicer"
-compatibility_date = "2024-01-01"
-
-[assets]
-directory = "./marketing_site"

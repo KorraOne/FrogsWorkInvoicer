@@ -19,16 +19,16 @@ User data             → %APPDATA%\FrogsWork\ (on each PC)
 Program files         → %LOCALAPPDATA%\Programs\FrogsWork\ (on each PC)
 ```
 
-**Local dev API:** [`frogswork_api/server.py`](../../frogswork_api/server.py) on `http://127.0.0.1:8787`.
+**Local dev API:** [`account_api/dev/server.py`](../../account_api/dev/server.py) on `http://127.0.0.1:8787`.
 
-**Production API:** [`workers/frogswork-api/`](../../workers/frogswork-api/) — see [STRIPE_SETUP.md](STRIPE_SETUP.md).
+**Production API:** [`account_api/worker/`](../../account_api/worker/) — see [STRIPE_SETUP.md](STRIPE_SETUP.md).
 
 ---
 
 ## Deploy account API (Worker)
 
 ```powershell
-cd workers/frogswork-api
+cd account_api/worker
 npm install
 npx wrangler d1 execute frogswork-account --remote --file=./schema.sql
 npx wrangler secret put STRIPE_SECRET_KEY
@@ -73,7 +73,7 @@ curl -s https://api.frogswork.com/releases/latest
 
 #### 3. Deploy marketing site
 
-Update `marketing_site/releases.json`, commit, push, `npx wrangler deploy` from repo root.
+Update `marketing_site/releases.json`, commit, push, then from `marketing_site/`: `npx wrangler deploy`.
 
 #### 4. Smoke test
 
@@ -89,8 +89,8 @@ Update `marketing_site/releases.json`, commit, push, `npx wrangler deploy` from 
 
 | Setting | Value |
 |---------|--------|
-| Config | Root [`wrangler.toml`](../../wrangler.toml) → `marketing_site/` |
-| Deploy | `npx wrangler deploy` |
+| Config | [`marketing_site/wrangler.toml`](../../marketing_site/wrangler.toml) |
+| Deploy | `cd marketing_site` then `npx wrangler deploy` |
 
 Binaries on R2, not in git.
 

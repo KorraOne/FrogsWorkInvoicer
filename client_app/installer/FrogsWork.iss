@@ -1,12 +1,12 @@
 ; FrogsWork Windows installer (Inno Setup 6)
-; Build: scripts/build_installer.ps1 -Version "1.1.0"
+; Build: client_app\scripts\build_installer.ps1 -Version "1.1.0"
 
 #ifndef AppVersion
 #define AppVersion "1.1.0"
 #endif
 
 #ifndef AppSource
-#define AppSource "..\client_app\dist\FrogsWork"
+#define AppSource "..\dist\FrogsWork"
 #endif
 
 #define AppName "FrogsWork"
@@ -15,7 +15,7 @@
 #define AppPublisherURL "https://korraone.com"
 #define AppTagline "Sales invoicing for Australian sole traders"
 #define AppExeName "FrogsWork.exe"
-#define AppIcon "..\client_app\assets\app.ico"
+#define AppIcon "..\assets\app.ico"
 
 [Setup]
 AppId={{8F4E2A91-6C3D-4B8E-9F1A-2D7E5C4B9A03}

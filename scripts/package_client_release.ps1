@@ -27,7 +27,7 @@ $SetupDownloadUrl = "$($DownloadHost.TrimEnd('/'))/$SetupName"
 $ZipDownloadUrl = "$($DownloadHost.TrimEnd('/'))/$ZipName"
 
 if (-not $SkipBuild) {
-    $buildClient = Join-Path $Root "build_client.ps1"
+    $buildClient = Join-Path $Root "client_app\build.ps1"
     if ($BillingUrl) {
         & $buildClient -Clean -BillingUrl $BillingUrl
     } else {
@@ -64,7 +64,7 @@ $installerParams = @{ Version = $Version }
 if ($InnoSetupPath) {
     $installerParams.InnoSetupPath = $InnoSetupPath
 }
-& (Join-Path $Root "scripts\build_installer.ps1") @installerParams
+& (Join-Path $Root "client_app\scripts\build_installer.ps1") @installerParams
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Copy-Item -Force $SetupPath $MarketingSetupPath
@@ -122,15 +122,7 @@ Write-Host "Update zip URL:     $ZipDownloadUrl"
 Write-Host "Update zip SHA256:  $zipHash"
 Write-Host ""
 Write-Host "1. Upload setup.exe and zip to R2 (downloads.frogswork.com)"
-Write-Host "2. Push marketing_site/releases.json to Cloudflare Pages"
-Write-Host "3. Add to /etc/frogswork/billing.env on Pi (in-app updates use the zip):"
-Write-Host "CLIENT_RELEASE_VERSION=$Version"
-Write-Host "CLIENT_RELEASE_URL=$ZipDownloadUrl"
-Write-Host "CLIENT_RELEASE_SHA256=$zipHash"
-if ($ReleaseNotes) {
-    Write-Host "CLIENT_RELEASE_NOTES=$ReleaseNotes"
-} else {
-    Write-Host "CLIENT_RELEASE_NOTES=Describe this release."
-}
+Write-Host "2. Push marketing_site/releases.json and deploy: cd marketing_site; npx wrangler deploy"
+Write-Host "3. Set Worker release vars (CLIENT_RELEASE_VERSION, CLIENT_RELEASE_URL, CLIENT_RELEASE_SHA256, CLIENT_RELEASE_NOTES)"
 Write-Host ""
 Write-Host "Confirm client_app/app_config.py APP_VERSION = `"$Version`""

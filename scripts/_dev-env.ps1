@@ -1,7 +1,7 @@
 # Shared helpers for local FrogsWork dev scripts.
 
 $script:DevRoot = Split-Path $PSScriptRoot -Parent
-$script:ApiDir = Join-Path $DevRoot "frogswork_api"
+$script:ApiDir = Join-Path $DevRoot "account_api\dev"
 $script:AppDir = Join-Path $DevRoot "client_app"
 $script:DevVarsPath = Join-Path $ApiDir ".dev.vars"
 $script:ApiRequirements = Join-Path $ApiDir "requirements.txt"
@@ -25,7 +25,7 @@ function Ensure-FrogsWorkApiDeps {
     Write-Host "Checking API dependencies ($python)..."
     & $python -m pip install -q -r $ApiRequirements
     if ($LASTEXITCODE -ne 0) {
-        throw "pip install failed for frogswork_api/requirements.txt"
+        throw "pip install failed for account_api/dev/requirements.txt"
     }
     return $python
 }

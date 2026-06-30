@@ -4,7 +4,7 @@ Builds **`FrogsWork-x.y.z-setup.exe`** from PyInstaller onedir output.
 
 ## Prerequisites
 
-- PyInstaller build: `.\build_client.ps1 -Clean` → `client_app\dist\FrogsWork\`
+- PyInstaller build: `.\client_app\build.ps1 -Clean` → `client_app\dist\FrogsWork\`
 - [Inno Setup 6](https://jrsoftware.org/isdl.php) (`ISCC.exe`)
 
 ## Build
@@ -12,7 +12,7 @@ Builds **`FrogsWork-x.y.z-setup.exe`** from PyInstaller onedir output.
 From repo root (normally invoked by `package_client_release.ps1`):
 
 ```powershell
-.\scripts\build_installer.ps1 -Version "1.1.0"
+.\client_app\scripts\build_installer.ps1 -Version "1.1.0"
 ```
 
 Output: `client_app\dist\FrogsWork-1.1.0-setup.exe`
@@ -20,7 +20,7 @@ Output: `client_app\dist\FrogsWork-1.1.0-setup.exe`
 Custom PyInstaller folder:
 
 ```powershell
-.\scripts\build_installer.ps1 -Version "1.1.0" -AppSource "C:\path\to\FrogsWork"
+.\client_app\scripts\build_installer.ps1 -Version "1.1.0" -AppSource "C:\path\to\FrogsWork"
 ```
 
 ## Script
@@ -39,5 +39,5 @@ Custom PyInstaller folder:
 
 ## See also
 
-- [RELEASE.md](../docs/commercial/RELEASE.md) — full release pipeline
-- [DEPLOY.md](../docs/commercial/DEPLOY.md) — upload to R2 and Pi env
+- [RELEASE.md](../../docs/commercial/RELEASE.md) — full release pipeline
+- [DEPLOY.md](../../docs/commercial/DEPLOY.md) — upload to R2

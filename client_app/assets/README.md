@@ -40,7 +40,7 @@ If this file is missing, Windows uses a generic PyInstaller icon.
 ## After adding files
 
 ```powershell
-.\build_client.ps1
+.\client_app\build.ps1
 ```
 
 Restart the dev app to preview the splash (`python app.py` from `client_app/`).

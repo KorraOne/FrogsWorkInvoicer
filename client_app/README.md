@@ -30,7 +30,7 @@ python client_app/seed_dev_data.py
 ## Build
 
 ```powershell
-.\build_client.ps1
+.\client_app\build.ps1
 # Full release (installer + update zip):
 .\scripts\package_client_release.ps1 -Version "1.1.0" -ReleaseNotes "..."
 ```

@@ -9,7 +9,7 @@ Operator checklist for the subscription model. Test mode first, then live keys o
 | Monthly | $12.99 AUD | `price_1TntfOIQSiAlmwTlzqPJayus` |
 | Annual | $129.90 AUD (2 months free) | `price_1TnthTIQSiAlmwTlfcvD95h5` |
 
-Create matching **live** prices before go-live and update `workers/frogswork-api/wrangler.toml` `[vars]`.
+Create matching **live** prices before go-live and update `account_api/worker/wrangler.toml` `[vars]`.
 
 ## Payment links (recommended)
 
@@ -31,7 +31,7 @@ Or run (updates links via API from `.dev.vars`):
 
 ### Configure desktop app
 
-Add to `frogswork_api/.dev.vars` (loaded by `scripts/start-dev.ps1`):
+Add to `account_api/dev/.dev.vars` (loaded by `scripts/start-dev.ps1`):
 
 ```env
 STRIPE_PAYMENT_LINK_MONTHLY=https://buy.stripe.com/test_...
@@ -112,7 +112,7 @@ Payment link buttons on [pricing.html](../../marketing_site/pricing.html) — re
 .\scripts\start-dev.ps1 -DevBrowser
 ```
 
-Copy `frogswork_api/.dev.vars.example` → `.dev.vars` with Stripe keys, price IDs, and payment links.
+Copy `account_api/dev/.dev.vars.example` → `.dev.vars` with Stripe keys, price IDs, and payment links.
 
 Point the desktop app at `http://127.0.0.1:8787` automatically via the start scripts.
 

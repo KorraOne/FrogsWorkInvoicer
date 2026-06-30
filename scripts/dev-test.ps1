@@ -70,7 +70,7 @@ function Start-BuiltApp {
     param([switch]$WithServer)
 
     if (-not (Test-Path $BuiltExe)) {
-        Write-Host "Built exe not found. Run .\build_client.ps1 first."
+        Write-Host "Built exe not found. Run .\client_app\build.ps1 first."
         exit 1
     }
 

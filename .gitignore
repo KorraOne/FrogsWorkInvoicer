@@ -35,7 +35,7 @@ Thumbs.db
 # Optional: Cursor agent plans (local only)
 .cursor/
 
-frogswork_api/account_api.db
+account_api/dev/account_api.db
 
 .wrangler
 .dev.vars*

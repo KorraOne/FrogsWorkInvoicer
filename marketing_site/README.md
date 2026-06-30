@@ -1,6 +1,6 @@
 # FrogsWork marketing site
 
-Static site at **https://frogswork.com**. Deployed via Cloudflare Worker **`frogswork-invoicer`** and root [`wrangler.toml`](../wrangler.toml).
+Static site at **https://frogswork.com**. Deployed via Cloudflare Worker **`frogswork-invoicer`** and [`wrangler.toml`](wrangler.toml) in this folder.
 
 Release files: **https://downloads.frogswork.com** (R2, not in git):
 
@@ -29,7 +29,7 @@ Then:
 
 1. Upload **setup.exe** and **zip** to R2
 2. Set `CLIENT_RELEASE_*` on the account API Worker (zip URL + zip SHA256)
-3. Push `marketing_site/releases.json` and deploy (`npx wrangler deploy`)
+3. Push `marketing_site/releases.json` and deploy (`cd marketing_site; npx wrangler deploy`)
 
 See [DEPLOY.md](../docs/commercial/DEPLOY.md) for the full checklist.
 

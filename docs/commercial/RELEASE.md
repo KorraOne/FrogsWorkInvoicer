@@ -62,7 +62,7 @@ Implemented via Inno `[UninstallRun]` calling `FrogsWork.exe --export-uninstall-
 
 | Tool | Purpose |
 |------|---------|
-| Python 3.13 + `requirements-client.txt` | PyInstaller build (via `build_client.ps1`) |
+| Python 3.13 + `client_app/requirements.txt` | PyInstaller build (via `client_app/build.ps1`) |
 | **Inno Setup 6** (`ISCC.exe`) | `FrogsWork-x.y.z-setup.exe` |
 | Microsoft Edge **WebView2 Runtime** | Required on target PCs (usually preinstalled on Windows 11) |
 
@@ -88,9 +88,9 @@ Outputs:
 - `marketing_site\releases.json` — download page manifest
 - Copies under `marketing_site\downloads\` (upload to R2; do not commit large binaries)
 
-Build only (no installer): `.\build_client.ps1 -Clean`
+Build only (no installer): `.\client_app\build.ps1 -Clean`
 
-Installer only (after PyInstaller): `.\scripts\build_installer.ps1 -Version "1.1.0"`
+Installer only (after PyInstaller): `.\client_app\scripts\build_installer.ps1 -Version "1.1.0"`
 
 ### 2. Upload both files to R2
 

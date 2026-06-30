@@ -1,13 +1,13 @@
-# FrogsWork account API (Cloudflare Worker)
+# Account API (Cloudflare Worker)
 
 Production API for **api.frogswork.com**: auth, Stripe Checkout, subscription entitlements, webhooks, and client release metadata.
 
-For local development, use [`../../frogswork_api/server.py`](../../frogswork_api/server.py) (Flask on port 8787).
+Local development: [`../dev/server.py`](../dev/server.py) (Flask on port 8787).
 
 ## Setup
 
 ```bash
-cd workers/frogswork-api
+cd account_api/worker
 npm install
 npx wrangler d1 create frogswork-account
 # Paste database_id into wrangler.toml

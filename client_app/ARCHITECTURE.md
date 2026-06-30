@@ -18,7 +18,7 @@ flowchart TB
         AccountClient[account_client.py]
     end
     subgraph remote [Account_API]
-        API[api.frogswork.com_or_frogswork_api]
+        API[api_frogswork_com_or_account_api_dev]
     end
     Browser --> Routes
     Browser --> AccountRoutes
@@ -81,7 +81,7 @@ From repo root:
 .\scripts\start-dev.ps1 -DevBrowser
 ```
 
-Starts `frogswork_api` (port 8787) and `client_app` (port 5000). Copy `frogswork_api/.dev.vars.example` to `.dev.vars` for Stripe test keys.
+Starts `account_api/dev` (port 8787) and `client_app` (port 5000). Copy `account_api/dev/.dev.vars.example` to `.dev.vars` for Stripe test keys.
 
 Seed sample data:
 
@@ -89,4 +89,4 @@ Seed sample data:
 python client_app/seed_dev_data.py
 ```
 
-Production account API: [`workers/frogswork-api/`](../workers/frogswork-api/).
+Production account API: [`account_api/worker/`](../account_api/worker/).

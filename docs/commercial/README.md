@@ -4,7 +4,7 @@ Australian sole-trader desktop **sales invoicing** app (**FrogsWork**) with a fr
 
 **Related docs:** **[DEPLOY](DEPLOY.md)** · [STRIPE_SETUP](STRIPE_SETUP.md) · [naming](naming.md) · [billing rules](billing-rules.md) · [security](security-risk-model.md) · [marketing site](../../marketing_site/README.md)
 
-**Code:** [`client_app/`](../../client_app/) (desktop) · [`workers/frogswork-api/`](../../workers/frogswork-api/) (API) · [`frogswork_api/`](../../frogswork_api/) (local dev API)
+**Code:** [`client_app/`](../../client_app/) (desktop) · [`account_api/`](../../account_api/) (API: `dev/` + `worker/`)
 
 ---
 
@@ -15,7 +15,7 @@ Australian sole-trader desktop **sales invoicing** app (**FrogsWork**) with a fr
 .\scripts\start-dev.ps1 -DevBrowser
 ```
 
-Copy `frogswork_api/.dev.vars.example` → `.dev.vars` and add Stripe keys + payment links.
+Copy `account_api/dev/.dev.vars.example` → `.dev.vars` and add Stripe keys + payment links.
 
 Or run separately:
 
@@ -37,7 +37,7 @@ Stripe Dashboard: [STRIPE_SETUP.md](STRIPE_SETUP.md).
 ## Build release
 
 ```powershell
-.\build_client.ps1
+.\client_app\build.ps1
 .\scripts\package_client_release.ps1 -Version "1.1.0" -ReleaseNotes "Release note."
 ```
 

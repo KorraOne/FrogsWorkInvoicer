@@ -23,4 +23,4 @@ Start-FrogsWorkAppTerminal -DevBrowser:$DevBrowser
 Write-Host ""
 Write-Host "API:  $(Get-FrogsWorkAccountApiUrl)"
 Write-Host "App:  http://127.0.0.1:5000/"
-Write-Host "Payment links load from frogswork_api\.dev.vars (copy from .dev.vars.example)."
+Write-Host "Payment links load from account_api\dev\.dev.vars (copy from .dev.vars.example)."
