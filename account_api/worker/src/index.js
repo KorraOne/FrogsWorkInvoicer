@@ -24,12 +24,6 @@ async function readJson(request) {
   }
 }
 
-function priceForPlan(env, plan) {
-  if (plan === "annual") return env.STRIPE_PRICE_ANNUAL_ID;
-  if (plan === "monthly") return env.STRIPE_PRICE_MONTHLY_ID;
-  return null;
-}
-
 async function issueTokens(env, userId, email) {
   const secret = new TextEncoder().encode(env.JWT_SECRET);
   const now = Math.floor(Date.now() / 1000);
@@ -345,44 +339,20 @@ export default {
       return json(sub);
     }
 
-    if (path === "/checkout/create" && request.method === "POST") {
-      const body = await readJson(request);
-      const plan = (body.plan || "monthly").trim().toLowerCase();
-      const priceId = priceForPlan(env, plan);
-      if (!priceId) {
-        return textError("Unknown plan.", 400);
-      }
-      const email = (body.email || "").trim();
-      const successUrl =
-        body.success_url ||
-        "https://frogswork.com/subscribe/success.html?session_id={CHECKOUT_SESSION_ID}";
-      const cancelUrl = body.cancel_url || "https://frogswork.com/pricing.html";
-      const params = {
-        mode: "subscription",
-        line_items: [{ price: priceId, quantity: 1 }],
-        success_url: successUrl,
-        cancel_url: cancelUrl,
-      };
-      if (email) {
-        params.customer_email = email;
-      }
-      const session = await stripe.checkout.sessions.create(params);
-      return json({ checkout_url: session.url, session_id: session.id });
-    }
-
     if (path === "/releases/latest" && request.method === "GET") {
       if (!env.CLIENT_RELEASE_VERSION) {
         return new Response("", { status: 204 });
       }
       return json({
         version: env.CLIENT_RELEASE_VERSION,
-        url: env.CLIENT_RELEASE_URL || "",
+        download_url: env.CLIENT_RELEASE_URL || "",
         sha256: env.CLIENT_RELEASE_SHA256 || "",
         notes: env.CLIENT_RELEASE_NOTES || "",
       });
     }
 
     if (path === "/webhooks/stripe" && request.method === "POST") {
+      // Ack only — GET /entitlements queries Stripe live; no DB cache yet.
       if (!env.STRIPE_WEBHOOK_SECRET) {
         return textError("Webhook secret not configured.", 500);
       }

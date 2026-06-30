@@ -2,27 +2,15 @@
 
 import os
 import sys
-from pathlib import Path
 
 import stripe
 
-APP_DIR = Path(__file__).resolve().parent
+from dev_vars import load_dev_vars
+
 RETURN_URL = os.environ.get(
     "STRIPE_CHECKOUT_RETURN_URL",
     "http://127.0.0.1:5000/account/stripe/return?session_id={CHECKOUT_SESSION_ID}",
 )
-
-
-def _load_dev_vars():
-    path = APP_DIR / ".dev.vars"
-    if not path.is_file():
-        return
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        os.environ.setdefault(key.strip(), value.strip())
 
 
 def _payment_link_urls():
@@ -35,7 +23,7 @@ def _payment_link_urls():
 
 
 def main():
-    _load_dev_vars()
+    load_dev_vars()
     stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
     if not stripe.api_key:
         print("STRIPE_SECRET_KEY missing in .dev.vars")

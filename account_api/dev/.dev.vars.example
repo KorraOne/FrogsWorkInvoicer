@@ -8,3 +8,8 @@ STRIPE_PAYMENT_LINK_MONTHLY=https://buy.stripe.com/test_...
 STRIPE_PAYMENT_LINK_ANNUAL=https://buy.stripe.com/test_...
 JWT_SECRET=change-me-to-a-long-random-string
 FLASK_PORT=8787
+# Optional — test in-app updates locally (otherwise GET /releases/latest returns 204)
+# CLIENT_RELEASE_VERSION=1.0.0
+# CLIENT_RELEASE_URL=https://downloads.frogswork.com/FrogsWork-1.0.0-win64.zip
+# CLIENT_RELEASE_SHA256=
+# CLIENT_RELEASE_NOTES=

@@ -1,49 +1,28 @@
 """FrogsWork account API — auth, Stripe checkout, entitlements."""
 
-import json
 import os
 import sqlite3
-import time
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
 
+import bcrypt
 import jwt
 import stripe
 from flask import Flask, g, jsonify, request
 
-try:
-    import bcrypt
-except ImportError:
-    bcrypt = None
-from werkzeug.security import check_password_hash, generate_password_hash
+from dev_vars import load_dev_vars
 
-APP_DIR = Path(__file__).resolve().parent
-
-
-def _load_dev_vars():
-    path = APP_DIR / ".dev.vars"
-    if not path.is_file():
-        return
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        os.environ.setdefault(key.strip(), value.strip())
-
-
-_load_dev_vars()
+load_dev_vars()
 
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
 JWT_SECRET = os.environ.get("JWT_SECRET", "dev-insecure-jwt-secret")
 WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
-PRICE_MONTHLY = os.environ.get("STRIPE_PRICE_MONTHLY_ID", "")
-PRICE_ANNUAL = os.environ.get("STRIPE_PRICE_ANNUAL_ID", "")
 ACCESS_TTL = timedelta(hours=12)
 REFRESH_TTL = timedelta(days=30)
 
 app = Flask(__name__)
+APP_DIR = Path(__file__).resolve().parent
 
 
 def _db_path():
@@ -65,15 +44,11 @@ def close_db(_exc):
 
 
 def _hash_password(password):
-    if bcrypt:
-        return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-    return generate_password_hash(password)
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def _check_password(password, password_hash):
-    if bcrypt and password_hash.startswith("$2"):
-        return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
-    return check_password_hash(password_hash, password)
+    return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
 
 
 def init_db():
@@ -91,14 +66,6 @@ def init_db():
     )
     db.commit()
     db.close()
-
-
-def _price_for_plan(plan):
-    if plan == "annual":
-        return PRICE_ANNUAL
-    if plan == "monthly":
-        return PRICE_MONTHLY
-    return None
 
 
 def _issue_tokens(user_id, email):
@@ -403,49 +370,32 @@ def entitlements():
     return jsonify(sub)
 
 
-@app.post("/checkout/create")
-def checkout_create():
-    body = request.get_json(force=True, silent=True) or {}
-    plan = (body.get("plan") or "monthly").strip().lower()
-    price_id = _price_for_plan(plan)
-    if not price_id:
-        return jsonify({"error": "Unknown plan."}), 400
-    email = (body.get("email") or "").strip()
-    success_url = body.get("success_url") or "https://frogswork.com/subscribe/success.html?session_id={CHECKOUT_SESSION_ID}"
-    cancel_url = body.get("cancel_url") or "https://frogswork.com/pricing.html"
-    params = {
-        "mode": "subscription",
-        "line_items": [{"price": price_id, "quantity": 1}],
-        "success_url": success_url,
-        "cancel_url": cancel_url,
-    }
-    if email:
-        params["customer_email"] = email
-    session = stripe.checkout.Session.create(**params)
-    return jsonify({"checkout_url": session.url, "session_id": session.id})
-
-
 @app.get("/releases/latest")
 def releases_latest():
-    return ("", 204)
+    version = (os.environ.get("CLIENT_RELEASE_VERSION") or "").strip()
+    if not version:
+        return ("", 204)
+    return jsonify(
+        {
+            "version": version,
+            "download_url": (os.environ.get("CLIENT_RELEASE_URL") or "").strip(),
+            "sha256": (os.environ.get("CLIENT_RELEASE_SHA256") or "").strip(),
+            "notes": (os.environ.get("CLIENT_RELEASE_NOTES") or "").strip(),
+        }
+    )
 
 
 @app.post("/webhooks/stripe")
 def stripe_webhook():
+    """Verify Stripe signature and ack. Entitlements are live-queried from Stripe."""
     payload = request.get_data()
     sig = request.headers.get("Stripe-Signature", "")
     if not WEBHOOK_SECRET:
         return jsonify({"error": "Webhook secret not configured."}), 500
     try:
-        event = stripe.Webhook.construct_event(payload, sig, WEBHOOK_SECRET)
+        stripe.Webhook.construct_event(payload, sig, WEBHOOK_SECRET)
     except Exception as exc:
         return jsonify({"error": str(exc)}), 400
-    if event["type"] in (
-        "checkout.session.completed",
-        "customer.subscription.updated",
-        "customer.subscription.deleted",
-    ):
-        return jsonify({"received": True})
     return jsonify({"received": True})
 
 

@@ -158,17 +158,6 @@ def payment_link_for_plan(plan, email=None):
     return base or None
 
 
-def create_checkout_session(plan, email=None, success_url=None, cancel_url=None):
-    body = {"plan": plan}
-    if email:
-        body["email"] = email
-    if success_url:
-        body["success_url"] = success_url
-    if cancel_url:
-        body["cancel_url"] = cancel_url
-    return _request("POST", "/checkout/create", body)
-
-
 def map_http_auth_error(message):
     from subscription_messages import map_http_auth_error as _map
 
