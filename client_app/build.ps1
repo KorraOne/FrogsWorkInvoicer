@@ -1,4 +1,4 @@
-# Build FrogsWork desktop client (client_app/)
+# Build FrogsWork desktop client (run from client_app/)
 
 param(
     [switch]$OneFile,
@@ -8,11 +8,11 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$Root = $PSScriptRoot
-$AppDir = Join-Path $Root "client_app"
+$AppDir = $PSScriptRoot
+$RepoRoot = Split-Path $AppDir -Parent
 $ConfigFile = Join-Path $AppDir "app_config.py"
-$VenvDir = Join-Path $Root ".client-venv"
-$Requirements = Join-Path $Root "requirements-client.txt"
+$VenvDir = Join-Path $RepoRoot ".client-venv"
+$Requirements = Join-Path $AppDir "requirements.txt"
 $DistOnedir = Join-Path $AppDir "dist\FrogsWork"
 $DistOneFile = Join-Path $AppDir "dist\FrogsWork.exe"
 
@@ -40,10 +40,10 @@ if ($BillingUrl) {
     $escaped = [regex]::Escape("http://127.0.0.1:8080")
     $updated = $configBackup -replace $escaped, $BillingUrl
     if ($updated -eq $configBackup) {
-        throw "Could not patch app_config.py with BillingUrl. Check DEFAULT_BILLING_SERVER_URL default."
+        throw "Could not patch app_config.py with BillingUrl. Check DEFAULT_ACCOUNT_API_URL default."
     }
     Set-Content -Path $ConfigFile -Value $updated -NoNewline
-    Write-Host "Using billing URL for this build: $BillingUrl"
+    Write-Host "Using account API URL for this build: $BillingUrl"
 }
 
 try {

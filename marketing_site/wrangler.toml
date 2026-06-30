@@ -1,0 +1,13 @@
+# Cloudflare Workers static assets — marketing site (frogswork.com)
+# Deploy: cd marketing_site && npx wrangler deploy
+# Dashboard project: frogswork-invoicer
+
+name = "frogswork-invoicer"
+compatibility_date = "2026-06-28"
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
+
+[assets]
+directory = "."
