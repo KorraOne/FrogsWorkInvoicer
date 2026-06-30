@@ -24,7 +24,9 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for module layout and request flow.
 Seed test data:
 
 ```powershell
-python client_app/seed_dev_data.py
+.\scripts\reset-dev.ps1 -SeedOnly -Force
+# or replace existing seed customers/invoices:
+.\scripts\reset-dev.ps1 -SeedOnly -ResetSeed -Force
 ```
 
 ## Build

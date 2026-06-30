@@ -15,7 +15,7 @@ copy .dev.vars.example .dev.vars
 python server.py
 ```
 
-Or from repo root: `.\scripts\start-dev-api.ps1`
+Or from repo root: `.\scripts\start-dev.ps1` (starts API + desktop app).
 
 API listens on `http://127.0.0.1:8787`.
 

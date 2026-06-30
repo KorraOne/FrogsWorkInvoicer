@@ -15,13 +15,13 @@ Australian sole-trader desktop **sales invoicing** app (**FrogsWork**) with a fr
 .\scripts\start-dev.ps1 -DevBrowser
 ```
 
-Copy `account_api/dev/.dev.vars.example` → `.dev.vars` and add Stripe keys + payment links.
+Copy `account_api/dev/.dev.vars.example` → `.dev.vars` and add Stripe keys + payment links. Run `.\scripts\configure-payment-links.ps1` once after setup.
 
-Or run separately:
+Reset local state:
 
 ```powershell
-.\scripts\start-dev-api.ps1
-.\scripts\start-dev-app.ps1 -DevBrowser
+.\scripts\reset-dev.ps1 -Force                  # clear AppData + API db
+.\scripts\reset-dev.ps1 -Force -Seed -ResetSeed # fresh env + sample data
 ```
 
 ---

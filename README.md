@@ -26,6 +26,12 @@ Monorepo for the **FrogsWork** desktop invoicing app, account API, and marketing
 .\scripts\start-dev.ps1 -DevBrowser
 ```
 
+Fresh dev environment (clear AppData + API db, then seed sample data):
+
+```powershell
+.\scripts\reset-dev.ps1 -Force -Seed -ResetSeed
+```
+
 ## Repo layout
 
 ```
