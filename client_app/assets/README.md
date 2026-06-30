@@ -13,7 +13,7 @@ Drop your draft files here. They are bundled into the desktop build automaticall
 | Size       | **512 × 512 px** (square)                                                                         |
 | Background | Transparent outside the mark                                                                      |
 | Layout     | Keep the frog centred. Outer corners may be cropped on rounded taskbar icons.                     |
-| Colour     | FrogsWork greens (`#16a34a`, `#166534`, `#14532d`) per [brand.md](../../docs/commercial/brand.md) |
+| Colour     | FrogsWork greens (`#16a34a`, `#166534`, `#14532d`) per [brand.md](../../docs/brand.md) |
 
 
 Shown on **app startup splash** only. Not shown on the Home screen.

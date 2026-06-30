@@ -52,18 +52,9 @@ def _check_password(password, password_hash):
 
 
 def init_db():
+    schema_path = APP_DIR.parent / "schema.sql"
     db = sqlite3.connect(_db_path())
-    db.execute(
-        """
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT NOT NULL UNIQUE,
-            password_hash TEXT NOT NULL,
-            stripe_customer_id TEXT,
-            created_at TEXT NOT NULL
-        )
-        """
-    )
+    db.executescript(schema_path.read_text(encoding="utf-8"))
     db.commit()
     db.close()
 

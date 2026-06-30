@@ -19,9 +19,9 @@ User data             → %APPDATA%\FrogsWork\ (on each PC)
 Program files         → %LOCALAPPDATA%\Programs\FrogsWork\ (on each PC)
 ```
 
-**Local dev API:** [`account_api/dev/server.py`](../../account_api/dev/server.py) on `http://127.0.0.1:8787`.
+**Local dev API:** [`account_api/dev/server.py`](../account_api/dev/server.py) on `http://127.0.0.1:8787`.
 
-**Production API:** [`account_api/worker/`](../../account_api/worker/) — see [STRIPE_SETUP.md](STRIPE_SETUP.md).
+**Production API:** [`account_api/worker/`](../account_api/worker/) — Stripe setup in [`account_api/worker/README.md`](../account_api/worker/README.md).
 
 ---
 
@@ -30,7 +30,7 @@ Program files         → %LOCALAPPDATA%\Programs\FrogsWork\ (on each PC)
 ```powershell
 cd account_api/worker
 npm install
-npx wrangler d1 execute frogswork-account --remote --file=./schema.sql
+npx wrangler d1 execute frogswork-account --remote --file=../schema.sql
 npx wrangler secret put STRIPE_SECRET_KEY
 npx wrangler secret put STRIPE_WEBHOOK_SECRET
 npx wrangler secret put JWT_SECRET
@@ -48,7 +48,7 @@ Custom domain: attach **api.frogswork.com** to the Worker in Cloudflare.
 
 ### Build (Windows, repo root)
 
-Requires **Inno Setup 6**. See [RELEASE.md](RELEASE.md).
+Requires **Inno Setup 6**. See [`client_app/installer/README.md`](../client_app/installer/README.md).
 
 ```powershell
 .\scripts\package_client_release.ps1 -Version "1.1.0" -ReleaseNotes "Your release note."
@@ -89,7 +89,7 @@ Update `marketing_site/releases.json`, commit, push, then from `marketing_site/`
 
 | Setting | Value |
 |---------|--------|
-| Config | [`marketing_site/wrangler.toml`](../../marketing_site/wrangler.toml) |
+| Config | [`marketing_site/wrangler.toml`](../marketing_site/wrangler.toml) |
 | Deploy | `cd marketing_site` then `npx wrangler deploy` |
 
 Binaries on R2, not in git.
@@ -98,7 +98,6 @@ Binaries on R2, not in git.
 
 ## Related docs
 
-- [STRIPE_SETUP.md](STRIPE_SETUP.md)
-- [RELEASE.md](RELEASE.md)
-- [billing-rules.md](billing-rules.md)
-- [marketing_site/README.md](../../marketing_site/README.md)
+- [naming.md](naming.md) · [brand.md](brand.md)
+- [account_api/worker/README.md](../account_api/worker/README.md) — Stripe Dashboard, webhooks
+- [marketing_site/README.md](../marketing_site/README.md)

@@ -8,5 +8,3 @@ database_name = "frogswork-account"
 database_id = "00000000-0000-0000-0000-000000000000"
 
 [vars]
-STRIPE_PRICE_MONTHLY_ID = "price_1TntfOIQSiAlmwTlzqPJayus"
-STRIPE_PRICE_ANNUAL_ID = "price_1TnthTIQSiAlmwTlfcvD95h5"

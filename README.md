@@ -10,7 +10,7 @@ Monorepo for the **FrogsWork** desktop invoicing app, account API, and marketing
 
 ## Quick links
 
-- Desktop app: [`client_app/README.md`](client_app/README.md) · [`docs/commercial/DEPLOY.md`](docs/commercial/DEPLOY.md)
+- Desktop app: [`client_app/README.md`](client_app/README.md) · [`docs/DEPLOY.md`](docs/DEPLOY.md)
 - Account API: [`account_api/README.md`](account_api/README.md)
 - Marketing: [`marketing_site/README.md`](marketing_site/README.md)
 
@@ -41,7 +41,7 @@ account_api/
   worker/                 Production Cloudflare Worker (api.frogswork.com)
 marketing_site/           Static site + wrangler.toml
 scripts/                  Dev orchestration and release packaging
-docs/commercial/          Operator docs
+docs/                   Operator + deploy docs
 ```
 
 ## Data

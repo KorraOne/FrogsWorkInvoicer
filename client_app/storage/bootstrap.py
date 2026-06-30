@@ -269,23 +269,23 @@ def ensure_app_identity():
     content = f"""{APP_NAME}
 {'=' * len(APP_NAME)}
 
-Australian sole-trader invoicing with usage-based pricing.
+Australian sole-trader invoicing with a free trial and optional subscription.
 Made by {APP_AUTHOR}, {APP_URL}
 
 WHAT THIS FOLDER IS
 -------------------
-Stores your business settings, customers, invoices, and billing cache.
+Stores your business settings, customers, invoices, and account cache.
 Invoice PDFs are saved separately ({pdf_note}).
 
 FILES HERE
 ----------
-  settings.json     - Business details, bank info, invoice counter
-  customers.json    - Saved customers
-  invoices.json     - Past invoices and sent/paid status
-  billing.json      - Local usage cache (this month)
-  account_auth.json - Login tokens (encrypted)
-  bootstrap.json    - PDF folder preference
-  README.txt        - This file
+  settings.json          - Business details, bank info, invoice counter
+  customers.json         - Saved customers
+  invoices.json          - Past invoices and sent/paid status
+  account_auth.json      - Login tokens (encrypted)
+  entitlement_cache.json - Subscription status (offline grace)
+  bootstrap.json         - PDF folder preference
+  README.txt             - This file
 
 Config folder: {config_path}
 

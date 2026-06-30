@@ -79,4 +79,4 @@ Recommended events: `checkout.session.completed`, `customer.subscription.updated
 
 ## Database
 
-Single table `users`: `id`, `email`, `password_hash`, `stripe_customer_id`, `created_at`. See [`worker/schema.sql`](worker/schema.sql).
+Single table `users`: `id`, `email`, `password_hash`, `stripe_customer_id`, `created_at`. See [`schema.sql`](schema.sql).

@@ -13,7 +13,7 @@ cd account_api/worker
 npm install
 npx wrangler d1 create frogswork-account
 # Paste database_id into wrangler.toml
-npx wrangler d1 execute frogswork-account --remote --file=./schema.sql
+npx wrangler d1 execute frogswork-account --remote --file=../schema.sql
 ```
 
 ## Secrets (production)
@@ -40,7 +40,7 @@ npm run deploy
 ## Stripe Dashboard
 
 1. **Products / Prices** — monthly `$12.99`, annual `$129.90` (price IDs on Payment Links).
-2. **Payment Links** — desktop app opens these URLs; **After payment** redirect: `http://127.0.0.1:5000/account/stripe/return?session_id={CHECKOUT_SESSION_ID}` (see [STRIPE_SETUP.md](../../docs/commercial/STRIPE_SETUP.md)).
+2. **Payment Links** — desktop app opens these URLs; **After payment** redirect: `http://127.0.0.1:5000/account/stripe/return?session_id={CHECKOUT_SESSION_ID}`.
 3. **Customer portal** — enable in Stripe; entitlements endpoint returns `portal_url`.
 4. **Webhooks** — endpoint `https://api.frogswork.com/webhooks/stripe`; events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted` (ack only today).
 

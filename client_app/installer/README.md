@@ -39,5 +39,4 @@ Custom PyInstaller folder:
 
 ## See also
 
-- [RELEASE.md](../../docs/commercial/RELEASE.md) — full release pipeline
-- [DEPLOY.md](../../docs/commercial/DEPLOY.md) — upload to R2
+- [DEPLOY.md](../../docs/DEPLOY.md) — upload to R2 and release checklist

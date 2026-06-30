@@ -4,6 +4,8 @@ param(
     [switch]$OneFile,
     [switch]$Clean,
     [switch]$SkipVenv,
+    [string]$AccountApiUrl = "",
+    [Alias("BillingUrl")]
     [string]$BillingUrl = ""
 )
 
@@ -15,6 +17,10 @@ $VenvDir = Join-Path $RepoRoot ".client-venv"
 $Requirements = Join-Path $AppDir "requirements.txt"
 $DistOnedir = Join-Path $AppDir "dist\FrogsWork"
 $DistOneFile = Join-Path $AppDir "dist\FrogsWork.exe"
+
+if (-not $AccountApiUrl -and $BillingUrl) {
+    $AccountApiUrl = $BillingUrl
+}
 
 function Stop-RunningApp {
     Get-Process -Name "FrogsWork" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
@@ -35,15 +41,15 @@ Set-Location $AppDir
 Stop-RunningApp
 
 $configBackup = $null
-if ($BillingUrl) {
+if ($AccountApiUrl) {
     $configBackup = Get-Content $ConfigFile -Raw
-    $escaped = [regex]::Escape("http://127.0.0.1:8080")
-    $updated = $configBackup -replace $escaped, $BillingUrl
+    $escaped = [regex]::Escape("http://127.0.0.1:8787")
+    $updated = $configBackup -replace $escaped, $AccountApiUrl
     if ($updated -eq $configBackup) {
-        throw "Could not patch app_config.py with BillingUrl. Check DEFAULT_ACCOUNT_API_URL default."
+        throw "Could not patch app_config.py with AccountApiUrl. Check DEFAULT_ACCOUNT_API_URL default."
     }
     Set-Content -Path $ConfigFile -Value $updated -NoNewline
-    Write-Host "Using account API URL for this build: $BillingUrl"
+    Write-Host "Using account API URL for this build: $AccountApiUrl"
 }
 
 try {

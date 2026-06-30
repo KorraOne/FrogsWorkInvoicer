@@ -7,7 +7,7 @@ Static site at **https://frogswork.com**. Deployed via Cloudflare Worker **`frog
 - **`FrogsWork-x.y.z-setup.exe`** — linked from `/download.html` via `releases.json` → `download_path`
 - **`FrogsWork-x.y.z-win64.zip`** — in-app updates via account API `CLIENT_RELEASE_*` vars
 
-**Deploy:** [DEPLOY.md](../docs/commercial/DEPLOY.md) · [STRIPE_SETUP.md](../docs/commercial/STRIPE_SETUP.md)
+**Deploy:** [DEPLOY.md](../docs/DEPLOY.md)
 
 ## Pages
 

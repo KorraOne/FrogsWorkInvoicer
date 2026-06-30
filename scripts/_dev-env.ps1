@@ -57,8 +57,7 @@ function Get-DevVarsExportBlock {
     foreach ($key in @(
         "STRIPE_PAYMENT_LINK_MONTHLY",
         "STRIPE_PAYMENT_LINK_ANNUAL",
-        "FROGSWORK_ACCOUNT_API_URL",
-        "BILLING_SERVER_URL"
+        "FROGSWORK_ACCOUNT_API_URL"
     )) {
         if ($Vars.ContainsKey($key) -and $Vars[$key]) {
             $escaped = $Vars[$key] -replace "'", "''"
@@ -98,7 +97,6 @@ function Start-FrogsWorkAppTerminal {
     $devVars = Import-FrogsWorkDevVars
     $apiUrl = Get-FrogsWorkAccountApiUrl
     $devVars["FROGSWORK_ACCOUNT_API_URL"] = $apiUrl
-    $devVars["BILLING_SERVER_URL"] = $apiUrl
     $envBlock = Get-DevVarsExportBlock -Vars $devVars
     $python = Get-FrogsWorkPython
     $devBrowserLine = ""

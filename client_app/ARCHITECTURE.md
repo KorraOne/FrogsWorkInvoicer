@@ -30,13 +30,15 @@ flowchart TB
 
 ## Module map
 
+Operator docs: [`../docs/README.md`](../docs/README.md)
+
 | Module | Role |
 |--------|------|
 | [`app.py`](app.py) | Flask app, error handlers, template filters, nav context, desktop `main()` |
 | [`routes/`](routes/) | HTTP routes (invoices, customers, settings, welcome, account, backup, system) |
 | [`storage/`](storage/) | AppData JSON, PDF folder, invoice records (`import storage` re-exports API) |
 | [`account/`](account/) | Auth store, API client, entitlements, trial meter, checkout handoff |
-| [`invoicing/`](invoicing/) | Invoice forms, formatting, due dates, PDF, email compose, GST |
+| [`invoicing/`](invoicing/) | Invoice forms, formatting, due dates, PDF (`pdf_generator.generate_invoice` → `pdf/templates/`), email compose, GST |
 | [`app_platform/`](app_platform/) | OS/desktop glue: paths, dialogs, updates, window state, Win uninstall hook |
 | [`desktop_shell.py`](desktop_shell.py) | pywebview window, splash (Win + future Mac desktop entry) |
 | [`app_config.py`](app_config.py) | Brand, version, trial limits, API URL defaults |

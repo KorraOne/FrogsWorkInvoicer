@@ -12,7 +12,9 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for module layout and request flow.
 
 ## Docs
 
-[`../docs/commercial/README.md`](../docs/commercial/README.md) · [naming conventions](../docs/commercial/naming.md)
+[`../docs/README.md`](../docs/README.md) · [naming conventions](../docs/naming.md)
+
+OS integration (paths, dialogs, updates): [`app_platform/`](app_platform/).
 
 ## Dev
 
@@ -37,4 +39,4 @@ Seed test data:
 .\scripts\package_client_release.ps1 -Version "1.1.0" -ReleaseNotes "..."
 ```
 
-Install: **Inno Setup** `FrogsWork-x.y.z-setup.exe` → `%LOCALAPPDATA%\Programs\FrogsWork\`. See [RELEASE.md](../docs/commercial/RELEASE.md).
+Install: **Inno Setup** `FrogsWork-x.y.z-setup.exe` → `%LOCALAPPDATA%\Programs\FrogsWork\`. See [installer/README.md](installer/README.md) and [DEPLOY.md](../docs/DEPLOY.md).
