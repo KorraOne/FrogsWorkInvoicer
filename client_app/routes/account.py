@@ -300,7 +300,14 @@ def register_account_routes(app):
                     account_exists=False,
                 )
             try:
-                client.register(password, checkout_session_id)
+                from account import telemetry
+
+                client.register(
+                    password,
+                    checkout_session_id,
+                    install_id=telemetry.install_id(),
+                    signup_snapshot=telemetry.build_signup_snapshot(),
+                )
                 return _finish_account_signup()
             except AccountOfflineError:
                 return render_template(

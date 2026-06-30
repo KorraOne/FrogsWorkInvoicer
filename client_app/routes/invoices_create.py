@@ -79,6 +79,9 @@ def register_invoice_create_routes(app):
         customers = storage.load_customers()
         customers[name] = {"address": address, "abn": abn, "email": email}
         storage.save_customers(customers)
+        from account import telemetry
+
+        telemetry.send_event("first_customer")
 
         form["customer"] = name
         save_invoice_draft(form)
@@ -202,6 +205,9 @@ def register_invoice_create_routes(app):
         )
 
         clear_invoice_draft()
+        from account import telemetry
+
+        telemetry.after_invoice_generated()
         return redirect(
             url_for(
                 "done",

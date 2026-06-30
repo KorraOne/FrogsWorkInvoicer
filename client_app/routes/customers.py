@@ -42,6 +42,9 @@ def register_customer_routes(app):
             customers = storage.load_customers()
             customers[name] = {"address": address, "abn": abn, "email": email}
             storage.save_customers(customers)
+            from account import telemetry
+
+            telemetry.send_event("first_customer")
             return redirect(url_for("customers_list"))
 
         return render_template(

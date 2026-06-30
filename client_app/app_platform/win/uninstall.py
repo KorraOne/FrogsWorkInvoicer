@@ -23,6 +23,13 @@ def _downloads_dir():
 
 def export_for_uninstall():
     """Copy invoice PDFs to Downloads silently. Never blocks uninstall."""
+    try:
+        from account import telemetry
+
+        telemetry.send_uninstall_event()
+    except Exception:
+        pass
+
     downloads = _downloads_dir()
     if not downloads or not os.path.isdir(downloads):
         return 0

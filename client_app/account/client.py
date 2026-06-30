@@ -86,11 +86,15 @@ def login(email, password):
     return payload
 
 
-def register(password, checkout_session_id):
+def register(password, checkout_session_id, *, install_id=None, signup_snapshot=None):
     body = {
         "password": password,
         "checkout_session_id": checkout_session_id,
     }
+    if install_id:
+        body["install_id"] = install_id
+    if signup_snapshot:
+        body["signup_snapshot"] = signup_snapshot
     payload = _request("POST", "/auth/register", body)
     email = (payload.get("email") or "").strip().lower()
     auth_store.save_auth(

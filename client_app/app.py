@@ -292,6 +292,13 @@ def main():
     from app_config import LOCAL_APP_URL
     from app_platform.folder_picker import process_pending_picks
 
+    def _telemetry_on_start():
+        from account import telemetry
+
+        telemetry.send_heartbeat()
+
+    threading.Thread(target=_telemetry_on_start, daemon=True, name="telemetry-heartbeat").start()
+
     if use_dev_browser():
         if _start_flask_server() == "port_in_use":
             _show_already_running_message()

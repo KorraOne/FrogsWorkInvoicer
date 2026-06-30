@@ -23,6 +23,9 @@ def register_backup_routes(app, helpers):
                 path = export_backup_with_dialog(exe_dir())
                 if path:
                     flash(f"Backup saved to {path}", "success")
+                    from account import telemetry
+
+                    telemetry.send_event("backup_export")
                 else:
                     flash("Backup cancelled.", "info")
             except BackupExportError as exc:
@@ -57,5 +60,8 @@ def register_backup_routes(app, helpers):
                         with zf.open(member) as src, open(target, "wb") as dst:
                             shutil.copyfileobj(src, dst)
             flash("Backup restored. Your data was replaced from the ZIP.", "success")
+            from account import telemetry
+
+            telemetry.send_event("backup_import")
             return redirect(url_for("backup_import"))
         return render_template("backup_import.html", error=None)

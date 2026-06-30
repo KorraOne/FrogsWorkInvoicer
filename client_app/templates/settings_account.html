@@ -55,6 +55,8 @@
     {% endif %}
 </div>
 
+<p class="settings-section-hint">FrogsWork sends anonymous usage statistics so we can improve the product. We never upload your invoice or customer details. <a href="{{ brand_privacy_url }}#usage-statistics">Privacy policy</a></p>
+
 {% if entitlement_sync_async %}
 <script type="application/json" id="settings-account-config">{{ {"statusUrl": url_for('settings_account_status')} | tojson }}</script>
 <script src="{{ url_for('static', filename='settings_account_status.js') }}"></script>

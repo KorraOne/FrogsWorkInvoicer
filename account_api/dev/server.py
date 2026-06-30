@@ -9,15 +9,24 @@ from pathlib import Path
 import bcrypt
 import jwt
 import stripe
-from flask import Flask, g, jsonify, request
+from flask import Flask, Response, g, jsonify, request
 
+from admin_summary import build_admin_summary, render_admin_html
 from dev_vars import load_dev_vars
+from telemetry_ops import (
+    is_valid_install_id,
+    link_install_on_register,
+    record_event,
+    update_subscription_milestones,
+    upsert_heartbeat,
+)
 
 load_dev_vars()
 
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
 JWT_SECRET = os.environ.get("JWT_SECRET", "dev-insecure-jwt-secret")
 WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
 ACCESS_TTL = timedelta(hours=12)
 REFRESH_TTL = timedelta(days=30)
 
@@ -54,9 +63,17 @@ def _check_password(password, password_hash):
 def init_db():
     schema_path = APP_DIR.parent / "schema.sql"
     db = sqlite3.connect(_db_path())
+    _migrate_db(db)
     db.executescript(schema_path.read_text(encoding="utf-8"))
     db.commit()
     db.close()
+
+
+def _migrate_db(db):
+    """Apply additive migrations for existing dev databases."""
+    cols = {row[1] for row in db.execute("PRAGMA table_info(users)").fetchall()}
+    if "install_id" not in cols:
+        db.execute("ALTER TABLE users ADD COLUMN install_id TEXT")
 
 
 def _issue_tokens(user_id, email):
@@ -212,6 +229,23 @@ def require_auth(f):
     return wrapped
 
 
+def require_admin(f):
+    @wraps(f)
+    def wrapped(*args, **kwargs):
+        if not ADMIN_PASSWORD:
+            return jsonify({"error": "Admin not configured."}), 503
+        auth = request.authorization
+        if not auth or auth.password != ADMIN_PASSWORD:
+            return Response(
+                "Unauthorized",
+                401,
+                {"WWW-Authenticate": 'Basic realm="FrogsWork Admin"'},
+            )
+        return f(*args, **kwargs)
+
+    return wrapped
+
+
 @app.get("/health")
 def health():
     return jsonify({"ok": True, "stripe": bool(stripe.api_key)})
@@ -296,6 +330,15 @@ def auth_register():
     )
     db.commit()
     access, refresh = _issue_tokens(cur.lastrowid, email)
+
+    install_id = (body.get("install_id") or "").strip().lower()
+    if is_valid_install_id(install_id):
+        link_install_on_register(db, install_id, cur.lastrowid, body.get("signup_snapshot"))
+        user = _user_by_id(cur.lastrowid)
+        sub = _subscription_status(stripe_customer_id)
+        update_subscription_milestones(db, user, sub)
+        db.commit()
+
     return jsonify({"access_token": access, "refresh_token": refresh, "email": email})
 
 
@@ -358,7 +401,45 @@ def entitlements():
     user = g.current_user
     sub = _subscription_status(user["stripe_customer_id"])
     sub["portal_url"] = _portal_url(user["stripe_customer_id"])
+    db = get_db()
+    update_subscription_milestones(db, user, sub)
+    db.commit()
     return jsonify(sub)
+
+
+@app.post("/telemetry/heartbeat")
+def telemetry_heartbeat():
+    body = request.get_json(force=True, silent=True) or {}
+    try:
+        result = upsert_heartbeat(get_db(), body)
+        get_db().commit()
+        return jsonify({"ok": True, **result})
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+
+@app.post("/telemetry/event")
+def telemetry_event():
+    body = request.get_json(force=True, silent=True) or {}
+    try:
+        result = record_event(get_db(), body)
+        get_db().commit()
+        return jsonify({"ok": True, **result})
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+
+@app.get("/admin/api/summary")
+@require_admin
+def admin_api_summary():
+    return jsonify(build_admin_summary(get_db()))
+
+
+@app.get("/admin")
+@require_admin
+def admin_dashboard():
+    html = render_admin_html(build_admin_summary(get_db()))
+    return Response(html, mimetype="text/html; charset=utf-8")
 
 
 @app.get("/releases/latest")

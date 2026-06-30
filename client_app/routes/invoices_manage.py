@@ -121,6 +121,13 @@ def register_invoice_manage_routes(app):
         except (KeyError, ValueError):
             abort(404)
 
+        from account import telemetry
+
+        if status == "sent":
+            telemetry.send_event("first_invoice_sent")
+        elif status == "paid":
+            telemetry.send_event("first_paid_marked")
+
         if status in ("sent", "not_sent"):
             _clear_invoice_send_session(number)
 

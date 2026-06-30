@@ -34,9 +34,12 @@ npx wrangler d1 execute frogswork-account --remote --file=../schema.sql
 npx wrangler secret put STRIPE_SECRET_KEY
 npx wrangler secret put STRIPE_WEBHOOK_SECRET
 npx wrangler secret put JWT_SECRET
+npx wrangler secret put ADMIN_PASSWORD
 npm run deploy
 curl https://api.frogswork.com/health
 ```
+
+Set **`ADMIN_PASSWORD`** for the operator analytics dashboard at `https://api.frogswork.com/admin` (HTTP Basic auth). JSON summary: `/admin/api/summary`.
 
 Set release metadata as Worker vars or secrets: `CLIENT_RELEASE_VERSION`, `CLIENT_RELEASE_URL`, `CLIENT_RELEASE_SHA256`, `CLIENT_RELEASE_NOTES`.
 

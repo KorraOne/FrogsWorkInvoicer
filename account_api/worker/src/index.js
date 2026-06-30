@@ -1,6 +1,14 @@
 import Stripe from "stripe";
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
+import {
+  isValidInstallId,
+  linkInstallOnRegister,
+  recordEvent,
+  updateSubscriptionMilestones,
+  upsertHeartbeat,
+} from "./telemetry.js";
+import { buildAdminSummary, checkAdminAuth, renderAdminHtml } from "./admin.js";
 
 const ACCESS_TTL_SEC = 12 * 60 * 60;
 const REFRESH_TTL_SEC = 30 * 24 * 60 * 60;
@@ -274,6 +282,20 @@ export default {
         .run();
 
       const tokens = await issueTokens(env, result.meta.last_row_id, email);
+
+      const installId = (body.install_id || "").trim().toLowerCase();
+      if (isValidInstallId(installId)) {
+        await linkInstallOnRegister(
+          env.DB,
+          installId,
+          result.meta.last_row_id,
+          body.signup_snapshot
+        );
+        const user = await userById(env.DB, result.meta.last_row_id);
+        const sub = await subscriptionStatus(stripe, customerId);
+        await updateSubscriptionMilestones(env.DB, user, sub);
+      }
+
       return json({ ...tokens, email });
     }
 
@@ -336,7 +358,44 @@ export default {
       if (auth.error) return auth.error;
       const sub = await subscriptionStatus(stripe, auth.user.stripe_customer_id);
       sub.portal_url = await portalUrl(stripe, auth.user.stripe_customer_id);
+      await updateSubscriptionMilestones(env.DB, auth.user, sub);
       return json(sub);
+    }
+
+    if (path === "/telemetry/heartbeat" && request.method === "POST") {
+      const body = await readJson(request);
+      try {
+        const result = await upsertHeartbeat(env.DB, body);
+        return json({ ok: true, ...result });
+      } catch (exc) {
+        return textError(String(exc.message || exc), 400);
+      }
+    }
+
+    if (path === "/telemetry/event" && request.method === "POST") {
+      const body = await readJson(request);
+      try {
+        const result = await recordEvent(env.DB, body);
+        return json({ ok: true, ...result });
+      } catch (exc) {
+        return textError(String(exc.message || exc), 400);
+      }
+    }
+
+    if (path === "/admin/api/summary" && request.method === "GET") {
+      const auth = checkAdminAuth(request, env.ADMIN_PASSWORD);
+      if (!auth.ok) return auth.response;
+      const summary = await buildAdminSummary(env.DB);
+      return json(summary);
+    }
+
+    if (path === "/admin" && request.method === "GET") {
+      const auth = checkAdminAuth(request, env.ADMIN_PASSWORD);
+      if (!auth.ok) return auth.response;
+      const summary = await buildAdminSummary(env.DB);
+      return new Response(renderAdminHtml(summary), {
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      });
     }
 
     if (path === "/releases/latest" && request.method === "GET") {
