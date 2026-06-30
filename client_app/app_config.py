@@ -2,7 +2,12 @@
 
 import os
 
-DEFAULT_BILLING_SERVER_URL = os.environ.get("FROGSWORK_BILLING_URL") or "http://127.0.0.1:8080"
+DEFAULT_ACCOUNT_API_URL = os.environ.get("FROGSWORK_ACCOUNT_API_URL") or os.environ.get(
+    "BILLING_SERVER_URL"
+) or os.environ.get("FROGSWORK_BILLING_URL") or "http://127.0.0.1:8787"
+
+# Legacy alias used by auth store until fully renamed.
+DEFAULT_BILLING_SERVER_URL = DEFAULT_ACCOUNT_API_URL
 
 # Windows: %APPDATA%\<APP_DATA_DIR_NAME>\ — macOS/Linux use platformdirs later.
 APP_DATA_DIR_NAME = "FrogsWork"
@@ -10,6 +15,12 @@ APP_DATA_DIR_NAME = "FrogsWork"
 LOCAL_APP_HOST = "127.0.0.1"
 LOCAL_APP_PORT = 5000
 LOCAL_APP_URL = f"http://{LOCAL_APP_HOST}:{LOCAL_APP_PORT}/"
+
+# Configure Stripe Payment Link "After payment" redirect to this URL (literal braces for Stripe).
+STRIPE_CHECKOUT_RETURN_URL = (
+    f"http://{LOCAL_APP_HOST}:{LOCAL_APP_PORT}/account/stripe/return"
+    "?session_id={CHECKOUT_SESSION_ID}"
+)
 
 APP_VERSION = "1.1.0"
 
@@ -36,6 +47,23 @@ APP_SPLASH_MIN_SECONDS = 3.0
 
 # Temporary Settings entry for logo design outreach. Remove in a later release.
 SHOW_LOGO_DESIGN_SETTINGS = True
+
+# Free trial before account + subscription required (lifetime totals).
+TRIAL_MAX_INVOICES = 20
+TRIAL_MAX_EX_GST = 20_000
+
+# Subscribed users: offline grace before generate is blocked for verification.
+SUBSCRIPTION_OFFLINE_GRACE_DAYS = 14
+SUBSCRIPTION_OFFLINE_REMINDER_DAYS = 7
+
+# Marketing display (Stripe handles actual billing).
+SUBSCRIPTION_MONTHLY_DISPLAY = "$12.99/mo"
+SUBSCRIPTION_ANNUAL_DISPLAY = "$129.90/yr"
+SUBSCRIPTION_ANNUAL_SAVINGS = "2 months free"
+
+# Stripe Payment Links (Dashboard → Payment links). No API call needed for checkout.
+STRIPE_PAYMENT_LINK_MONTHLY = os.environ.get("STRIPE_PAYMENT_LINK_MONTHLY", "").strip()
+STRIPE_PAYMENT_LINK_ANNUAL = os.environ.get("STRIPE_PAYMENT_LINK_ANNUAL", "").strip()
 
 _ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets")
 APP_ICON_PATH = os.path.join(_ASSETS_DIR, "app.ico")

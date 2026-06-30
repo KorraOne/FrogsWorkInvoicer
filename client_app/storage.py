@@ -48,6 +48,12 @@ DEFAULT_SETTINGS = {
 
     "due_net_days": 14,
 
+    "last_due_rule_type": "",
+
+    "last_due_net_days": 14,
+
+    "last_due_fixed_date": "",
+
     "invoice_counter": 1,
 
     "welcome_complete": False,
@@ -241,8 +247,27 @@ def get_pdf_dir():
         path = os.path.join(get_bootstrap_dir(), "pdfs")
 
     os.makedirs(path, exist_ok=True)
+    _ensure_pdf_marker(path)
 
     return path
+
+
+PDF_MARKER_FILENAME = ".frogswork-pdfs"
+
+
+def _marker_path(pdf_dir):
+    return os.path.join(pdf_dir, PDF_MARKER_FILENAME)
+
+
+def _ensure_pdf_marker(pdf_dir):
+    try:
+        marker = _marker_path(pdf_dir)
+        if not os.path.exists(marker):
+            with open(marker, "w", encoding="utf-8") as f:
+                f.write("FrogsWork PDF folder marker.\n")
+    except OSError:
+        # Best-effort only; missing marker should not break invoicing.
+        pass
 
 
 
@@ -335,6 +360,66 @@ def normalize_picked_pdf_folder(parent_path):
     return os.path.join(parent, PDF_SUBFOLDER_NAME)
 
 
+def _pdf_dir_from_bootstrap_no_create():
+    """Resolve current pdf dir without creating it (used for moving)."""
+    custom = _load_bootstrap().get("pdf_folder", "").strip()
+    if custom:
+        return os.path.abspath(custom)
+    return os.path.join(get_bootstrap_dir(), PDF_SUBFOLDER_NAME)
+
+
+def _find_renamed_pdf_folder(configured_path):
+    """If the user renamed the pdf folder, try to locate it via marker in the same parent."""
+    configured_path = os.path.abspath((configured_path or "").strip())
+    if not configured_path:
+        return None
+    parent = os.path.dirname(configured_path)
+    if not os.path.isdir(parent):
+        return None
+    try:
+        candidates = []
+        for name in os.listdir(parent):
+            full = os.path.join(parent, name)
+            if not os.path.isdir(full):
+                continue
+            if os.path.exists(_marker_path(full)):
+                candidates.append(full)
+        if len(candidates) == 1:
+            return candidates[0]
+    except OSError:
+        return None
+    return None
+
+
+def _maybe_remove_empty_dir(path):
+    try:
+        if os.path.isdir(path) and not os.listdir(path):
+            os.rmdir(path)
+    except OSError:
+        pass
+
+
+def _move_pdf_folder(src_dir, dest_dir):
+    """Move entire pdf folder (not individual PDFs)."""
+    src_dir = os.path.abspath(src_dir)
+    dest_dir = os.path.abspath(dest_dir)
+    if src_dir == dest_dir:
+        return
+    if not os.path.isdir(src_dir):
+        return
+
+    # If destination exists, only allow it when empty (so we can replace it).
+    if os.path.exists(dest_dir):
+        if not os.path.isdir(dest_dir):
+            raise OSError(f"Destination exists and is not a folder: {dest_dir}")
+        if os.listdir(dest_dir):
+            raise OSError("Destination folder is not empty. Choose an empty folder.")
+        _maybe_remove_empty_dir(dest_dir)
+
+    os.makedirs(os.path.dirname(dest_dir), exist_ok=True)
+    shutil.move(src_dir, dest_dir)
+
+
 
 
 
@@ -342,12 +427,24 @@ def set_pdf_folder(path, *, from_picker=False):
 
     path = path.strip()
 
+    current_pdf_dir = _pdf_dir_from_bootstrap_no_create()
+    current_bootstrap = _load_bootstrap().get("pdf_folder", "").strip()
+    current_configured = os.path.abspath(current_bootstrap) if current_bootstrap else ""
+
     if not path:
+        # Reset to default AppData/pdfs, moving the whole folder if needed.
+        default_dir = os.path.join(get_bootstrap_dir(), PDF_SUBFOLDER_NAME)
+
+        if current_configured and not os.path.isdir(current_pdf_dir):
+            renamed = _find_renamed_pdf_folder(current_configured)
+            if renamed:
+                current_pdf_dir = renamed
+
+        if os.path.abspath(current_pdf_dir) != os.path.abspath(default_dir):
+            _move_pdf_folder(current_pdf_dir, default_dir)
 
         _save_bootstrap({"pdf_folder": ""})
-
         ensure_app_identity()
-
         return get_pdf_dir()
 
     abs_path = os.path.abspath(path)
@@ -356,7 +453,16 @@ def set_pdf_folder(path, *, from_picker=False):
 
         abs_path = normalize_picked_pdf_folder(abs_path)
 
+    if current_configured and not os.path.isdir(current_pdf_dir):
+        renamed = _find_renamed_pdf_folder(current_configured)
+        if renamed:
+            current_pdf_dir = renamed
+
+    if os.path.abspath(current_pdf_dir) != os.path.abspath(abs_path):
+        _move_pdf_folder(current_pdf_dir, abs_path)
+
     os.makedirs(abs_path, exist_ok=True)
+    _ensure_pdf_marker(abs_path)
 
     _save_bootstrap({"pdf_folder": abs_path})
 
@@ -369,12 +475,7 @@ def set_pdf_folder(path, *, from_picker=False):
 
 
 def reset_pdf_folder():
-
-    _save_bootstrap({"pdf_folder": ""})
-
-    ensure_app_identity()
-
-    return get_pdf_dir()
+    return set_pdf_folder("", from_picker=False)
 
 
 

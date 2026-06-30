@@ -1,31 +1,43 @@
-# Billing Rules (Locked)
+# Billing rules (subscription model)
 
-## Usage month
+## Free trial
 
-- Free tier: **$2,000 ex-GST per calendar month**
-- Fee: `monthly_fee = 0.0005 × (x − 2000)` when x > 2000
-- Cap: optional max ex-GST per month; blocks generate until raise or explicit bypass
+- **20 invoices** lifetime, **or**
+- **$20,000 ex GST** invoiced lifetime (whichever comes first)
+- No account required during trial
+- Works fully offline
+- Totals derive from `invoices.json` on the local PC
 
-## Account required when
+Configurable in `client_app/app_config.py`: `TRIAL_MAX_INVOICES`, `TRIAL_MAX_EX_GST`.
 
-1. A single **sales invoice** exceeds $2,000 ex-GST, OR
-2. Next **sales invoice** would push the calendar month over $2,000 ex-GST, OR
-3. User enables a cap, OR
-4. Voluntary signup
+## After trial
 
-See [security-risk-model.md](security-risk-model.md) for offline ledger integrity and tamper protections.
+1. User creates a KorraOne account (email + password).
+2. User subscribes via Stripe Checkout (**$12.99/month** or **$129.90/year**).
+3. Registration links the paid Checkout session to the account.
 
-## Offline
+## Subscribed use
 
-- Under free tier, cap off: **offline OK**
-- Fee-bearing or cap enabled: **online required**
+- **Unlimited** sales invoice generation
+- Invoice PDFs and customer data remain local (`%APPDATA%\FrogsWork\`)
+- Subscription status cached in `entitlement_cache.json`
 
-## Platform fee billing (separate from sales invoices)
+## Offline grace
 
-- Usage fees accrue **per calendar month** (see above)
-- **Platform fee invoice** from KorraOne: one PDF aggregating unbilled monthly fees for the billing period
-- **Quarterly (default):** invoice after each calendar quarter (Jan–Mar, Apr–Jun, …). Up to 3 line items when all months had fees.
-- **Annual (opt-in):** one invoice after each calendar year (Jan–Dec). Up to 12 line items.
-- Each usage month appears on **at most one** platform invoice (tracked via line items; cycle changes only bill unbilled months)
-- Subtotal + **10% GST**, paid manually via bank transfer / PayID
-- Not related to sales invoices you send customers (accounts receivable)
+| Days since last verify | Behaviour |
+|------------------------|-----------|
+| 0–6 | Full access |
+| 7–13 | Soft reminder banner; generate still allowed |
+| 14+ | Generate blocked until online verify |
+
+Verify via **Settings → Your account** (calls `GET /entitlements` on api.frogswork.com).
+
+## What we removed
+
+Usage-based platform fees, monthly caps, local usage ledger, and Pi autobilling are retired. See [`archive/billing_server/README.md`](../../archive/billing_server/README.md).
+
+## Related docs
+
+- [STRIPE_SETUP.md](STRIPE_SETUP.md) — Stripe Dashboard, webhooks, Buy Buttons
+- [security-risk-model.md](security-risk-model.md) — offline entitlement cache
+- [DEPLOY.md](DEPLOY.md) — api.frogswork.com Worker deploy

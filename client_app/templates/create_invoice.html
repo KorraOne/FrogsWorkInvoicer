@@ -4,8 +4,6 @@
 <h1>Create sales invoice</h1>
 <p class="home-intro">Step 1 of 2. Invoice a customer for work you did.</p>
 
-<div class="invoice-number">Invoice number: {{ invoice_counter }}</div>
-
 {% if customer_added %}
 <div class="form-success">Customer added and selected.</div>
 {% endif %}
@@ -15,6 +13,8 @@
 {% endif %}
 
 <form method="POST" action="{{ url_for('preview_invoice') }}" id="invoice-form">
+    {% include "_invoice_number_field.html" %}
+
     <section class="invoice-form-section">
         <h2 class="invoice-form-section-heading">Customer</h2>
         <div class="form-group">
@@ -110,8 +110,9 @@
 
     <section class="invoice-form-section">
         <h2 class="invoice-form-section-heading">Payment due</h2>
-        <p class="invoice-form-section-hint">Uses your default from Settings. Change here if this invoice needs different terms.</p>
+        <p class="invoice-form-section-hint">Defaults to your last invoice (or net 14 days at first). Change if this invoice needs different terms.</p>
         {% set show_due_preview = true %}
+        {% set show_fixed_date = true %}
         {% include "_due_rule_fields.html" %}
     </section>
 
@@ -284,79 +285,68 @@
         });
     });
 
-    var duePreviewEl = document.getElementById("due-date-preview");
-    var dueNetDaysInput = document.getElementById("due_net_days");
-    var invoiceDateIso = "{{ invoice_date_iso }}";
-
-    function parseInvoiceDate() {
-        var parts = invoiceDateIso.split("-");
-        return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-    }
-
-    function endOfWeekSunday(d) {
-        var weekday = (d.getDay() + 6) % 7;
-        return new Date(d.getFullYear(), d.getMonth(), d.getDate() + (6 - weekday));
-    }
-
-    function computeDueDate(ruleType, netDays) {
-        var d = parseInvoiceDate();
-        if (ruleType === "net_days") {
-            var days = Math.max(1, parseInt(netDays, 10) || 14);
-            return new Date(d.getFullYear(), d.getMonth(), d.getDate() + days);
-        }
-        if (ruleType === "end_next_week") {
-            var sunday = endOfWeekSunday(d);
-            return new Date(sunday.getFullYear(), sunday.getMonth(), sunday.getDate() + 7);
-        }
-        var month = d.getMonth();
-        var year = d.getFullYear();
-        return new Date(year, month + 2, 0);
-    }
-
-    function formatDueDate(d) {
-        return d.toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" });
-    }
-
-    function updateDuePreview() {
-        if (!duePreviewEl) {
-            return;
-        }
-        var ruleType = "net_days";
-        document.querySelectorAll(".due-rule-radio").forEach(function (radio) {
-            if (radio.checked) {
-                ruleType = radio.value;
-            }
-        });
-        duePreviewEl.textContent = formatDueDate(
-            computeDueDate(ruleType, dueNetDaysInput ? dueNetDaysInput.value : "14")
-        );
-    }
-
-    function syncDueNetDaysEnabled() {
-        if (!dueNetDaysInput) {
-            return;
-        }
-        var netSelected = false;
-        document.querySelectorAll(".due-rule-radio").forEach(function (radio) {
-            if (radio.checked && radio.value === "net_days") {
-                netSelected = true;
-            }
-        });
-        dueNetDaysInput.disabled = !netSelected;
-    }
-
-    document.querySelectorAll(".due-rule-radio, #due_net_days").forEach(function (el) {
-        el.addEventListener("change", function () {
-            syncDueNetDaysEnabled();
-            updateDuePreview();
-        });
-        el.addEventListener("input", updateDuePreview);
-    });
-    syncDueNetDaysEnabled();
-    updateDuePreview();
-
     renumberLineItems();
     updateRemoveButtons();
+
+    var numberDisplay = document.getElementById("invoice-number-display");
+    var numberForm = document.getElementById("invoice-number-form");
+    var numberValue = document.getElementById("invoice-number-value");
+    var numberInput = document.getElementById("invoice_number_input");
+    var numberHidden = document.getElementById("invoice_number");
+    var changeBtn = document.getElementById("invoice-number-change-btn");
+    var saveBtn = document.getElementById("invoice-number-save-btn");
+    var cancelBtn = document.getElementById("invoice-number-cancel-btn");
+
+    function padInvoiceNumber(value) {
+        var digits = String(value || "").replace(/\D/g, "");
+        if (!digits) {
+            return "";
+        }
+        return digits.padStart(8, "0");
+    }
+
+    function showNumberDisplay() {
+        if (!numberDisplay || !numberForm) {
+            return;
+        }
+        numberDisplay.hidden = false;
+        numberForm.hidden = true;
+    }
+
+    function showNumberEdit() {
+        if (!numberDisplay || !numberForm || !numberInput || !numberHidden) {
+            return;
+        }
+        numberInput.value = numberHidden.value;
+        numberDisplay.hidden = true;
+        numberForm.hidden = false;
+        numberInput.focus();
+        numberInput.select();
+    }
+
+    if (changeBtn) {
+        changeBtn.addEventListener("click", showNumberEdit);
+    }
+    if (cancelBtn) {
+        cancelBtn.addEventListener("click", showNumberDisplay);
+    }
+    if (saveBtn) {
+        saveBtn.addEventListener("click", function () {
+            var raw = parseInt(numberInput.value, 10);
+            if (!raw || raw < 1) {
+                return;
+            }
+            numberHidden.value = String(raw);
+            if (numberValue) {
+                numberValue.textContent = padInvoiceNumber(raw);
+            }
+            showNumberDisplay();
+        });
+    }
 })();
+</script>
+<script src="{{ url_for('static', filename='due_rule_ui.js') }}"></script>
+<script>
+initDueRuleUi({ invoiceDateIso: {{ invoice_date_iso | tojson }} });
 </script>
 {% endblock %}

@@ -1,104 +1,57 @@
 # FrogsWork, Commercial Product
 
-Australian sole-trader desktop **sales invoicing** app (**FrogsWork**) with usage-based pricing. Outgoing invoices and accounts receivable only. Not supplier bills or AP.
+Australian sole-trader desktop **sales invoicing** app (**FrogsWork**) with a free trial and Stripe subscription. Outgoing invoices only — not supplier bills or AP.
 
-**Related docs:** **[DEPLOY](DEPLOY.md)** · [naming](naming.md) · [terminology](terminology.md) · [brand](brand.md) · [release & install](RELEASE.md) · [marketing site](../../marketing_site/README.md) · [billing rules](billing-rules.md) · [security](security-risk-model.md) · [billing ledger guide](billing-ledger-guide.md) · [operator admin](operator-admin.md)
+**Related docs:** **[DEPLOY](DEPLOY.md)** · [STRIPE_SETUP](STRIPE_SETUP.md) · [naming](naming.md) · [billing rules](billing-rules.md) · [security](security-risk-model.md) · [marketing site](../../marketing_site/README.md)
 
-**Code:** [`client_app/`](../client_app/) (desktop) · [`billing_server/`](../billing_server/) (API)
+**Code:** [`client_app/`](../../client_app/) (desktop) · [`workers/frogswork-api/`](../../workers/frogswork-api/) (API) · [`frogswork_api/`](../../frogswork_api/) (local dev API)
 
-The grandparents app in [`invoice_app/`](../invoice_app/) is a separate copy with no shared imports.
+The grandparents app in [`invoice_app/`](../../invoice_app/) is a separate copy with no shared imports.
 
 ---
 
-## Quick start
-
-From repo root:
+## Quick start (local dev)
 
 ```powershell
-.\scripts\dev-test.ps1 -Action StartAll          # billing server + desktop window
-.\scripts\dev-test.ps1 -Action StartAll -DevBrowser
-.\scripts\dev-test.ps1 -Action ResetAll -Force     # wipe AppData + billing.db
-.\scripts\dev-test.ps1 -Action SeedDevData -Force  # dev customers/invoices/PDFs
+# From repo root — opens API + app in two terminals
+.\scripts\start-dev.ps1 -DevBrowser
 ```
 
-Other actions: `StartServer`, `StartApp`, `TestOffline`, `TestOnline`, `ClearAppData`, `ClearDb`.
+Copy `frogswork_api/.dev.vars.example` → `.dev.vars` and add Stripe keys + payment links.
 
-Edit seed data in [`client_app/seed_dev_data.py`](../client_app/seed_dev_data.py).
-
-### Manual run
+Or run separately:
 
 ```powershell
-# Desktop
-cd client_app
-pip install -r ..\requirements-client.txt
-$env:BILLING_SERVER_URL = "http://127.0.0.1:8080"
-python app.py
-
-# Billing server
-cd billing_server
-pip install -r requirements.txt
-$env:JWT_SECRET = "change-me"
-python app.py
+.\scripts\start-dev-api.ps1
+.\scripts\start-dev-app.ps1 -DevBrowser
 ```
-
-Use `$env:FROGSWORK_DEV_BROWSER = "1"` or `python app.py --dev-browser` for a normal browser instead of the embedded window.
 
 ---
 
 ## Production deploy
 
-**Start here:** [DEPLOY.md](DEPLOY.md) — ordered checklist for `frogswork.com`, `api.frogswork.com`, Pi, and first release.
+**Start here:** [DEPLOY.md](DEPLOY.md) — Worker, R2 releases, marketing site.
+
+Stripe Dashboard: [STRIPE_SETUP.md](STRIPE_SETUP.md).
 
 ---
 
-## Build & test exe
+## Build release
 
 ```powershell
 .\build_client.ps1
-# Production API URL (baked into exe):
-.\build_client.ps1 -BillingUrl "https://api.frogswork.com"
-
-# Full release (build + installer + zip + manifest):
 .\scripts\package_client_release.ps1 -Version "1.1.0" -ReleaseNotes "Release note."
 ```
 
-Outputs: `client_app\dist\FrogsWork\`, `FrogsWork-x.y.z-setup.exe`, `FrogsWork-x.y.z-win64.zip`, `marketing_site\releases.json`. Requires **Inno Setup 6** on the build PC. See [RELEASE.md](RELEASE.md).
-
-```powershell
-.\scripts\dev-test.ps1 -Action TestOffline -Force   # free tier, no server
-.\scripts\dev-test.ps1 -Action TestOnline -Force    # account + server sync
-```
-
-**WebView2:** Required on Windows for the embedded window. [Runtime download](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) if needed.
-
-### Platform billing job
-
-```powershell
-cd billing_server
-python run_billing_job.py --quarter 1 --year 2026
-```
-
-Or use the admin UI at `/admin`. See [operator-admin.md](operator-admin.md).
-
----
-
-## Data locations
-
-| Data | Location |
-|------|----------|
-| Settings, customers, invoices, billing cache | `%APPDATA%\FrogsWork\` |
-| Sales invoice PDFs | `%APPDATA%\FrogsWork\pdfs\` or custom folder |
-| Billing DB (server) | `billing_server/billing.db` |
-
-Billing URL resolution: stored auth URL → `BILLING_SERVER_URL` env → `FROGSWORK_BILLING_URL` → default in `app_config.py` (set at build via `-BillingUrl`).
+See [RELEASE.md](RELEASE.md).
 
 ---
 
 ## Pricing (summary)
 
-- **$2,000/month free** sales invoiced ex-GST
-- **0.05%** fee on ex-GST above free tier, per calendar month
-- Optional user cap; platform fee invoice quarterly (+10% GST on fees)
+- **Free trial:** 20 invoices or $20,000 ex GST (lifetime)
+- **Subscribe:** $12.99/month or $129.90/year
+- **Offline:** subscribed users get 14-day grace before verify required
 
 Full rules: [billing-rules.md](billing-rules.md).
 

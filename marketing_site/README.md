@@ -7,7 +7,7 @@ Release files: **https://downloads.frogswork.com** (R2, not in git):
 - **`FrogsWork-x.y.z-setup.exe`** — linked from `/download.html` via `releases.json` → `download_path`
 - **`FrogsWork-x.y.z-win64.zip`** — in-app updates only (Pi `CLIENT_RELEASE_*`)
 
-**Deploy / Pi:** [DEPLOY.md](../docs/commercial/DEPLOY.md) · [PI-SETUP.md](../billing_server/deploy/PI-SETUP.md)
+**Deploy:** [DEPLOY.md](../docs/commercial/DEPLOY.md) · [STRIPE_SETUP.md](../docs/commercial/STRIPE_SETUP.md)
 
 ## Pages
 
@@ -28,7 +28,7 @@ Release files: **https://downloads.frogswork.com** (R2, not in git):
 Then:
 
 1. Upload **setup.exe** and **zip** to R2
-2. Set `CLIENT_RELEASE_*` on Pi (zip URL + zip SHA256)
+2. Set `CLIENT_RELEASE_*` on the account API Worker (zip URL + zip SHA256)
 3. Push `marketing_site/releases.json` and deploy (`npx wrangler deploy`)
 
 See [DEPLOY.md](../docs/commercial/DEPLOY.md) for the full checklist.

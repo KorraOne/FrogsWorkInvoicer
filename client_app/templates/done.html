@@ -50,34 +50,6 @@
             {% endif %}
         </div>
     </div>
-
-    <div class="done-step{% if step2_complete %} done-step-next{% else %} done-step-muted{% endif %}">
-        <span class="done-step-num">3</span>
-        <div class="done-step-body">
-            <p class="done-step-heading">Finished for now?</p>
-            {% if step2_complete %}
-            <p class="done-step-hint">What would you like to do next?</p>
-            <div class="done-step-actions">
-                <a href="{{ url_for('create_invoice', fresh=1, customer=customer) }}" class="btn btn-primary">Create another invoice</a>
-                <a href="{{ url_for('home') }}" class="btn btn-secondary">Go to Home</a>
-            </div>
-            {% else %}
-            <p class="done-step-hint">Finish sending first, or cancel if you made this invoice by mistake.</p>
-            <a href="{{ url_for('home') }}" class="btn btn-secondary">Go to Home</a>
-            {% endif %}
-
-            {% if invoice_number and not step2_complete %}
-            <div class="done-cancel">
-                <form method="POST"
-                      action="{{ url_for('invoice_cancel', number=invoice_number) }}"
-                      onsubmit="return confirm('Cancel this invoice? It will be deleted and won't count toward this month\'s usage.');">
-                    <button type="submit" class="btn btn-danger btn-small">Cancel invoice</button>
-                </form>
-                <p class="done-cancel-hint">Only for your newest invoice, before you mark it sent or choose send later.</p>
-            </div>
-            {% endif %}
-        </div>
-    </div>
 </div>
 
 {% endblock %}

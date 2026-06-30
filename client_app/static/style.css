@@ -225,6 +225,51 @@ textarea:focus {
     margin-top: 1.5rem;
 }
 
+.invoice-number-edit {
+    margin-bottom: 1.5rem;
+    padding: 1rem 1.15rem;
+    background: var(--fw-surface);
+    border: 2px solid var(--fw-border);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px var(--fw-shadow);
+}
+
+.invoice-number-display {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.invoice-number-display-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.invoice-number-label {
+    font-size: 0.9rem;
+    color: #64748b;
+}
+
+.invoice-number-value {
+    font-size: 1.45rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--fw-text);
+}
+
+.invoice-number-form-field {
+    margin-bottom: 0.75rem;
+    max-width: 14rem;
+}
+
+.invoice-number-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
 .invoice-number {
     font-size: 1.5rem;
     font-weight: 600;
@@ -741,6 +786,25 @@ textarea:focus {
     background: #fdecea;
     color: #c0392b;
     border: 2px solid #c0392b;
+}
+
+.subscription-sync-banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1rem;
+    padding: 0.85rem 1.25rem;
+    margin-bottom: 1.25rem;
+    border-radius: 6px;
+    background: #eef6ff;
+    border: 2px solid #5b9bd5;
+    color: var(--fw-green-900);
+}
+
+.subscription-sync-banner p {
+    flex: 1 1 14rem;
+    margin: 0;
+    font-size: 1.02rem;
 }
 
 .update-banner {
@@ -1704,6 +1768,108 @@ h1.home-brand {
     line-height: 1.45;
 }
 
+.settings-subscription-panel {
+    margin-bottom: 1.5rem;
+    padding: 1.25rem;
+    border: 2px solid var(--fw-green-200);
+    border-radius: 8px;
+    background: #f8fcf9;
+}
+
+.settings-subscription-heading {
+    margin: 0 0 1rem;
+    font-size: 1.15rem;
+}
+
+.settings-subscription-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.settings-subscription-actions form {
+    margin: 0;
+}
+
+.settings-account-page {
+    margin-top: 0.5rem;
+}
+
+.settings-account-header {
+    border: none;
+    background: transparent;
+    padding: 0;
+    margin-bottom: 0.25rem;
+}
+
+.settings-account-guest {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.backup-panel {
+    margin-bottom: 1.5rem;
+    padding: 1.25rem;
+    border: 2px solid var(--fw-green-200);
+    border-radius: 8px;
+    background: #f8fcf9;
+}
+
+.backup-panel-heading {
+    margin: 0 0 0.5rem;
+    font-size: 1.1rem;
+}
+
+.backup-panel .form-hint {
+    margin: 0 0 1rem;
+}
+
+.backup-restore-form {
+    margin-top: 0.5rem;
+}
+
+.settings-account-resubscribe {
+    margin: 0.75rem 0 0;
+}
+
+.settings-link-hint--warn {
+    color: #b45309;
+}
+
+.settings-link-hint--services {
+    color: #991b1b;
+}
+
+.entitlement-status-syncing {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.25rem 0 0;
+    font-size: 0.95rem;
+    color: #64748b;
+}
+
+.entitlement-status-spinner {
+    width: 0.9rem;
+    height: 0.9rem;
+    border: 2px solid #cbd5e1;
+    border-top-color: var(--fw-green-600);
+    border-radius: 50%;
+    animation: entitlement-spin 0.7s linear infinite;
+    flex-shrink: 0;
+}
+
+@keyframes entitlement-spin {
+    to { transform: rotate(360deg); }
+}
+
+.hidden {
+    display: none !important;
+}
+
 .free-allowance-bar {
     background: var(--fw-surface);
     border: 1px solid var(--fw-border);
@@ -2034,6 +2200,109 @@ button.onboarding-skip {
     outline: none;
 }
 
+.subscribe-plans {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    gap: 1rem;
+    margin: 1.5rem 0;
+}
+
+.subscribe-plan {
+    border: 2px solid var(--fw-green-200);
+    border-radius: 8px;
+    padding: 1.25rem;
+    background: #fff;
+}
+
+.subscribe-plan--featured {
+    border-color: var(--fw-green-600);
+    background: #f8fcf9;
+}
+
+.subscribe-plan-badge {
+    margin: 0 0 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--fw-green-700);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.subscribe-plan-title {
+    margin: 0 0 0.35rem;
+    font-size: 1.15rem;
+}
+
+.subscribe-plan-price {
+    margin: 0 0 0.75rem;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--fw-green-900);
+}
+
+.subscribe-plan-savings {
+    margin: -0.35rem 0 0.75rem;
+    font-size: 0.95rem;
+    color: var(--fw-green-700);
+}
+
+.subscribe-plan-btn {
+    width: 100%;
+}
+
+.subscribe-notice {
+    padding: 1rem 1.25rem;
+    border-radius: 6px;
+    margin-bottom: 1.25rem;
+}
+
+.subscribe-notice--success {
+    background: #eef8f0;
+    border: 2px solid var(--fw-green-400);
+}
+
+.subscribe-notice p {
+    margin: 0 0 0.5rem;
+}
+
+.subscribe-notice p:last-child {
+    margin-bottom: 0;
+}
+
+.subscribe-next {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid var(--fw-green-100);
+}
+
+.subscribe-next h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1.2rem;
+}
+
+.subscribe-session-form {
+    max-width: 28rem;
+    margin-top: 1rem;
+}
+
+.subscribe-operator-hint {
+    margin-top: 2rem;
+    font-size: 0.85rem;
+    word-break: break-all;
+}
+
+.subscribe-terms {
+    margin-bottom: 0.75rem;
+}
+
+.subscribe-account-email {
+    margin: 0 0 1.25rem;
+    padding: 0.85rem 1rem;
+    background: #f4f8f5;
+    border-radius: 6px;
+    border: 1px solid var(--fw-green-200);
+}
+
 .page-actions {
     display: flex;
     flex-direction: column;
@@ -2306,15 +2575,96 @@ button.onboarding-skip {
     line-height: 1.5;
 }
 
+.due-rule-compact {
+    margin: 0;
+}
+
+.due-rule-heading {
+    margin: 0 0 0.5rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333333;
+}
+
+.due-rule-hint {
+    font-size: 0.95rem;
+    color: #555555;
+    line-height: 1.45;
+    margin: 0 0 0.75rem 0;
+}
+
+.due-rule-type-row {
+    margin-bottom: 0.75rem;
+}
+
+.due-rule-select {
+    width: 100%;
+    max-width: 24rem;
+}
+
+.due-rule-panel {
+    margin-bottom: 0.75rem;
+}
+
+.due-rule-panel-field {
+    margin-bottom: 0;
+    max-width: 16rem;
+}
+
+.due-net-days-input,
+.due-fixed-date-input {
+    width: 100%;
+}
+
+.due-date-preview {
+    margin: 0.25rem 0 0;
+    font-size: 0.95rem;
+    color: #334155;
+}
+
+.settings-details-form .settings-details-section {
+    margin-bottom: 1.1rem;
+    padding-bottom: 0.9rem;
+    border-bottom: 1px solid var(--fw-border);
+}
+
+.settings-details-form .form-group {
+    margin-bottom: 1rem;
+}
+
+.settings-details-form .settings-details-section:last-of-type {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.settings-details-heading {
+    margin: 0 0 0.65rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #334155;
+}
+
+.settings-details-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem 1rem;
+}
+
+@media (max-width: 640px) {
+    .settings-details-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 .due-rule-fieldset {
     border: none;
-    margin: 0 0 1.5rem 0;
+    margin: 0 0 1rem 0;
     padding: 0;
 }
 
 .gst-registration-fieldset {
     border: none;
-    margin: 0 0 1.5rem 0;
+    margin: 0 0 1rem 0;
     padding: 0;
 }
 
@@ -2322,14 +2672,14 @@ button.onboarding-skip {
     font-size: 1.1rem;
     font-weight: 600;
     color: #333333;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
     padding: 0;
 }
 
 .gst-registration-options {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.5rem;
 }
 
 .gst-registration-option {
@@ -2338,7 +2688,7 @@ button.onboarding-skip {
     gap: 0.75rem;
     border: 2px solid #e2e8f0;
     border-radius: 8px;
-    padding: 1rem 1.25rem;
+    padding: 0.75rem 1rem;
     cursor: pointer;
     background: #ffffff;
 }
@@ -2679,7 +3029,8 @@ button.onboarding-skip {
 }
 
 .folder-picker-row {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr auto;
     gap: 0.5rem;
     align-items: stretch;
     max-width: 100%;
@@ -2719,6 +3070,7 @@ button.onboarding-skip {
     flex-shrink: 0;
     margin-bottom: 0;
     white-space: nowrap;
+    width: auto;
 }
 
 .folder-picker-hint {

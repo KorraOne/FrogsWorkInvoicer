@@ -1,245 +1,64 @@
 {% extends "base.html" %}
-
-
-
 {% block title %}Your details · {{ brand_name }}{% endblock %}
-
-
-
 {% block content %}
-
-
-
 <h1>Your details</h1>
-
-
-
 <p class="home-intro">Business and bank details on your invoices.</p>
 
-
-
-
-
-
-
 {% if error %}
-
-
-
 <div class="error">{{ error }}</div>
-
-
-
 {% endif %}
 
-
-
-
-
-
-
-<form method="POST">
-
-
-
-    <div class="form-group">
-
-
-
-        <label for="business_name">Business name</label>
-
-
-
-        <input type="text" name="business_name" id="business_name" value="{{ settings.business_name }}" placeholder="{{ ph.business_name }}">
-
-
-
-    </div>
-
-
-
-
-
-
-
-    <div class="form-group">
-
-
-
-        <label for="business_address">Business address</label>
-
-
-
-        <textarea name="business_address" id="business_address" placeholder="{{ ph.business_address }}">{{ settings.business_address }}</textarea>
-
-
-
-    </div>
-
-    {% set gst_registered = settings.gst_registered|default(false) %}
-    {% include "_gst_registration_fields.html" %}
-
-    <div class="form-group">
-
-
-
-        <label for="business_abn" id="business_abn_label">Business ABN</label>
-
-
-
-        <input type="text" name="business_abn" id="business_abn" value="{{ settings.business_abn }}" placeholder="{{ ph.business_abn }}">
-
-
-
-    </div>
-
-
-
-
-
-
-
-    <div class="form-group">
-
-
-
-        <label for="bsb">BSB</label>
-
-
-
-        <input type="text" name="bsb" id="bsb" value="{{ settings.bsb }}" placeholder="{{ ph.bank_bsb }}">
-
-
-
-    </div>
-
-
-
-
-
-
-
-    <div class="form-group">
-
-
-
-        <label for="account_name">Account name</label>
-
-
-
-        <input type="text" name="account_name" id="account_name" value="{{ settings.account_name }}" placeholder="{{ ph.bank_account_name }}">
-
-
-
-    </div>
-
-
-
-
-
-
-
-    <div class="form-group">
-
-
-
-        <label for="acc">Account number</label>
-
-
-
-        <input type="text" name="acc" id="acc" value="{{ settings.acc }}" placeholder="{{ ph.bank_account_number }}">
-
-
-
-    </div>
-
-
-
-
-
-
-
-    {% set legend = "Default payment due" %}
-    {% include "_due_rule_fields.html" %}
-
-
-
-    <p class="due-rule-settings-note">Example: an invoice issued today would be due <strong>{{ due_date_preview }}</strong></p>
-
-
-
-
-
-
-
-    <div class="form-group">
-
-
-
-        <label for="invoice_counter">Next invoice number</label>
-
-
-
-        <input type="number" name="invoice_counter" id="invoice_counter" value="{{ settings.invoice_counter }}" min="1" required placeholder="{{ ph.invoice_counter }}">
-
-
-
-    </div>
-
-
-
-
-
-
+<form method="POST" class="settings-details-form">
+    <section class="settings-details-section">
+        <h2 class="settings-details-heading">Business</h2>
+        <div class="form-group">
+            <label for="business_name">Business name</label>
+            <input type="text" name="business_name" id="business_name" value="{{ settings.business_name }}" placeholder="{{ ph.business_name }}">
+        </div>
+        <div class="form-group">
+            <label for="business_address">Business address</label>
+            <textarea name="business_address" id="business_address" placeholder="{{ ph.business_address }}">{{ settings.business_address }}</textarea>
+        </div>
+        {% set gst_registered = settings.gst_registered|default(false) %}
+        {% include "_gst_registration_fields.html" %}
+        <div class="form-group">
+            <label for="business_abn" id="business_abn_label">Business ABN</label>
+            <input type="text" name="business_abn" id="business_abn" value="{{ settings.business_abn }}" placeholder="{{ ph.business_abn }}">
+        </div>
+    </section>
+
+    <section class="settings-details-section">
+        <h2 class="settings-details-heading">Bank details</h2>
+        <div class="settings-details-grid">
+            <div class="form-group">
+                <label for="bsb">BSB</label>
+                <input type="text" name="bsb" id="bsb" value="{{ settings.bsb }}" placeholder="{{ ph.bank_bsb }}">
+            </div>
+            <div class="form-group">
+                <label for="acc">Account number</label>
+                <input type="text" name="acc" id="acc" value="{{ settings.acc }}" placeholder="{{ ph.bank_account_number }}">
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="account_name">Account name</label>
+            <input type="text" name="account_name" id="account_name" value="{{ settings.account_name }}" placeholder="{{ ph.bank_account_name }}">
+        </div>
+    </section>
+
+    <section class="settings-details-section">
+        {% set legend = "Default payment due" %}
+        {% set hint = "Used before your first invoice, and when a previous specific date has passed." %}
+        {% set show_due_preview = true %}
+        {% set show_fixed_date = false %}
+        {% include "_due_rule_fields.html" %}
+    </section>
 
     <button type="submit" class="btn btn-primary">Save</button>
-
-
-
 </form>
 
-
-
 <script src="{{ url_for('static', filename='gst_registration_ui.js') }}"></script>
-
+<script src="{{ url_for('static', filename='due_rule_ui.js') }}"></script>
 <script>
-
-(function () {
-
-    var fieldset = document.querySelector(".due-rule-fieldset");
-
-    if (!fieldset) {
-
-        return;
-
-    }
-
-    var netDaysInput = document.getElementById("due_net_days");
-
-    fieldset.addEventListener("change", function (event) {
-
-        if (!event.target.classList.contains("due-rule-radio")) {
-
-            return;
-
-        }
-
-        var netSelected = event.target.value === "net_days";
-
-        if (netDaysInput) {
-
-            netDaysInput.disabled = !netSelected;
-
-        }
-
-    });
-
-})();
-
+initDueRuleUi({ invoiceDateIso: {{ invoice_date_iso | tojson }} });
 </script>
-
-
-
 {% endblock %}
-
-

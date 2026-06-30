@@ -6,22 +6,29 @@ import threading
 import time
 import urllib.request
 import webbrowser
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
 from urllib.parse import unquote
 
-from flask import Flask, abort, flash, g, redirect, render_template, request, send_file, session, url_for
+from flask import Flask, abort, flash, g, jsonify, redirect, render_template, request, send_file, session, url_for
 from werkzeug.exceptions import HTTPException
 from werkzeug.serving import make_server
 
 import storage
-from due_dates import due_rule_from_form_data, merge_due_rule_into_form, invoice_due_summary
+from due_dates import (
+    due_rule_from_form_data,
+    merge_due_rule_into_form,
+    invoice_due_summary,
+    due_rule_template_context,
+    save_last_due_prefs,
+)
 from gst_settings import (
     apply_registration_to_parsed_items,
     is_gst_registered,
     apply_gst_registered_to_settings,
     validate_business_gst_settings,
 )
+import entitlement_guard
 from email_compose import build_invoice_email_context, format_clipboard_text
 from folder_picker import process_pending_picks
 from ui_config import IDLE_TIMEOUT_SECONDS, PLACEHOLDERS, SELECT_LABELS
@@ -169,6 +176,36 @@ def _fmt_invoice_date(iso_date):
     return format_invoice_date(iso_date)
 
 
+def _parse_iso_datetime(iso):
+    if not iso:
+        return None
+    try:
+        if iso.endswith("Z"):
+            iso = iso[:-1] + "+00:00"
+        dt = datetime.fromisoformat(iso)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except ValueError:
+        return None
+
+
+@app.template_filter("fmt_iso_datetime")
+def _fmt_iso_datetime(iso):
+    dt = _parse_iso_datetime(iso)
+    if not dt:
+        return (iso or "")[:16]
+    return dt.astimezone().strftime("%d %B %Y, %H:%M")
+
+
+@app.template_filter("fmt_iso_date")
+def _fmt_iso_date(iso):
+    dt = _parse_iso_datetime(iso)
+    if not dt:
+        return (iso or "")[:10]
+    return dt.astimezone().strftime("%d %B %Y")
+
+
 @app.template_filter("fmt_invoice_amount")
 def _fmt_invoice_amount(inv):
     return format_money(Decimal(inv["total_inc_gst"]))
@@ -195,6 +232,32 @@ def format_money(amount):
 
 def format_invoice_number(number):
     return f"{int(number):08d}"
+
+
+def parse_invoice_number_input(raw):
+    digits = re.sub(r"\D", "", str(raw or "").strip())
+    if not digits:
+        raise ValueError("Enter an invoice number.")
+    number = int(digits)
+    if number < 1:
+        raise ValueError("Invoice number must be at least 1.")
+    return number
+
+
+def suggested_invoice_number(settings):
+    counter = int(settings.get("invoice_counter", 1))
+    invoices = storage.load_invoices()
+    if not invoices:
+        return counter
+    max_number = max(int(inv.get("invoice_number", 0)) for inv in invoices.values())
+    return max(counter, max_number + 1)
+
+
+def persist_invoice_counter(settings, used_number):
+    settings["invoice_counter"] = max(
+        int(settings.get("invoice_counter", 1)),
+        int(used_number) + 1,
+    )
 
 
 def format_abn(abn):
@@ -323,6 +386,8 @@ def create_form_from_request(req):
         comment = req.form.get("comment", "").strip()
         due_rule_type = req.form.get("due_rule_type", "").strip()
         due_net_days = req.form.get("due_net_days", "").strip()
+        due_fixed_date = req.form.get("due_fixed_date", "").strip()
+        invoice_number = req.form.get("invoice_number", "").strip()
     else:
         descriptions = req.args.getlist("item_description")
         amounts = req.args.getlist("item_amount")
@@ -332,6 +397,8 @@ def create_form_from_request(req):
         comment = req.args.get("comment", "")
         due_rule_type = req.args.get("due_rule_type", "")
         due_net_days = req.args.get("due_net_days", "")
+        due_fixed_date = req.args.get("due_fixed_date", "")
+        invoice_number = req.args.get("invoice_number", "")
 
     items = []
     for i, (desc, amt) in enumerate(zip(descriptions, amounts)):
@@ -346,6 +413,8 @@ def create_form_from_request(req):
         "line_items": items,
         "due_rule_type": due_rule_type,
         "due_net_days": due_net_days,
+        "due_fixed_date": due_fixed_date,
+        "invoice_number": invoice_number,
     }
 
 
@@ -404,6 +473,11 @@ def _render_preview_from_form(form):
     customer = customers[customer_name]
     invoice_date = date.today()
     due = _due_context_from_form(form, invoice_date)
+    try:
+        invoice_number_int = parse_invoice_number_input(form.get("invoice_number"))
+    except ValueError as exc:
+        return render_create_invoice(form, error=str(exc))
+    invoice_number_fmt = format_invoice_number(invoice_number_int)
     preview_items = [
         {
             "description": item["description"],
@@ -431,6 +505,7 @@ def _render_preview_from_form(form):
         due_rule_label=due["due_rule_label"],
         due_rule_type=due["due_rule_type"],
         due_net_days=due["due_net_days"],
+        due_fixed_date=due.get("due_fixed_date") or "",
         customer_name=customer_name,
         customer_address=customer.get("address", ""),
         customer_abn=format_abn(customer.get("abn", "")),
@@ -445,10 +520,11 @@ def _render_preview_from_form(form):
         invoice_title="Tax Invoice" if gst_registered else "Invoice",
         has_mixed_gst=gst_registered and gst_free_ex_gst > 0 and taxable_ex_gst > 0,
         has_gst=gst_registered and gst_amount > 0,
-        invoice_number=format_invoice_number(settings["invoice_counter"]),
+        invoice_number=invoice_number_fmt,
+        invoice_number_raw=invoice_number_int,
         invoice_date=invoice_date.strftime("%d %B %Y"),
         subtotal_raw=str(subtotal),
-        **_billing_preview_template(subtotal),
+        **entitlement_guard.preview_context(format_money),
     )
 
 
@@ -462,18 +538,18 @@ NAV_PARENTS = {
     "customers_add": ("customers_list", "Customers"),
     "customers_edit": ("customers_list", "Customers"),
     "settings_page": ("home", "Home"),
-    "settings_details": ("settings_page", "Settings"),
+    "settings_details": ("home", "Home"),
     "settings_account": ("settings_page", "Settings"),
     "settings_billing": ("settings_page", "Settings"),
     "settings_fee_calculator": ("settings_page", "Settings"),
     "settings_storage": ("settings_page", "Settings"),
     "settings_logo_design": ("settings_page", "Settings"),
     "settings_updates": ("settings_page", "Settings"),
-    "backup_import": ("settings_account", "Your account"),
-    "account_cap": ("account_onboard_customer", "First customer"),
-    "account_onboard_business": ("account_create", "Account"),
-    "account_onboard_customer": ("account_onboard_business", "Your business"),
-    "account_cap_settings": ("settings_billing", "Billing"),
+    "backup_import": ("settings_page", "Settings"),
+    "account_subscribe": ("home", "Home"),
+    "account_password": ("account_subscribe", "Subscribe"),
+    "account_cap": ("account_subscribe", "Subscribe"),
+    "account_cap_settings": ("settings_account", "Your account"),
     "account_repair_ledger": ("settings_account", "Your account"),
     "welcome_pricing": ("welcome_start", "Welcome"),
     "welcome_done": ("welcome_pricing", "Pricing"),
@@ -486,7 +562,7 @@ def inject_navigation():
     back_url = url_for("home")
     back_label = "Home"
 
-    if endpoint in ("account_create", "account_login", "account_onboard_business", "account_onboard_customer", "account_cap") and has_invoice_draft():
+    if endpoint in ("account_create", "account_login", "account_onboard_business", "account_onboard_customer", "account_subscribe", "account_password", "account_cap") and has_invoice_draft():
         back_url = url_for("resume_preview")
         back_label = "Back to invoice review"
     elif endpoint in NAV_PARENTS:
@@ -505,24 +581,33 @@ def _due_context_from_form(form, invoice_date=None):
     settings = storage.load_settings()
     invoice_date = invoice_date or date.today()
     rule = due_rule_from_form_data(form, settings)
-    return invoice_due_summary(invoice_date, rule["due_rule_type"], rule["due_net_days"])
+    return invoice_due_summary(
+        invoice_date,
+        rule["due_rule_type"],
+        rule["due_net_days"],
+        rule["due_fixed_date"],
+    )
 
 
 def _create_invoice_template_context(form, error=None):
     settings = storage.load_settings()
     customers = storage.load_customers()
     merge_due_rule_into_form(form, settings)
-    due = _due_context_from_form(form)
+    due_ctx = due_rule_template_context(date.today(), settings, form)
+    try:
+        invoice_number_raw = parse_invoice_number_input(
+            form.get("invoice_number") or suggested_invoice_number(settings)
+        )
+    except ValueError:
+        invoice_number_raw = suggested_invoice_number(settings)
     return {
         "customers": customers,
-        "invoice_counter": format_invoice_number(settings["invoice_counter"]),
         "form": form,
         "error": error,
         "gst_registered": is_gst_registered(settings),
-        "due_rule_type": due["due_rule_type"],
-        "due_net_days": due["due_net_days"],
-        "due_date_preview": due["due_date_fmt"],
-        "invoice_date_iso": date.today().isoformat(),
+        "invoice_number_raw": invoice_number_raw,
+        "invoice_number_display": format_invoice_number(invoice_number_raw),
+        **due_ctx,
     }
 
 
@@ -667,73 +752,12 @@ def resume_preview():
 
 
 def _billing_preview_template(subtotal):
-    import billing_auth_store
-    import billing_client
-    import billing_local
-    import billing_messages
-
-    authenticated = billing_auth_store.is_authenticated()
-
-    def _with_preview(preview, notice_title=None, notice_message=None, notice_kind="error"):
-        if preview.get("ledger_invalid"):
-            return {
-                "billing_preview": preview,
-                "fee_delta_fmt": format_money(preview.get("fee_delta", 0)),
-                "projected_fee_fmt": format_money(preview.get("projected_fee", 0)),
-                "cap_blocked": preview.get("cap_blocked", False),
-                "over_by_fmt": format_money(preview.get("over_by", 0)),
-                "account_required": False,
-                "account_required_message": None,
-                "billing_notice_title": "Usage records invalid",
-                "billing_notice_message": billing_messages.LEDGER_INVALID,
-                "billing_notice_kind": "error",
-            }
-        account_required = preview.get("account_required", False) and not authenticated
-        return {
-            "billing_preview": preview,
-            "fee_delta_fmt": format_money(preview.get("fee_delta", 0)),
-            "projected_fee_fmt": format_money(preview.get("projected_fee", 0)),
-            "cap_blocked": preview.get("cap_blocked", False),
-            "over_by_fmt": format_money(preview.get("over_by", 0)),
-            "account_required": account_required,
-            "account_required_message": billing_messages.ACCOUNT_REQUIRED if account_required else None,
-            "billing_notice_title": notice_title,
-            "billing_notice_message": notice_message,
-            "billing_notice_kind": notice_kind,
-        }
-
-    try:
-        preview = billing_client.preview(subtotal)
-    except billing_client.BillingOfflineError:
-        preview = billing_local.local_usage_snapshot(subtotal)
-        if preview.get("ledger_invalid"):
-            return _with_preview(preview)
-        account_required = preview.get("account_required", False) and not authenticated
-        notice = billing_messages.offline_for_preview(
-            authenticated=authenticated,
-            account_required=account_required or preview.get("cap_enabled"),
-        )
-        if notice:
-            return _with_preview(preview, "You're offline", notice, "warning")
-        return _with_preview(preview)
-    except billing_client.BillingError as exc:
-        preview = billing_local.local_usage_snapshot(subtotal)
-        if preview.get("ledger_invalid"):
-            return _with_preview(preview)
-        if authenticated:
-            return _with_preview(
-                preview,
-                "Couldn't update usage",
-                billing_messages.map_http_auth_error(str(exc)),
-            )
-        return _with_preview(preview)
-
-    return _with_preview(preview)
+    """Deprecated — kept so old imports fail loudly if referenced."""
+    return entitlement_guard.preview_context(format_money)
 
 
 @app.route("/generate", methods=["POST"])
 def generate():
-    import billing_client
     import pdf_generator
 
     settings = storage.load_settings()
@@ -741,7 +765,6 @@ def generate():
 
     customer_name = request.form.get("customer", "").strip()
     comment = request.form.get("comment", "").strip()
-    cap_bypassed = request.form.get("cap_bypass_confirm") == "1"
 
     if not customer_name or customer_name not in customers:
         return redirect(url_for("create_invoice", error="Select a customer."))
@@ -758,33 +781,37 @@ def generate():
     except ValueError as exc:
         return redirect(url_for("create_invoice", error=str(exc)))
 
-    guard_result, guard_status = _billing_generate_guard(
-        settings["invoice_counter"], subtotal, cap_bypassed
-    )
-    if guard_status == "ledger_invalid":
+    allowed, gate_status, gate_message = entitlement_guard.check_generate_access()
+    if not allowed:
         save_invoice_draft(create_form_from_request(request))
-        flash(guard_result, "error")
-        return redirect(url_for("resume_preview"))
-    if guard_status == "account_required":
-        save_invoice_draft(create_form_from_request(request))
-        flash(guard_result, "info")
-        return redirect(url_for("account_create"))
-    if guard_status == "cap_blocked":
-        form = create_form_from_request(request)
-        return render_create_invoice(form, error="Cap exceeded. Review on the preview page.")
-    if guard_status == "offline":
-        save_invoice_draft(create_form_from_request(request))
-        flash(guard_result, "error")
-        return redirect(url_for("resume_preview"))
-    if guard_status == "error":
-        save_invoice_draft(create_form_from_request(request))
-        flash(guard_result, "error")
+        if gate_status == "account_required":
+            flash(gate_message, "info")
+            return redirect(url_for("account_subscribe"))
+        if gate_status == "subscribe_required":
+            flash(gate_message, "info")
+            return redirect(url_for("account_subscribe"))
+        flash(gate_message, "error")
         return redirect(url_for("resume_preview"))
 
     customer = customers[customer_name]
-    invoice_number = settings["invoice_counter"]
     invoice_date = date.today()
-    due = _due_context_from_form(create_form_from_request(request), invoice_date)
+    form_data = create_form_from_request(request)
+    due = _due_context_from_form(form_data, invoice_date)
+
+    try:
+        invoice_number = parse_invoice_number_input(request.form.get("invoice_number"))
+    except ValueError as exc:
+        save_invoice_draft(form_data)
+        return redirect(url_for("create_invoice", error=str(exc)))
+
+    if storage.get_invoice(invoice_number):
+        save_invoice_draft(form_data)
+        return redirect(
+            url_for(
+                "create_invoice",
+                error=f"Invoice number {format_invoice_number(invoice_number)} is already used.",
+            )
+        )
 
     invoice_data = {
         "invoice_number": invoice_number,
@@ -814,7 +841,9 @@ def generate():
     filepath = pdf_generator.generate_invoice(storage.get_pdf_dir(), invoice_data)
     filename = os.path.basename(filepath)
 
-    settings["invoice_counter"] = invoice_number + 1
+    rule = due_rule_from_form_data(form_data, settings)
+    save_last_due_prefs(settings, rule)
+    persist_invoice_counter(settings, invoice_number)
     storage.save_settings(settings)
 
     storage.add_invoice(
@@ -831,6 +860,7 @@ def generate():
             "due_date": due["due_date_iso"],
             "due_rule_type": due["due_rule_type"],
             "due_net_days": due["due_net_days"],
+            "due_fixed_date": due.get("due_fixed_date"),
         }
     )
 
@@ -980,21 +1010,16 @@ def _clear_invoice_send_session(number):
 
 
 def _revert_billing_for_invoice(invoice_number):
-    import billing_auth_store
-    import billing_client
-    import billing_local
+    """Legacy hook after invoice delete — trial totals derive from invoices.json."""
+    del invoice_number
 
-    try:
-        if billing_auth_store.is_authenticated():
-            billing_client.revert_commit(invoice_number)
-        else:
-            if not billing_local.revert_local_commit(invoice_number):
-                log.warning("No local billing event to revert for invoice %s", invoice_number)
-    except billing_client.BillingOfflineError:
-        billing_local.revert_local_commit(invoice_number)
-    except Exception:
-        log.exception("Billing revert failed for invoice %s", invoice_number)
-        raise
+
+def _billing_generate_guard(invoice_number, subtotal, cap_bypassed=False):
+    del invoice_number, subtotal, cap_bypassed
+    allowed, status, message = entitlement_guard.check_generate_access()
+    if allowed:
+        return None, None
+    return message, status
 
 
 def _is_cancel_allowed(inv):
@@ -1038,17 +1063,7 @@ def invoice_update_status(number):
 
     next_page = request.form.get("next", "invoices")
     if next_page == "done" and status == "sent":
-        inv = storage.get_invoice(number)
-        if inv:
-            return redirect(
-                url_for(
-                    "done",
-                    file=inv.get("filename", ""),
-                    invoice=format_invoice_number(number),
-                    customer=inv.get("customer_name", ""),
-                    sent=1,
-                )
-            )
+        return redirect(url_for("home"))
     return redirect(url_for("invoices_list"))
 
 
@@ -1062,28 +1077,12 @@ def invoice_cancel(number):
         flash("Only your newest not-sent invoice can be cancelled.", "error")
         return redirect(url_for("home"))
 
-    try:
-        _revert_billing_for_invoice(number)
-    except Exception:
-        flash(
-            "Couldn't update usage for this cancellation. The invoice wasn't removed. Try again.",
-            "error",
-        )
-        return redirect(
-            url_for(
-                "done",
-                file=inv.get("filename", ""),
-                invoice=format_invoice_number(number),
-                customer=inv.get("customer_name", ""),
-            )
-        )
-
     filename = inv.get("filename", "")
     storage.hard_delete_invoice(number)
     _clear_invoice_send_session(number)
     _delete_invoice_files(filename)
 
-    flash("Invoice cancelled. It will not count toward this month's usage.", "success")
+    flash("Invoice cancelled.", "success")
     return redirect(url_for("home"))
 
 
@@ -1112,14 +1111,7 @@ def invoice_delete(number):
 
 def _invoice_email_redirect(next_page, inv):
     if next_page == "done":
-        return redirect(
-            url_for(
-                "done",
-                file=inv.get("filename", ""),
-                invoice=format_invoice_number(inv["invoice_number"]),
-                customer=inv.get("customer_name", ""),
-            )
-        )
+        return redirect(url_for("home"))
     return redirect(url_for("invoices_list"))
 
 
@@ -1192,14 +1184,7 @@ def invoice_send_later(number):
     session[f"send_later_{format_invoice_number(number)}"] = True
     next_page = request.args.get("next", "invoices")
     if next_page == "done":
-        return redirect(
-            url_for(
-                "done",
-                file=inv.get("filename", ""),
-                invoice=format_invoice_number(number),
-                customer=inv.get("customer_name", ""),
-            )
-        )
+        return redirect(url_for("home"))
     return redirect(url_for("invoices_list"))
 
 
@@ -1320,7 +1305,7 @@ def updates_apply():
 @app.route("/settings/updates", methods=["GET", "POST"])
 def settings_updates():
     import app_update
-    import billing_client
+    import account_client
 
     error = None
     server_unreachable = False
@@ -1330,7 +1315,7 @@ def settings_updates():
     if request.method == "POST":
         action = request.form.get("action", "")
         if action == "check":
-            if not billing_client.check_server_available():
+            if not account_client.check_server_available():
                 server_unreachable = True
             else:
                 pending = app_update.get_pending_update(force_check=True)
@@ -1371,6 +1356,15 @@ def settings_logo_design():
 
 @app.route("/settings/details", methods=["GET", "POST"])
 def settings_details():
+    def _render(settings, error=None, form=None):
+        ctx = due_rule_template_context(date.today(), settings, form)
+        return render_template(
+            "settings_details.html",
+            settings=settings,
+            error=error,
+            **ctx,
+        )
+
     if request.method == "POST":
         settings = storage.load_settings()
         settings["business_name"] = request.form.get("business_name", "").strip()
@@ -1380,137 +1374,101 @@ def settings_details():
         settings["account_name"] = request.form.get("account_name", "").strip()
         settings["bsb"] = request.form.get("bsb", "").strip()
         settings["acc"] = request.form.get("acc", "").strip()
-        settings["due_rule_type"] = request.form.get("due_rule_type", "net_days").strip()
-        settings["due_net_days"] = due_rule_from_form_data(request.form, settings)["due_net_days"]
+        rule = due_rule_from_form_data(request.form, settings)
+        settings["due_rule_type"] = rule["due_rule_type"]
+        settings["due_net_days"] = rule["due_net_days"]
 
         gst_err = validate_business_gst_settings(settings)
         if gst_err:
-            due = invoice_due_summary(
-                date.today(),
-                settings.get("due_rule_type"),
-                settings.get("due_net_days"),
-            )
-            return render_template(
-                "settings_details.html",
-                settings=settings,
-                error=gst_err,
-                due_rule_type=due["due_rule_type"],
-                due_net_days=due["due_net_days"],
-                due_date_preview=due["due_date_fmt"],
-            )
-
-        counter_raw = request.form.get("invoice_counter", "").strip()
-        try:
-            counter = int(counter_raw)
-            if counter < 1:
-                raise ValueError
-            settings["invoice_counter"] = counter
-        except ValueError:
-            due = invoice_due_summary(
-                date.today(),
-                settings.get("due_rule_type"),
-                settings.get("due_net_days"),
-            )
-            return render_template(
-                "settings_details.html",
-                settings=settings,
-                error="Invoice number must be a whole number of 1 or more.",
-                due_rule_type=due["due_rule_type"],
-                due_net_days=due["due_net_days"],
-                due_date_preview=due["due_date_fmt"],
-            )
+            return _render(settings, error=gst_err, form=request.form)
 
         storage.save_settings(settings)
-        return redirect(url_for("settings_details"))
+        flash("Saved.", "success")
+        return redirect(url_for("settings_page"))
 
     settings = storage.load_settings()
-    due = invoice_due_summary(
-        date.today(),
-        settings.get("due_rule_type"),
-        settings.get("due_net_days"),
-    )
-    return render_template(
-        "settings_details.html",
-        settings=settings,
-        error=None,
-        due_rule_type=due["due_rule_type"],
-        due_net_days=due["due_net_days"],
-        due_date_preview=due["due_date_fmt"],
-    )
+    return _render(settings)
 
 
-@app.route("/settings/account")
+@app.route("/settings/account", methods=["GET", "POST"])
 def settings_account():
+    import account_client
+    import account_sync
     import billing_auth_store
-    import billing_client
-    import billing_local
-    import billing_sync
+    import entitlement_cache
 
-    if billing_auth_store.is_authenticated():
-        billing_sync.sync_usage_from_server()
+    verify_message = None
+    entitlement_just_synced = False
+    if request.method == "POST":
+        action = request.form.get("action", "")
+        if action == "verify":
+            try:
+                account_sync.sync_entitlements_from_server()
+                verify_message = ("Subscription verified.", "success")
+                entitlement_just_synced = True
+            except account_client.AccountOfflineError:
+                verify_message = ("Could not reach the server. Check your connection.", "error")
+            except account_client.AccountError as exc:
+                verify_message = (account_client.map_http_auth_error(str(exc)), "error")
+        elif action == "portal":
+            try:
+                payload = account_sync.sync_entitlements_from_server() or {}
+                entitlement_just_synced = True
+                portal_url = payload.get("portal_url") or entitlement_cache.load_cache().get("portal_url")
+                if portal_url:
+                    webbrowser.open(portal_url)
+                    verify_message = ("Opened Stripe billing portal in your browser.", "success")
+                else:
+                    verify_message = (
+                        "Billing portal is not available yet. Try Verify subscription first.",
+                        "error",
+                    )
+            except account_client.AccountOfflineError:
+                verify_message = ("Could not reach the server. Check your connection.", "error")
+            except account_client.AccountError as exc:
+                verify_message = (account_client.map_http_auth_error(str(exc)), "error")
 
+    cache = entitlement_cache.load_cache()
     return render_template(
         "settings_account.html",
-        account_services_ok=billing_client.check_server_available(),
-        ledger_invalid=billing_local.is_ledger_invalid(),
+        account_services_ok=None,
+        entitlement=cache or {},
+        verify_flash=verify_message,
+        entitlement_sync_async=billing_auth_store.is_authenticated() and not entitlement_just_synced,
     )
 
 
-@app.route("/settings/billing", methods=["GET", "POST"])
-def settings_billing():
+@app.route("/settings/account/status")
+def settings_account_status():
+    import account_client
+    import account_sync
     import billing_auth_store
-    import billing_client
-    import billing_messages
-    import billing_sync
-
-    if billing_auth_store.is_authenticated():
-        billing_sync.sync_usage_from_server()
+    import entitlement_cache
 
     if not billing_auth_store.is_authenticated():
-        return render_template(
-            "settings_billing.html",
-            authenticated=False,
-            billing=None,
-            error=None,
-            services_ok=billing_client.check_server_available(),
-        )
+        return jsonify({"authenticated": False})
 
-    error = None
-    if request.method == "POST":
-        billing_cycle = request.form.get("billing_cycle", "quarterly")
-        try:
-            billing_client.update_billing_cycle(billing_cycle)
-            flash("Billing cycle updated.", "success")
-            return redirect(url_for("settings_billing"))
-        except billing_client.BillingOfflineError:
-            error = billing_messages.OFFLINE_SYNC
-        except billing_client.BillingError as exc:
-            error = billing_messages.map_http_auth_error(str(exc))
-
-    try:
-        billing = billing_client.get_billing_overview()
-        services_ok = True
-    except billing_client.BillingOfflineError:
-        billing = None
-        services_ok = False
-        error = error or billing_messages.OFFLINE_SYNC
-    except billing_client.BillingError as exc:
-        billing = None
-        services_ok = billing_client.check_server_available()
-        error = error or billing_messages.map_http_auth_error(str(exc))
-
-    return render_template(
-        "settings_billing.html",
-        authenticated=True,
-        billing=billing,
-        error=error,
-        services_ok=services_ok,
+    account_sync.sync_entitlements_from_server()
+    cache = entitlement_cache.load_cache() or {}
+    auth = billing_auth_store.load_auth()
+    return jsonify(
+        {
+            "authenticated": True,
+            "email": auth.get("email", ""),
+            "account_services_ok": account_client.check_server_available(),
+            "entitlement": cache,
+        }
     )
+
+
+@app.route("/settings/billing")
+def settings_billing():
+    return redirect(url_for("settings_account"))
 
 
 @app.route("/settings/fee-calculator")
 def settings_fee_calculator():
-    return render_template("settings_fee_calculator.html")
+    return redirect(url_for("settings_page"))
 
 
 @app.route("/settings/storage", methods=["GET"])
@@ -1530,9 +1488,12 @@ def settings_storage_set():
     if not path:
         flash("Enter a folder path or use Browse.", "error")
     else:
-        storage.set_pdf_folder(path, from_picker=False)
-        flash("PDF folder updated.", "success")
-    return redirect(url_for("settings_storage"))
+        try:
+            storage.set_pdf_folder(path, from_picker=False)
+            flash("PDF folder moved.", "success")
+        except OSError as exc:
+            flash(f"Couldn't move the PDF folder: {exc}", "error")
+    return redirect(url_for("settings_page"))
 
 
 @app.route("/settings/storage/pick", methods=["POST"])
@@ -1542,72 +1503,24 @@ def settings_storage_pick():
     try:
         path = pick_folder("Choose where to save invoice PDFs")
         if path:
-            storage.set_pdf_folder(path, from_picker=True)
-            flash("PDF folder updated. A pdfs subfolder was added to your chosen location.", "success")
+            try:
+                storage.set_pdf_folder(path, from_picker=True)
+                flash("PDF folder moved.", "success")
+            except OSError as exc:
+                flash(f"Couldn't move the PDF folder: {exc}", "error")
     except FolderPickerError as exc:
         flash(f"Couldn't open the folder picker: {exc}", "error")
-    return redirect(url_for("settings_storage"))
+    return redirect(url_for("settings_page"))
 
 
 @app.route("/settings/storage/reset", methods=["POST"])
 def settings_storage_reset():
-    storage.reset_pdf_folder()
-    flash("PDF folder reset to the default AppData location.", "success")
-    return redirect(url_for("settings_storage"))
-
-
-def _billing_generate_guard(invoice_number, subtotal, cap_bypassed=False):
-    import billing_auth_store
-    import billing_client
-    import billing_local
-    import billing_messages
-
     try:
-        preview = billing_client.preview(subtotal)
-    except billing_client.BillingOfflineError:
-        preview = billing_local.local_usage_snapshot(subtotal)
-        if preview.get("ledger_invalid"):
-            return billing_messages.LEDGER_INVALID, "ledger_invalid"
-        blocked = preview.get("account_required") or billing_auth_store.is_authenticated()
-        if blocked:
-            return (
-                billing_messages.offline_for_generate(
-                    authenticated=billing_auth_store.is_authenticated()
-                ),
-                "offline",
-            )
-    except billing_client.BillingError:
-        preview = billing_local.local_usage_snapshot(subtotal)
-
-    if preview.get("ledger_invalid"):
-        return billing_messages.LEDGER_INVALID, "ledger_invalid"
-
-    if preview.get("account_required") and not billing_auth_store.is_authenticated():
-        return billing_messages.ACCOUNT_REQUIRED, "account_required"
-
-    if preview.get("cap_blocked") and not cap_bypassed:
-        return preview, "cap_blocked"
-
-    if not billing_auth_store.is_authenticated() and not preview.get("server_required"):
-        billing_local.record_local_commit(invoice_number, subtotal)
-        return preview, None
-
-    try:
-        billing_client.commit(invoice_number, subtotal, cap_bypassed=cap_bypassed)
-    except billing_client.CapBlockedError as exc:
-        return exc.preview, "cap_blocked"
-    except billing_client.BillingOfflineError:
-        return (
-            billing_messages.offline_for_generate(
-                authenticated=billing_auth_store.is_authenticated()
-            ),
-            "offline",
-        )
-    except billing_client.AccountRequiredError:
-        return billing_messages.ACCOUNT_REQUIRED, "account_required"
-    except billing_client.BillingError as exc:
-        return billing_messages.GENERIC_BILLING_ERROR, "error"
-    return preview, None
+        storage.reset_pdf_folder()
+        flash("PDF folder moved back to the default location.", "success")
+    except OSError as exc:
+        flash(f"Couldn't move the PDF folder: {exc}", "error")
+    return redirect(url_for("settings_page"))
 
 
 def open_browser_when_ready():
@@ -1690,9 +1603,9 @@ def main():
             _show_already_running_message()
             return
         threading.Thread(target=open_browser_when_ready, daemon=True).start()
-        import billing_sync
+        import account_sync
 
-        billing_sync.start_background_sync()
+        account_sync.start_background_sync()
         try:
             while not shutdown_requested:
                 process_pending_picks()
@@ -1707,9 +1620,9 @@ def main():
             daemon=True,
             name="flask-backend",
         ).start()
-        import billing_sync
+        import account_sync
 
-        billing_sync.start_background_sync()
+        account_sync.start_background_sync()
         from desktop_shell import run_desktop_app
 
         run_desktop_app(LOCAL_APP_URL, request_shutdown, startup_error=startup_error)

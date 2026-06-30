@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment received · FrogsWork</title>
+    <style>
+        body { font-family: "Segoe UI", system-ui, sans-serif; max-width: 32rem; margin: 3rem auto; padding: 0 1.25rem; color: #1a3d2e; }
+        h1 { font-size: 1.5rem; }
+        p { line-height: 1.5; }
+        .ok { color: #1a6b3c; }
+        .bad { color: #a33; }
+    </style>
+</head>
+<body>
+    <h1 class="{{ 'ok' if ok else 'bad' }}">{{ 'Payment received' if ok else 'Something went wrong' }}</h1>
+    <p>{{ message }}</p>
+    {% if ok %}
+    <p>You can close this browser tab.</p>
+    {% endif %}
+</body>
+</html>

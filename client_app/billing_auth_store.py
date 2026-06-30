@@ -5,9 +5,9 @@ import hashlib
 import json
 import os
 
-import billing_ledger
+import install_secret
 import storage
-from app_config import DEFAULT_BILLING_SERVER_URL
+from app_config import DEFAULT_ACCOUNT_API_URL
 
 try:
     from cryptography.fernet import Fernet
@@ -22,7 +22,7 @@ def _auth_path():
 def _fernet():
     if Fernet is None:
         return None
-    seed = billing_ledger.get_install_secret().encode()
+    seed = install_secret.get_install_secret().encode()
     key = base64.urlsafe_b64encode(hashlib.sha256(b"auth-v1:" + seed).digest())
     return Fernet(key)
 
@@ -73,7 +73,7 @@ def get_server_url():
     if env_url:
         return env_url.rstrip("/")
     auth = load_auth()
-    url = auth.get("server_url") or DEFAULT_BILLING_SERVER_URL
+    url = auth.get("server_url") or DEFAULT_ACCOUNT_API_URL
     return url.rstrip("/")
 
 

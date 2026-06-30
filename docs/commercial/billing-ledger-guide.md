@@ -1,6 +1,8 @@
 # Billing ledger operator guide
 
-Developers and operator/support: this document explains how the **signed offline usage ledger** works, when honest users may see “usage records invalid”, and how to fix it.
+> **Deprecated (June 2026):** FrogsWork no longer uses a signed usage ledger. Trial limits and Stripe subscriptions replaced usage-based billing. See [billing-rules.md](billing-rules.md). This document is kept for support of legacy installs only.
+
+Developers and operator/support: this document explains how the **signed offline usage ledger** worked in the old model.
 
 Product billing rules: [billing-rules.md](billing-rules.md). Threat model and deployment: [security-risk-model.md](security-risk-model.md).
 

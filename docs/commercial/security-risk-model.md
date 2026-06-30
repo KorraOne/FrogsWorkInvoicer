@@ -1,6 +1,8 @@
 # Security & billing integrity risk model
 
-Developers and operators: this document describes trust boundaries, known risks, production deployment on a single Raspberry Pi, and how offline billing integrity is enforced.
+> **Updated June 2026:** Usage ledger and Pi billing server are retired. Subscribed access uses Stripe entitlements cached locally with offline grace. Trial limits derive from `invoices.json`. Legacy ledger sections below describe the old model.
+
+Developers and operators: trust boundaries, deployment, and offline integrity (historical + entitlement cache).
 
 Product billing rules live in [billing-rules.md](billing-rules.md). This document covers **security assumptions and mitigations**.
 

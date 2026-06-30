@@ -6,11 +6,8 @@
 
 <h1>Data storage</h1>
 
-<p class="home-intro">Settings and invoice records stay in AppData. Pick where PDFs are saved. Browsing for a folder adds a <code>pdfs</code> subfolder. Edit the path below if you don't want that.</p>
-
-<p class="storage-current-label">Config folder (fixed)</p>
-<code class="storage-current-path">{{ config_folder }}</code>
-<p class="storage-current-hint">Business settings, customers, invoices, usage cache, and a hidden <code>.deleted</code> folder for removed invoice PDFs.</p>
+<p class="home-intro">Choose where your invoice PDFs are saved.</p>
+<p class="storage-current-hint">When you change this, FrogsWork moves your whole PDF folder (including existing invoices). If it fails, close any open Explorer windows on that folder and try again.</p>
 
 <p class="storage-current-label">PDF folder{% if using_default %} (default){% endif %}</p>
 
@@ -24,9 +21,9 @@
 </form>
 
 {% if using_default %}
-<p class="storage-current-hint">PDFs are saved in the <code>pdfs</code> subfolder under AppData.</p>
+<p class="storage-current-hint">Default location under AppData: <code>{{ default_pdf_folder }}</code></p>
 {% else %}
-<p class="storage-current-hint">Custom PDF folder. Reset below to use the default.</p>
+<p class="storage-current-hint">Custom PDF folder. Reset below to move it back to the default.</p>
 {% endif %}
 
 {% if not using_default %}
@@ -37,6 +34,6 @@
 </div>
 {% endif %}
 
-<p class="storage-note">Changing the PDF folder does not move existing PDFs. Removing an invoice from your list keeps billing records and moves its PDF to the hidden <code>.deleted</code> folder in AppData. Default location: <code>{{ default_pdf_folder }}</code></p>
+<p class="storage-note">Removing an invoice from your list keeps billing records and moves its PDF to a hidden <code>.deleted</code> archive under AppData (not your chosen PDF folder).</p>
 
 {% endblock %}

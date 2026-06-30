@@ -13,8 +13,6 @@ import sys
 from datetime import date, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 
-import billing_core
-import billing_local
 import due_dates
 import pdf_generator
 import storage
@@ -323,35 +321,8 @@ def _invoice_key(number):
 
 
 def _seed_billing_from_invoices(invoices, reset):
-    """Align local usage cache with this month's seeded invoice totals."""
-    month = billing_core.current_usage_month()
-    month_total = Decimal("0")
-    events = []
-
-    for inv in invoices.values():
-        if not inv["invoice_date"].startswith(month):
-            continue
-        ex = Decimal(inv.get("amount_ex_gst", "0"))
-        month_total += ex
-        events.append(
-            {
-                "invoice_number": inv["invoice_number"],
-                "amount_ex_gst": str(ex),
-                "usage_month": month,
-            }
-        )
-
-    if month_total == 0 and not reset:
-        return
-
-    data = billing_local.load_billing() if not reset else billing_local._empty_state()
-    if reset or data.get("usage_month") != month:
-        data = billing_local._empty_state()
-
-    data["usage_month"] = month
-    data["total_ex_gst"] = str(month_total)
-    data["events"] = events
-    billing_local.save_billing(data)
+    """No-op — trial totals derive from invoices.json."""
+    del invoices, reset
 
 
 def run_seed(reset=False):

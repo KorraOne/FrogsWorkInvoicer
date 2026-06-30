@@ -2,64 +2,168 @@
 {% block title %}Your account · {{ brand_name }}{% endblock %}
 {% block content %}
 <h1>Your account</h1>
-<p class="home-intro">Platform sign-in and data backup.</p>
+<p class="home-intro">Sign-in and subscription.</p>
 
-{% if account_services_ok is not none %}
-<div class="account-services-status account-services-status--{{ 'ok' if account_services_ok else 'off' }}">
-    <p class="account-services-status-label">Account services</p>
-    <p class="account-services-status-value">
-        {% if account_services_ok %}
-        Available. You can sign in and sync.
-        {% else %}
-        Unavailable. Check your connection and try again.
-        {% endif %}
-    </p>
-</div>
+{% if verify_flash %}
+<div class="{{ 'form-success' if verify_flash[1] == 'success' else 'error' }}">{{ verify_flash[0] }}</div>
 {% endif %}
 
-{% if ledger_invalid %}
-<div class="ledger-repair-panel">
-    <p class="ledger-repair-title">Usage records need attention</p>
-    <p class="ledger-repair-body">Local usage records couldn't be verified. This often happens after a restore or a crash.</p>
-    <div class="ledger-repair-actions">
-        <form method="POST" action="{{ url_for('account_repair_ledger') }}">
-            <input type="hidden" name="action" value="rebuild">
-            <button type="submit" class="btn btn-primary">Rebuild from invoices</button>
-        </form>
-        <form method="POST" action="{{ url_for('account_repair_ledger') }}">
-            <input type="hidden" name="action" value="reset">
-            <button type="submit" class="btn btn-secondary">Reset usage cache</button>
-        </form>
-    </div>
-    <p class="ledger-repair-hint"><strong>Rebuild</strong> matches usage to your invoices this month. <strong>Reset</strong> clears local usage for this month.</p>
-</div>
-{% endif %}
-
-<div class="settings-links">
+<div class="settings-account-page">
     {% if usage_meter.authenticated %}
-    <div class="settings-link-row">
-        <div>
-            <p class="settings-link-title">Signed in</p>
-            <p class="settings-link-hint">{{ usage_meter.email }}</p>
+    <section class="settings-subscription-panel">
+        <div class="settings-link-row settings-account-header">
+            <div class="settings-account-identity">
+                <p class="settings-link-title">{{ usage_meter.email }}</p>
+                <div id="entitlement-status" class="entitlement-status" aria-live="polite">
+                    {% if entitlement_sync_async and not entitlement.last_verified_at and not entitlement.active and not entitlement.status %}
+                    <p class="entitlement-status-syncing">
+                        <span class="entitlement-status-spinner" aria-hidden="true"></span>
+                        Checking subscription…
+                    </p>
+                    {% else %}
+                    {% include "_entitlement_status.html" %}
+                    {% endif %}
+                </div>
+                <p id="account-services-hint" class="settings-link-hint settings-link-hint--services{% if not entitlement_sync_async %} hidden{% endif %}"></p>
+            </div>
+            <form method="POST" action="{{ url_for('account_logout') }}">
+                <button type="submit" class="btn btn-secondary btn-small">Sign out</button>
+            </form>
         </div>
-        <form method="POST" action="{{ url_for('account_logout') }}">
-            <button type="submit" class="btn btn-secondary btn-small">Sign out</button>
-        </form>
-    </div>
-    {% else %}
-    <a href="{{ url_for('account_create') }}" class="btn btn-secondary nav-card nav-card-utility">
-        <span class="nav-card-title">Create account</span>
-        <span class="nav-card-hint">For usage above $2,000 ex GST/month</span>
-    </a>
-    <a href="{{ url_for('account_login') }}" class="btn btn-secondary nav-card nav-card-utility">
-        <span class="nav-card-title">Sign in</span>
-        <span class="nav-card-hint">Existing account</span>
-    </a>
-    {% endif %}
 
-    <a href="{{ url_for('backup_import') }}" class="btn btn-secondary nav-card nav-card-utility">
-        <span class="nav-card-title">Backup &amp; restore</span>
-        <span class="nav-card-hint">Export or import your data</span>
-    </a>
+        <div class="settings-subscription-actions">
+            <form method="POST" action="{{ url_for('settings_account') }}">
+                <input type="hidden" name="action" value="verify">
+                <button type="submit" class="btn btn-secondary btn-small">Verify subscription</button>
+            </form>
+            <form method="POST" action="{{ url_for('settings_account') }}">
+                <input type="hidden" name="action" value="portal">
+                <button type="submit" class="btn btn-primary btn-small">Manage subscription</button>
+            </form>
+        </div>
+        <p class="form-hint">Manage subscription opens Stripe’s billing portal to update payment method, change plan, or cancel.</p>
+        <p id="resubscribe-row" class="settings-account-resubscribe{% if entitlement.active %} hidden{% endif %}">
+            <a href="{{ url_for('account_subscribe') }}" class="btn btn-secondary btn-small">Resubscribe</a>
+        </p>
+    </section>
+    {% else %}
+    <div class="settings-account-guest">
+        <a href="{{ url_for('account_subscribe') }}" class="btn btn-secondary btn-small">Subscribe</a>
+        <a href="{{ url_for('account_login') }}" class="btn btn-secondary btn-small">Sign in</a>
+    </div>
+    {% endif %}
 </div>
+
+{% if entitlement_sync_async %}
+<script>
+(function () {
+    var statusUrl = {{ url_for('settings_account_status') | tojson }};
+    var statusEl = document.getElementById('entitlement-status');
+    var servicesEl = document.getElementById('account-services-hint');
+    var resubscribeEl = document.getElementById('resubscribe-row');
+
+    function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text || '';
+        return div.innerHTML;
+    }
+
+    var LOCALE = 'en-AU';
+    var DATE_OPTS = { day: 'numeric', month: 'long', year: 'numeric' };
+
+    function formatDateTime(iso) {
+        if (!iso) return '';
+        var d = new Date(iso);
+        if (isNaN(d.getTime())) return iso.slice(0, 16);
+        return d.toLocaleString(LOCALE, Object.assign({}, DATE_OPTS, {
+            hour: 'numeric',
+            minute: '2-digit'
+        }));
+    }
+
+    function formatDate(iso) {
+        if (!iso) return '';
+        var d = new Date(iso);
+        if (isNaN(d.getTime())) return iso.slice(0, 10);
+        return d.toLocaleDateString(LOCALE, DATE_OPTS);
+    }
+
+    function accessUntil(ent) {
+        return ent.access_until || ent.current_period_end || '';
+    }
+
+    function renderEntitlement(ent) {
+        var html = '';
+        var until = accessUntil(ent);
+        if (ent.active) {
+            if (ent.canceling) {
+                html += '<p class="settings-link-hint">Cancelled';
+                if (until) {
+                    html += ' — available until ' + escapeHtml(formatDate(until));
+                }
+                html += '</p>';
+                if (ent.plan_interval) {
+                    html += '<p class="settings-link-hint">' + escapeHtml(ent.plan_interval) + ' plan</p>';
+                }
+            } else {
+                html += '<p class="settings-link-hint">Active';
+                if (ent.plan_interval) {
+                    html += ' · ' + escapeHtml(ent.plan_interval) + ' plan';
+                }
+                html += '</p>';
+                if (until) {
+                    html += '<p class="settings-link-hint">Renews ' + escapeHtml(formatDate(until)) + '</p>';
+                }
+            }
+        } else if (ent.status === 'canceled') {
+            html += '<p class="settings-link-hint">Cancelled';
+            if (until) {
+                html += ' — ended ' + escapeHtml(formatDate(until));
+            }
+            html += '</p>';
+        } else if (ent.status) {
+            html += '<p class="settings-link-hint">Status: ' + escapeHtml(ent.status) + '</p>';
+        } else if (ent.last_verified_at) {
+            html += '<p class="settings-link-hint">No active subscription</p>';
+        } else {
+            html += '<p class="settings-link-hint">Not verified yet — use Verify subscription</p>';
+        }
+        if (ent.last_verified_at) {
+            html += '<p class="settings-link-hint">Last verified ' + escapeHtml(formatDateTime(ent.last_verified_at)) + '</p>';
+        }
+        return html;
+    }
+
+    function setServicesHint(ok) {
+        if (!servicesEl) return;
+        if (ok) {
+            servicesEl.textContent = '';
+            servicesEl.classList.add('hidden');
+        } else {
+            servicesEl.textContent = 'Account server unavailable — check your connection.';
+            servicesEl.classList.remove('hidden');
+        }
+    }
+
+    function applyStatus(data) {
+        if (!statusEl || !data || !data.authenticated) return;
+        var ent = data.entitlement || {};
+        statusEl.innerHTML = renderEntitlement(ent);
+        setServicesHint(data.account_services_ok);
+        if (resubscribeEl) {
+            resubscribeEl.classList.toggle('hidden', !!ent.active);
+        }
+    }
+
+    fetch(statusUrl, { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(applyStatus)
+        .catch(function () {
+            if (!statusEl) return;
+            statusEl.innerHTML = '<p class="settings-link-hint settings-link-hint--warn">Could not check subscription. Try Verify subscription.</p>';
+            setServicesHint(false);
+        });
+})();
+</script>
+{% endif %}
 {% endblock %}

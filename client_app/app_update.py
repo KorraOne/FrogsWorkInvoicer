@@ -15,7 +15,7 @@ import urllib.request
 import zipfile
 
 import billing_auth_store
-import billing_client
+import account_client
 from app_config import APP_VERSION
 
 log = logging.getLogger(__name__)
@@ -77,10 +77,10 @@ def version_less(left, right):
 
 
 def fetch_latest_release():
-    if not billing_client.check_server_available():
+    if not account_client.check_server_available():
         return None
     url = billing_auth_store.get_server_url().rstrip("/") + "/releases/latest"
-    req = urllib.request.Request(url, headers=billing_client.api_headers(), method="GET")
+    req = urllib.request.Request(url, headers=account_client.api_headers(), method="GET")
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             if resp.status == 204:
@@ -164,7 +164,7 @@ def _sha256_file(path):
 
 
 def _download_file(url, dest):
-    req = urllib.request.Request(url, headers=billing_client.api_headers(), method="GET")
+    req = urllib.request.Request(url, headers=account_client.api_headers(), method="GET")
     with urllib.request.urlopen(req, timeout=300) as resp, open(dest, "wb") as out:
         shutil.copyfileobj(resp, out)
 

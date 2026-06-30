@@ -1,26 +1,28 @@
-{% extends "base.html" %}
-{% block title %}Dashboard · {{ brand_name }}{% endblock %}
-{% block content %}
-<h1>Dashboard</h1>
-<p class="home-intro">Sales invoices you've sent.</p>
-
-<h2 class="dashboard-section-heading">Sales invoice totals</h2>
-<div class="preview-section">
-    <div class="preview-row"><span class="preview-label">Sales invoiced this month</span>{{ month_invoiced_fmt }}</div>
-    <div class="preview-row"><span class="preview-label">Outstanding (sent, unpaid)</span>{{ sent_total_fmt }} ({{ outstanding_count }} invoice{% if outstanding_count != 1 %}s{% endif %})</div>
-    <div class="preview-row"><span class="preview-label">Paid (all time in list)</span>{{ paid_total_fmt }}</div>
-</div>
-
-<h2 class="dashboard-section-heading">Usage this month</h2>
-{% include "_usage_context.html" %}
-<div class="preview-section">
-    <div class="preview-row"><span class="preview-label">Sales invoiced (ex GST)</span>{{ usage_fmt.month_invoiced }}</div>
-    <div class="preview-row"><span class="preview-label">Platform usage fee</span>{{ usage_fmt.fee_so_far }}</div>
-    {% if usage_meter.cap_label != "off" %}
-    <div class="preview-row">
-        <span class="preview-label">Your cap</span>
-        {{ usage_meter.cap_label }}{% if usage_meter.cap_detail %} {{ usage_meter.cap_detail }}{% endif %}
-    </div>
-    {% endif %}
-</div>
-{% endblock %}
+{% extends "base.html" %}
+{% block title %}Dashboard · {{ brand_name }}{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+<p class="home-intro">Sales invoices you've sent.</p>
+
+<h2 class="dashboard-section-heading">Sales invoice totals</h2>
+<div class="preview-section">
+    <div class="preview-row"><span class="preview-label">Sales invoiced this month</span>{{ month_invoiced_fmt }}</div>
+    <div class="preview-row"><span class="preview-label">Outstanding (sent, unpaid)</span>{{ sent_total_fmt }} ({{ outstanding_count }} invoice{% if outstanding_count != 1 %}s{% endif %})</div>
+    <div class="preview-row"><span class="preview-label">Paid (all time in list)</span>{{ paid_total_fmt }}</div>
+</div>
+
+{% if show_trial_usage %}
+<h2 class="dashboard-section-heading">Free trial</h2>
+{% include "_usage_context.html" %}
+<div class="preview-section">
+    <div class="preview-row"><span class="preview-label">Lifetime invoices</span>{{ usage_fmt.lifetime_invoices }} / {{ usage_meter.max_invoices }}</div>
+    <div class="preview-row"><span class="preview-label">Lifetime ex GST</span>{{ usage_fmt.lifetime_ex_gst }} / {{ usage_meter.max_ex_gst_fmt }}</div>
+</div>
+{% elif usage_meter.authenticated %}
+<h2 class="dashboard-section-heading">Your account</h2>
+<div class="preview-section">
+    <div class="preview-row"><span class="preview-label">Signed in as</span>{{ usage_meter.email }}</div>
+    <div class="preview-row"><span class="preview-label">Subscription</span>{% if usage_meter.subscription_active %}Active{% else %}Inactive — <a href="{{ url_for('settings_account') }}">manage in Settings</a>{% endif %}</div>
+</div>
+{% endif %}
+{% endblock %}

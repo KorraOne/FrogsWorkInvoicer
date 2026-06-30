@@ -1,38 +1,46 @@
 # FrogsWork production deploy
 
-Reference for **frogswork.com**, **api.frogswork.com**, and Pi hosting. For a fresh Pi, start with [`billing_server/deploy/PI-SETUP.md`](../../billing_server/deploy/PI-SETUP.md).
+Reference for **frogswork.com**, **api.frogswork.com**, and release hosting.
 
 ## Production layout
 
 | Host | Role |
 |------|------|
-| `frogswork.com` | Marketing (Cloudflare Worker + `wrangler.toml` → `marketing_site/`) |
+| `frogswork.com` | Marketing (Cloudflare Worker → `marketing_site/`) |
 | `downloads.frogswork.com` | Release **setup.exe** + **update zip** (R2) |
-| `api.frogswork.com` | Billing API + `/releases/latest` (Pi, port **8008**, tunnel `frogswork-api`) |
+| `api.frogswork.com` | Account API: auth, Stripe, entitlements, `/releases/latest` (Cloudflare Worker) |
 
 ```
 Browser (new install) → frogswork.com/download.html → setup.exe (R2)
 Browser (manifest)    → frogswork.com/releases.json
 In-app update         → api.frogswork.com/releases/latest → zip (R2)
-Desktop app           → api.frogswork.com (auth, usage)
-Operator admin        → localhost:8008 via SSH (/admin — not public)
+Desktop app           → api.frogswork.com (auth, checkout, entitlements)
 User data             → %APPDATA%\FrogsWork\ (on each PC)
 Program files         → %LOCALAPPDATA%\Programs\FrogsWork\ (on each PC)
 ```
 
-**Pi paths:** repo `/home/frogswork/frogswork/` · secrets `/etc/frogswork/billing.env` · billing listens **`127.0.0.1:8008`**.
+**Local dev API:** [`frogswork_api/server.py`](../../frogswork_api/server.py) on `http://127.0.0.1:8787`.
 
-**Two tunnels on one Pi:** existing `pi` tunnel (`my-webapp`) is unchanged. FrogsWork uses **`cloudflared-frogswork.service`** (user `frogswork`, tunnel `frogswork-api`). Do **not** run `sudo cloudflared service install` — that conflicts with the existing setup.
+**Production API:** [`workers/frogswork-api/`](../../workers/frogswork-api/) — see [STRIPE_SETUP.md](STRIPE_SETUP.md).
 
 ---
 
-## Fresh Pi (summary)
+## Deploy account API (Worker)
 
-1. `sudo ./billing_server/deploy/pi-bootstrap.sh` — see [PI-SETUP.md](../../billing_server/deploy/PI-SETUP.md)
-2. Edit `/etc/frogswork/billing.env` (`PORT=8008`, secrets, `CLIENT_RELEASE_*`)
-3. `sudo systemctl start frogswork-billing`
-4. Create `frogswork-api` tunnel; install `cloudflared-frogswork.service`
-5. Verify `curl https://api.frogswork.com/health`
+```powershell
+cd workers/frogswork-api
+npm install
+npx wrangler d1 execute frogswork-account --remote --file=./schema.sql
+npx wrangler secret put STRIPE_SECRET_KEY
+npx wrangler secret put STRIPE_WEBHOOK_SECRET
+npx wrangler secret put JWT_SECRET
+npm run deploy
+curl https://api.frogswork.com/health
+```
+
+Set release metadata as Worker vars or secrets: `CLIENT_RELEASE_VERSION`, `CLIENT_RELEASE_URL`, `CLIENT_RELEASE_SHA256`, `CLIENT_RELEASE_NOTES`.
+
+Custom domain: attach **api.frogswork.com** to the Worker in Cloudflare.
 
 ---
 
@@ -40,85 +48,40 @@ Program files         → %LOCALAPPDATA%\Programs\FrogsWork\ (on each PC)
 
 ### Build (Windows, repo root)
 
-Requires **Inno Setup 6** for the marketing installer. See [RELEASE.md](RELEASE.md).
+Requires **Inno Setup 6**. See [RELEASE.md](RELEASE.md).
 
 ```powershell
 .\scripts\package_client_release.ps1 -Version "1.1.0" -ReleaseNotes "Your release note."
 ```
 
-Script prints setup + zip paths and both SHA256 hashes.
-
 ### Deploy checklist
-
-Do these in order:
 
 #### 1. Upload to R2 (`downloads.frogswork.com`)
 
-Upload **both** files from `client_app\dist\` (or `marketing_site\downloads\`):
-
 | File | Purpose |
 |------|---------|
-| `FrogsWork-1.1.0-setup.exe` | Public download (new installs) |
+| `FrogsWork-1.1.0-setup.exe` | Public download |
 | `FrogsWork-1.1.0-win64.zip` | In-app updates |
 
-Use the Cloudflare dashboard or `wrangler r2 object put` — same bucket you already use for downloads.
+#### 2. Update Worker release metadata
 
-#### 2. Update Pi release metadata
-
-SSH to the Pi and edit `/etc/frogswork/billing.env`. **In-app updates use the zip**, not the setup exe:
-
-```env
-CLIENT_RELEASE_VERSION=1.1.0
-CLIENT_RELEASE_URL=https://downloads.frogswork.com/FrogsWork-1.1.0-win64.zip
-CLIENT_RELEASE_SHA256=ed7e6bd2ae7ebd1afcecb20e64b94fc66b51c131a6f90e5e1660c24c77ced928
-CLIENT_RELEASE_NOTES=Windows installer, uninstall PDF export, API connectivity fixes.
-```
-
-Replace version, URL, SHA256, and notes for each release (hashes come from the package script output).
+Set `CLIENT_RELEASE_*` on the Worker (zip URL + SHA256 from package script), then redeploy or update vars.
 
 ```bash
-sudo systemctl restart frogswork-billing
-curl -s https://api.frogswork.com/health
-# Expect: "client_release_version":"1.1.0"
 curl -s https://api.frogswork.com/releases/latest
 ```
 
 #### 3. Deploy marketing site
 
-Commit and push `marketing_site/releases.json` to `main`, then deploy:
-
-```powershell
-cd c:\Users\Repti\Desktop\Code\GrandparentsInvoicer
-git add marketing_site/releases.json
-git commit -m "Release 1.1.0"
-git push
-npx wrangler deploy
-```
-
-Or rely on your usual Cloudflare Pages/Workers pipeline if it auto-deploys on push.
+Update `marketing_site/releases.json`, commit, push, `npx wrangler deploy` from repo root.
 
 #### 4. Smoke test
 
-- [ ] https://frogswork.com/download.html shows **1.1.0** and downloads setup.exe
-- [ ] Setup installs to `%LOCALAPPDATA%\Programs\FrogsWork\` and app launches
-- [ ] Welcome flow, create invoice (free tier, offline OK)
-- [ ] Settings → Your account → server shows OK (when signed in)
-- [ ] `curl https://api.frogswork.com/releases/latest` matches Pi env
-- [ ] Optional: on an older install, update banner → **Update now** → restarts on 1.1.0
-
-Details: [RELEASE.md](RELEASE.md)
-
----
-
-## In-app updates
-
-1. Bump `APP_VERSION` in `client_app/app_config.py`
-2. Run `package_client_release.ps1` with new version
-3. Upload **zip** (and new **setup.exe**) to R2
-4. Update `CLIENT_RELEASE_*` on Pi (zip URL + zip SHA256)
-5. Push `releases.json` (`download_path` = setup, `sha256` = zip)
-
-Installed apps call `GET /releases/latest`, download the zip from R2, verify SHA256, replace the install folder. AppData unchanged.
+- [ ] Download page shows correct version
+- [ ] Fresh install: trial invoicing offline
+- [ ] Trial limit → account + subscribe flow (Stripe test card `4242…`)
+- [ ] Settings → Your account → subscription verified
+- [ ] In-app update from older build
 
 ---
 
@@ -126,65 +89,22 @@ Installed apps call `GET /releases/latest`, download the zip from R2, verify SHA
 
 | Setting | Value |
 |---------|--------|
-| Project | `frogswork-invoicer` (Workers static assets) |
-| Deploy command | `npx wrangler deploy` |
 | Config | Root [`wrangler.toml`](../../wrangler.toml) → `marketing_site/` |
+| Deploy | `npx wrangler deploy` |
 
-Custom domain: **Domains** → `frogswork.com`. Binaries live on R2, not in git.
-
----
-
-## Operator admin
-
-From Windows:
-
-```powershell
-ssh -L 8008:127.0.0.1:8008 pi@<pi-ip>
-```
-
-http://127.0.0.1:8008/admin — see [operator-admin.md](operator-admin.md)
+Binaries on R2, not in git.
 
 ---
 
-## Ongoing Pi maintenance
+## Retired: Pi billing server
 
-```bash
-# Billing code update
-sudo -u frogswork git -C /home/frogswork/frogswork pull
-sudo systemctl restart frogswork-billing
-
-# Check services
-sudo systemctl status frogswork-billing cloudflared-frogswork
-
-# Logs
-journalctl -u frogswork-billing -n 50
-journalctl -u cloudflared-frogswork -n 50
-```
-
-Backups: nightly cron from bootstrap → `/home/frogswork/backups/frogswork-billing/`
-
----
-
-## Go-live: ABN and platform autobilling
-
-Before KorraOne can email platform-fee invoices to users, complete these operator steps (not client-app code):
-
-1. **Obtain an ABN** for the billing entity (KorraOne).
-2. Edit `/etc/frogswork/billing.env` on the Pi — set letterhead and payment fields from [`billing_server/deploy/production.env.example`](../../billing_server/deploy/production.env.example):
-   - `KORRAONE_ABN`, business name and address
-   - BSB, account number, and/or PayID for fee payments
-   - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` for outbound invoice emails
-3. Enable and test the autobilling timer/cron (`auto_billing.py`) on a staging month first.
-4. Send a test platform invoice to yourself; confirm PDF and payment details.
-5. Document the live SMTP sender in your runbook and monitor `journalctl -u frogswork-billing` after the first production run.
+The usage-based **billing_server** on Raspberry Pi is archived under [`archive/billing_server/`](../../archive/billing_server/). Do not deploy it for new installs.
 
 ---
 
 ## Related docs
 
-- [PI-SETUP.md](../../billing_server/deploy/PI-SETUP.md) — Pi from scratch
-- [RELEASE.md](RELEASE.md) — install layout, update mechanics, Inno installer
-- [installer/README.md](../../installer/README.md) — Inno Setup script
+- [STRIPE_SETUP.md](STRIPE_SETUP.md)
+- [RELEASE.md](RELEASE.md)
+- [billing-rules.md](billing-rules.md)
 - [marketing_site/README.md](../../marketing_site/README.md)
-- [operator-admin.md](operator-admin.md)
-- [security-risk-model.md](security-risk-model.md)

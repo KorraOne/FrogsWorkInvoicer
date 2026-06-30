@@ -1,16 +1,29 @@
 {% extends "base.html" %}
 {% block title %}Backup · {{ brand_name }}{% endblock %}
 {% block content %}
-<h1>Backup &amp; Restore</h1>
-<a href="{{ url_for('backup_export') }}" class="btn btn-primary">Download backup (ZIP)</a>
-<h2>Restore from backup</h2>
-{% if error %}<div class="error">{{ error }}</div>{% endif %}
-<form method="POST" enctype="multipart/form-data" action="{{ url_for('backup_import') }}">
-    <div class="form-group">
-        <label for="backup_file">Backup ZIP</label>
-        <input type="file" name="backup_file" id="backup_file" accept=".zip" required>
-    </div>
-    <button type="submit" class="btn btn-secondary">Restore</button>
-</form>
-<p class="home-intro">Restore replaces AppData files and copies PDFs into your folders.</p>
+<h1>Backup &amp; restore</h1>
+<p class="home-intro">Export your config and invoice PDFs, or restore from a previous backup ZIP.</p>
+
+<section class="backup-panel">
+    <h2 class="backup-panel-heading">Export</h2>
+    <p class="form-hint">Saves settings, customers, invoices, and PDFs to a ZIP file on your computer.</p>
+    <form method="POST" action="{{ url_for('backup_export') }}">
+        <button type="submit" class="btn btn-primary">Save backup (ZIP)…</button>
+    </form>
+</section>
+
+<section class="backup-panel">
+    <h2 class="backup-panel-heading">Restore</h2>
+    <p class="form-hint">Restore replaces AppData files and copies PDFs into your folders.</p>
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+    <form method="POST" enctype="multipart/form-data" action="{{ url_for('backup_import') }}" class="backup-restore-form">
+        <div class="form-group">
+            <label for="backup_file">Backup ZIP</label>
+            <input type="file" name="backup_file" id="backup_file" accept=".zip,application/zip" required>
+        </div>
+        <button type="submit" class="btn btn-secondary">Restore from backup</button>
+    </form>
+</section>
 {% endblock %}

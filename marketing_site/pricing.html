@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pricing for FrogsWork</title>
-    <meta name="description" content="FrogsWork pricing: $2,000 ex GST free per month, 0.05% platform fee above that.">
+    <meta name="description" content="FrogsWork pricing: free trial, then $12.99/month or $129.90/year subscription for unlimited invoicing.">
     <link rel="stylesheet" href="/css/site.css">
 </head>
 <body>
@@ -23,38 +23,52 @@
 
     <main class="site-main">
         <h1 class="section-heading">Pricing</h1>
-        <p class="section-lead">No subscription. Platform fees only apply when you invoice more than the free allowance in a calendar month.</p>
+        <p class="section-lead">Start free. Subscribe when you need more. Your invoice data stays on your PC.</p>
 
         <div class="pricing-grid">
             <article class="price-card price-card-featured">
-                <h2>Free allowance</h2>
-                <p class="price-tag">$2,000<span style="font-size:1rem;font-weight:500;">/month ex GST</span></p>
+                <h2>Free trial</h2>
+                <p class="price-tag">$0</p>
                 <ul class="price-list">
-                    <li>No platform fee within the allowance</li>
+                    <li>Up to <strong>20 invoices</strong> lifetime, or</li>
+                    <li>Up to <strong>$20,000 ex GST</strong> invoiced lifetime</li>
                     <li>No account required</li>
-                    <li>Works offline on this tier</li>
-                    <li>Resets each calendar month</li>
+                    <li>Works offline</li>
                 </ul>
             </article>
             <article class="price-card">
-                <h2>Above the allowance</h2>
-                <p class="price-tag">0.05%</p>
+                <h2>Monthly</h2>
+                <p class="price-tag">$12.99<span style="font-size:1rem;font-weight:500;">/month</span></p>
                 <ul class="price-list">
-                    <li>Fee on sales invoiced above $2,000 ex GST in the month</li>
-                    <li>Formula: 0.0005 × (monthly total − 2000)</li>
-                    <li>KorraOne account required before generating more invoices</li>
-                    <li>Optional monthly cap to limit fees</li>
+                    <li>Unlimited invoicing after trial</li>
+                    <li>Account + Stripe subscription</li>
+                    <li>Offline with periodic subscription check</li>
                 </ul>
+                <!-- STRIPE_BUY_BUTTON_MONTHLY: embed from Stripe Dashboard → Buy button → monthly price -->
+            </article>
+            <article class="price-card">
+                <h2>Annual</h2>
+                <p class="price-tag">$129.90<span style="font-size:1rem;font-weight:500;">/year</span></p>
+                <ul class="price-list">
+                    <li>Same unlimited access</li>
+                    <li><strong>2 months free</strong> vs paying monthly</li>
+                    <li>Manage billing in the app or Stripe portal</li>
+                </ul>
+                <!-- STRIPE_BUY_BUTTON_ANNUAL: embed from Stripe Dashboard → Buy button → annual price -->
             </article>
         </div>
 
         <section class="panel">
-            <h2>Platform fee invoices (KorraOne → you)</h2>
-            <p>Usage fees are billed separately from sales invoices you send customers. KorraOne sends a platform fee invoice for unbilled months. Default cycle is quarterly; annual is available in Settings. Each usage month appears on one platform invoice. Pay by bank transfer or PayID.</p>
+            <h2>How billing works</h2>
+            <p>After the trial, subscribe via Stripe (opens in your browser). Then finish account setup in the desktop app. Cancel anytime through the Stripe customer portal in Settings.</p>
+            <p class="form-hint">Replace the placeholder links below with your Stripe Payment Link URLs from the Dashboard.</p>
+            <p>
+                <a class="btn btn-secondary" href="https://buy.stripe.com/test_REPLACE_MONTHLY" rel="noopener noreferrer">Subscribe monthly</a>
+                <a class="btn btn-primary" href="https://buy.stripe.com/test_REPLACE_ANNUAL" rel="noopener noreferrer">Subscribe annually</a>
+            </p>
         </section>
 
         <section class="section" style="margin-top:2rem;">
-            <p class="section-lead">Estimate fees in the app under Settings → Fee calculator.</p>
             <a class="btn btn-primary" href="/download.html">Download FrogsWork</a>
         </section>
     </main>

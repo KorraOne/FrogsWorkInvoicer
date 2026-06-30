@@ -5,14 +5,14 @@ Monorepo with **three separate applications**. They share no Python imports. The
 | App | Folder | Purpose |
 |-----|--------|---------|
 | **Invoice App** (grandparents) | [`invoice_app/`](invoice_app/) | Personal/family GST invoicing, original scope |
-| **FrogsWork** (desktop client) | [`client_app/`](client_app/) | Sales invoicing UI, talks to `billing_server/` |
-| **Billing server** | [`billing_server/`](billing_server/) | KorraOne billing API (accounts, usage, platform fee invoices) |
+| **FrogsWork** (desktop client) | [`client_app/`](client_app/) | Sales invoicing UI, Stripe subscription account API |
+| **Account API** | [`workers/frogswork-api/`](workers/frogswork-api/) | Cloudflare Worker: auth, Stripe, entitlements (local dev: [`frogswork_api/`](frogswork_api/)) |
 
 ## Quick links
 
 - Grandparents app: [`invoice_app/README.md`](invoice_app/README.md) · agent context: [`docs/app-description.md`](docs/app-description.md)
-- Commercial app: [`docs/commercial/DEPLOY.md`](docs/commercial/DEPLOY.md) · [naming](docs/commercial/naming.md) · [marketing site](marketing_site/README.md)
-- Billing server: [`billing_server/README.md`](billing_server/README.md)
+- Commercial app: [`docs/commercial/DEPLOY.md`](docs/commercial/DEPLOY.md) · [billing rules](docs/commercial/billing-rules.md) · [marketing site](marketing_site/README.md)
+- Account API: [`workers/frogswork-api/README.md`](workers/frogswork-api/README.md)
 
 ## Build
 
@@ -22,32 +22,24 @@ Monorepo with **three separate applications**. They share no Python imports. The
 
 # FrogsWork commercial desktop app
 .\build_client.ps1
-
-# Dev: billing server + commercial app
-.\scripts\dev-test.ps1 -Action StartAll
 ```
 
 ## Repo layout
 
 ```
-invoice_app/          Grandparents desktop app (Flask + PyInstaller)
-client_app/      FrogsWork desktop client (Flask + pywebview + billing HTTP client)
-billing_server/       Flask billing API (SQLite)
-marketing_site/       Static site (frogswork.com) + releases.json; zips on downloads.frogswork.com
-docs/
-  app-description.md    Grandparents app, detailed agent/product context
-  commercial/           FrogsWork docs (billing rules, security, brand, …)
-scripts/dev-test.ps1  Dev harness for FrogsWork stack
-build.ps1             Build grandparents exe
-build_client.ps1      Build FrogsWork exe
-requirements.txt      Invoice App dependencies
-requirements-client.txt   FrogsWork client dependencies
+invoice_app/              Grandparents desktop app (Flask + PyInstaller)
+client_app/               FrogsWork desktop client (Flask + pywebview)
+workers/frogswork-api/    Production account API (Cloudflare Worker)
+frogswork_api/            Local dev account API (Flask)
+archive/billing_server/   Retired usage-billing Pi stack (reference only)
+marketing_site/           Static site (frogswork.com) + releases.json
+docs/commercial/          FrogsWork docs (billing, security, deploy, …)
 ```
 
 ## Isolation
 
 - **No cross-imports** between `invoice_app/` and `client_app/`.
 - AppData is separate: `%APPDATA%\InvoiceApp\` vs `%APPDATA%\FrogsWork\`.
-- Billing integration is HTTP-only from `client_app/` to `billing_server/`.
+- Account integration is HTTP-only from `client_app/` to `api.frogswork.com`.
 
 Made by [KorraOne.com](https://korraone.com).
