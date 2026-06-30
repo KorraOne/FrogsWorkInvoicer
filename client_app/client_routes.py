@@ -181,6 +181,13 @@ def register_client_routes(app, helpers):
             return redirect(url_for("resume_preview"))
         return redirect(url_for("home"))
 
+    def _finish_account_signup():
+        _clear_signup_checkout_state()
+        account_sync.sync_entitlements_from_server()
+        if session.get("invoice_draft"):
+            return redirect(url_for("resume_preview"))
+        return redirect(url_for("home"))
+
     @app.route("/account/create", methods=["GET", "POST"])
     def account_create():
         if billing_auth_store.is_authenticated():
@@ -308,7 +315,7 @@ def register_client_routes(app, helpers):
 
         if request.method == "POST":
             if not request.form.get("accept_terms"):
-                error = "Please accept the Terms and Privacy Policy to continue."
+                error = "Accept the Terms and Privacy Policy to continue."
             else:
                 plan = request.form.get("plan", "monthly")
                 link = account_client.payment_link_for_plan(plan)
@@ -369,13 +376,13 @@ def register_client_routes(app, helpers):
             return render_template(
                 "account_stripe_return.html",
                 ok=False,
-                message="Payment return was missing a valid session ID. Try paying again from the app.",
+                message="Payment return missing a valid session ID. Try paying again from the app.",
             )
         checkout_handoff.save_pending_checkout(session_id)
         return render_template(
             "account_stripe_return.html",
             ok=True,
-            message="Payment received. Switch back to the FrogsWork window — it will continue automatically.",
+            message="Payment received. Switch back to the FrogsWork window. It will continue automatically.",
         )
 
     @app.route("/account/password", methods=["GET", "POST"])
@@ -397,7 +404,7 @@ def register_client_routes(app, helpers):
         if not email:
             _clear_signup_checkout_state()
             flash(
-                "Payment could not be verified. Choose a plan and pay again, or restart the account API.",
+                "Payment could not be verified. Choose a plan and pay again.",
                 "error",
             )
             return redirect(url_for("account_subscribe"))
@@ -429,9 +436,7 @@ def register_client_routes(app, helpers):
                 )
             try:
                 account_client.register(password, checkout_session_id)
-                account_sync.sync_entitlements_from_server()
-                _clear_signup_checkout_state()
-                return redirect(url_for("account_done"))
+                return _finish_account_signup()
             except AccountOfflineError:
                 return render_template(
                     "account_password.html",
@@ -474,7 +479,7 @@ def register_client_routes(app, helpers):
 
     @app.route("/account/done")
     def account_done():
-        return render_template("account_done.html")
+        return _finish_account_signup()
 
     @app.route("/account/cap-settings")
     def account_cap_settings():
@@ -486,7 +491,7 @@ def register_client_routes(app, helpers):
 
     @app.route("/account/repair-ledger", methods=["POST"])
     def account_repair_ledger():
-        flash("Trial totals are calculated from your invoices automatically.", "info")
+        flash("Trial totals come from your invoices automatically.", "info")
         return redirect(url_for("settings_account"))
 
     @app.route("/backup/export", methods=["POST"])
@@ -532,7 +537,7 @@ def register_client_routes(app, helpers):
                         target = os.path.join(data_path, os.path.basename(member))
                         with zf.open(member) as src, open(target, "wb") as dst:
                             shutil.copyfileobj(src, dst)
-            flash("Backup restored. Your data has been replaced from the ZIP file.", "success")
+            flash("Backup restored. Your data was replaced from the ZIP.", "success")
             return redirect(url_for("backup_import"))
         return render_template("backup_import.html", error=None)
 

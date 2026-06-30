@@ -26,7 +26,7 @@
         {% endif %}
         <form method="POST"
               action="{{ url_for('invoice_delete', number=inv_num) }}"
-              onsubmit="return confirm('Remove invoice #{{ inv_num }} from your list? Usage for this month will not change.');">
+              onsubmit="return confirm('Remove invoice #{{ inv_num }} from your list? This month\'s usage won\'t change.');">
             <input type="hidden" name="next" value="{{ next_page | default('invoices') }}">
             <button type="submit" class="invoice-action-btn invoice-action-btn--danger">Remove invoice</button>
         </form>

@@ -259,7 +259,7 @@
         {% include "_notice_panel.html" %}
         {% endwith %}
         {% elif generate_allowed and show_trial_usage %}
-        <p class="preview-billing-text">Free trial — {{ trial_meter.invoices_remaining }} invoice(s) and {{ trial_meter.amount_remaining_fmt }} ex GST remaining.</p>
+        <p class="preview-billing-text">Free trial: {{ trial_meter.invoices_remaining }} invoice(s) and {{ trial_meter.amount_remaining_fmt }} ex GST left (20 invoices or $20,000 ex GST total).</p>
         {% endif %}
     </section>
     {% endif %}
@@ -274,7 +274,7 @@
     {% elif gate_status == 'subscription_inactive' %}
     <a href="{{ url_for('settings_account') }}" class="btn btn-primary">Manage subscription</a>
     {% endif %}
-    <p class="home-intro">Your draft is saved. Come back here after you subscribe.</p>
+    <p class="home-intro">Draft saved. Come back after you subscribe.</p>
     {% else %}
     <form method="POST" action="{{ url_for('generate') }}" id="generate-form" class="preview-action-form">
 

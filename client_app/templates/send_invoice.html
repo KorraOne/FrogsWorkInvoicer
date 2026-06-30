@@ -7,7 +7,7 @@
 <div class="send-invoice-page">
     <header class="send-invoice-header">
         <h1>Prepare to send</h1>
-        <p class="home-intro">Invoice <strong>#{{ invoice_number | fmt_invoice_number }}</strong>. Copy the email text, attach the PDF in your email app, then mark as sent.</p>
+        <p class="home-intro">Invoice <strong>#{{ invoice_number | fmt_invoice_number }}</strong>. Copy the email text, attach the PDF, then mark as sent.</p>
     </header>
 
     <section class="send-invoice-section">
@@ -62,7 +62,7 @@
 
     function copyText(text, successLabel) {
         if (!navigator.clipboard || !navigator.clipboard.writeText) {
-            showFeedback("Copy isn't available here. Select the text above.");
+            showFeedback("Copy not available. Select the text above.");
             return;
         }
         navigator.clipboard.writeText(text).then(function () {
@@ -74,7 +74,7 @@
 
     if (copyEmailBtn) {
         copyEmailBtn.addEventListener("click", function () {
-            copyText(clipboardText, "Email text copied. Paste it into your email app.");
+            copyText(clipboardText, "Email text copied. Paste into your email app.");
         });
     }
     if (copyPathBtn) {

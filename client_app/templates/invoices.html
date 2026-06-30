@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Past sales invoices · {{ brand_name }}{% endblock %}
+{% block title %}Past invoices · {{ brand_name }}{% endblock %}
 {% block content %}
-<h1>Past sales invoices</h1>
-<p class="home-intro">Sales invoices you sent. Not supplier bills. Tap a section to expand or collapse.</p>
+<h1>Past invoices</h1>
+<p class="home-intro">Invoices you sent. Not supplier bills.</p>
 
 <details class="invoice-filters-panel"{% if filters_active %} open{% endif %}>
     <summary class="invoice-filters-toggle">
@@ -110,7 +110,7 @@
     <div class="invoice-section-body">
         {% if sent %}
         <p class="invoice-summary">{{ sent_count }} invoice{% if sent_count != 1 %}s{% endif %} owing, {{ sent_total_fmt }} total</p>
-        <p class="invoice-hint">Mark as paid once the money is in your account.</p>
+        <p class="invoice-hint">Mark as paid when the money lands.</p>
             {% for inv in sent %}
             {% set due_info = inv | invoice_due_countdown %}
             <div class="customer-card invoice-card">

@@ -1,20 +1,20 @@
-{% extends "base.html" %}
-{% block title %}Get started · {{ brand_name }}{% endblock %}
-{% block content %}
-{% with step=3, total=3, title="Get started" %}
-{% include "_onboarding_stepper.html" %}
-{% endwith %}
-<h1>You're set up</h1>
-<p class="home-intro">You can create sales invoices now. You only need an account above $2,000 ex GST invoiced in a month.</p>
-
-<h2 class="welcome-subheading">Your data on this PC</h2>
-<p>Settings, customers, and invoices are saved in <code>%APPDATA%\FrogsWork\</code>. PDFs go in the <code>pdfs</code> folder you chose at install (or the default under AppData). Change it anytime in <strong>Settings → Data storage</strong>.</p>
-<p>If you remove an invoice from your list, the billing record stays and the PDF moves to a hidden <code>.deleted</code> folder in AppData, not your PDF folder.</p>
-<p>If you create an account, only your email, hashed password, and usage billing sync to the KorraOne server. Customer details, line items, and PDFs stay on this PC.</p>
-<p class="home-intro home-intro-muted"><a href="{{ brand_privacy_url }}" target="_blank" rel="noopener noreferrer">Privacy Policy</a> and <a href="{{ brand_terms_url }}" target="_blank" rel="noopener noreferrer">Terms</a> on frogswork.com.</p>
-
-<form method="POST" class="onboarding-actions onboarding-actions--center onboarding-actions--stack">
-    <button type="submit" class="btn btn-primary">Go to Home</button>
-    <button type="submit" name="next" value="account" class="btn btn-secondary">Create account now</button>
-</form>
-{% endblock %}
+{% extends "base.html" %}
+{% block title %}Get started · {{ brand_name }}{% endblock %}
+{% block content %}
+{% with step=3, total=3, title="Get started" %}
+{% include "_onboarding_stepper.html" %}
+{% endwith %}
+<h1>You're set up</h1>
+<p class="home-intro">You can create invoices now. You need an account after the free trial (20 invoices or $20,000 ex GST), or above $2,000 ex GST in a month.</p>
+
+<h2 class="welcome-subheading">Your data on this PC</h2>
+<p>Settings, customers, and invoices are in <code>%APPDATA%\FrogsWork\</code>. PDFs go in your <code>pdfs</code> folder. Change the folder in <strong>Settings → Data storage</strong>.</p>
+<p>Removed invoices keep a billing record. The PDF moves to a hidden <code>.deleted</code> folder in AppData.</p>
+<p>With an account, only your email, password, and usage billing sync to KorraOne. Customer details, line items, and PDFs stay on this PC.</p>
+<p class="home-intro home-intro-muted"><a href="{{ brand_privacy_url }}" target="_blank" rel="noopener noreferrer">Privacy Policy</a> and <a href="{{ brand_terms_url }}" target="_blank" rel="noopener noreferrer">Terms</a> on frogswork.com.</p>
+
+<form method="POST" class="onboarding-actions onboarding-actions--center onboarding-actions--stack">
+    <button type="submit" class="btn btn-primary">Go to Home</button>
+    <button type="submit" name="next" value="account" class="btn btn-secondary">Create account now</button>
+</form>
+{% endblock %}

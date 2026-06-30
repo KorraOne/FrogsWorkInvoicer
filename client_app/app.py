@@ -95,7 +95,7 @@ def internal_server_error(exc):
         render_template(
             "error.html",
             code=500,
-            message="Something went wrong. Your invoices and settings on this PC are safe.",
+            message="Something went wrong. Your invoices and settings are safe on this PC.",
         ),
         500,
     )
@@ -110,7 +110,7 @@ def handle_unexpected_error(exc):
         render_template(
             "error.html",
             code=500,
-            message="Something went wrong. Your invoices and settings on this PC are safe.",
+            message="Something went wrong. Your invoices and settings are safe on this PC.",
         ),
         500,
     )
@@ -979,7 +979,7 @@ def invoices_list():
         filter_summary_parts.append(customer_filter)
     if date_from or date_to:
         if date_from and date_to:
-            filter_summary_parts.append(f"{date_from} – {date_to}")
+            filter_summary_parts.append(f"{date_from} to {date_to}")
         elif date_from:
             filter_summary_parts.append(f"From {date_from}")
         else:
@@ -1103,7 +1103,7 @@ def invoice_delete(number):
     _clear_invoice_send_session(number)
 
     flash(
-        "Invoice removed from your list. This month's usage is unchanged.",
+        "Invoice removed from your list. This month's usage stays the same.",
         "success",
     )
     return redirect(url_for("invoices_list"))
@@ -1407,7 +1407,7 @@ def settings_account():
                 verify_message = ("Subscription verified.", "success")
                 entitlement_just_synced = True
             except account_client.AccountOfflineError:
-                verify_message = ("Could not reach the server. Check your connection.", "error")
+                verify_message = ("Couldn't reach the server. Check your connection.", "error")
             except account_client.AccountError as exc:
                 verify_message = (account_client.map_http_auth_error(str(exc)), "error")
         elif action == "portal":
@@ -1420,11 +1420,11 @@ def settings_account():
                     verify_message = ("Opened Stripe billing portal in your browser.", "success")
                 else:
                     verify_message = (
-                        "Billing portal is not available yet. Try Verify subscription first.",
+                        "Billing portal not available yet. Try Verify subscription first.",
                         "error",
                     )
             except account_client.AccountOfflineError:
-                verify_message = ("Could not reach the server. Check your connection.", "error")
+                verify_message = ("Couldn't reach the server. Check your connection.", "error")
             except account_client.AccountError as exc:
                 verify_message = (account_client.map_http_auth_error(str(exc)), "error")
 
@@ -1517,7 +1517,7 @@ def settings_storage_pick():
 def settings_storage_reset():
     try:
         storage.reset_pdf_folder()
-        flash("PDF folder moved back to the default location.", "success")
+        flash("PDF folder moved back to default location.", "success")
     except OSError as exc:
         flash(f"Couldn't move the PDF folder: {exc}", "error")
     return redirect(url_for("settings_page"))

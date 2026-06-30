@@ -3,7 +3,7 @@
 {% block content %}
 <div class="settings-page">
 <h1>Your account</h1>
-<p class="home-intro">Sign-in and subscription.</p>
+<p class="home-intro">Sign in and subscription.</p>
 
 {% if verify_flash %}
 <div class="{{ 'form-success' if verify_flash[1] == 'success' else 'error' }}">{{ verify_flash[0] }}</div>
@@ -42,7 +42,7 @@
                 <button type="submit" class="btn btn-primary btn-small">Manage subscription</button>
             </form>
         </div>
-        <p class="settings-section-hint">Manage subscription opens Stripe’s billing portal to update payment method, change plan, or cancel.</p>
+        <p class="settings-section-hint">Opens Stripe's billing portal to update payment, change plan, or cancel.</p>
         <p id="resubscribe-row" class="settings-account-resubscribe{% if entitlement.active %} hidden{% endif %}">
             <a href="{{ url_for('account_subscribe') }}" class="btn btn-secondary btn-small">Resubscribe</a>
         </p>
@@ -100,7 +100,7 @@
             if (ent.canceling) {
                 html += '<p class="settings-link-hint">Cancelled';
                 if (until) {
-                    html += ' — available until ' + escapeHtml(formatDate(until));
+                    html += '. Available until ' + escapeHtml(formatDate(until));
                 }
                 html += '</p>';
                 if (ent.plan_interval) {
@@ -119,7 +119,7 @@
         } else if (ent.status === 'canceled') {
             html += '<p class="settings-link-hint">Cancelled';
             if (until) {
-                html += ' — ended ' + escapeHtml(formatDate(until));
+                html += '. Ended ' + escapeHtml(formatDate(until));
             }
             html += '</p>';
         } else if (ent.status) {
@@ -127,7 +127,7 @@
         } else if (ent.last_verified_at) {
             html += '<p class="settings-link-hint">No active subscription</p>';
         } else {
-            html += '<p class="settings-link-hint">Not verified yet — use Verify subscription</p>';
+            html += '<p class="settings-link-hint">Not verified yet. Use Verify subscription.</p>';
         }
         if (ent.last_verified_at) {
             html += '<p class="settings-link-hint">Last verified ' + escapeHtml(formatDateTime(ent.last_verified_at)) + '</p>';
@@ -141,7 +141,7 @@
             servicesEl.textContent = '';
             servicesEl.classList.add('hidden');
         } else {
-            servicesEl.textContent = 'Account server unavailable — check your connection.';
+            servicesEl.textContent = 'Account server unavailable. Check your connection.';
             servicesEl.classList.remove('hidden');
         }
     }
@@ -161,7 +161,7 @@
         .then(applyStatus)
         .catch(function () {
             if (!statusEl) return;
-            statusEl.innerHTML = '<p class="settings-link-hint settings-link-hint--warn">Could not check subscription. Try Verify subscription.</p>';
+            statusEl.innerHTML = '<p class="settings-link-hint settings-link-hint--warn">Couldn\'t check subscription. Try Verify subscription.</p>';
             setServicesHint(false);
         });
 })();

@@ -3,11 +3,11 @@
 {% block content %}
 <div class="settings-page">
 <h1>Backup &amp; restore</h1>
-<p class="home-intro">Export your config and invoice PDFs, or restore from a previous backup ZIP.</p>
+<p class="home-intro">Export config and invoice PDFs, or restore from a backup ZIP.</p>
 
 <section class="settings-panel backup-panel">
     <h2 class="settings-section-heading">Export</h2>
-    <p class="settings-section-hint">Saves settings, customers, invoices, and PDFs to a ZIP file on your computer.</p>
+    <p class="settings-section-hint">Saves settings, customers, invoices, and PDFs to a ZIP on your computer.</p>
     <form method="POST" action="{{ url_for('backup_export') }}">
         <button type="submit" class="btn btn-primary">Save backup (ZIP)…</button>
     </form>
@@ -15,7 +15,7 @@
 
 <section class="settings-panel backup-panel">
     <h2 class="settings-section-heading">Restore</h2>
-    <p class="settings-section-hint">Restore replaces AppData files and copies PDFs into your folders.</p>
+    <p class="settings-section-hint">Replaces AppData files and copies PDFs into your folders.</p>
     {% if error %}
     <div class="error">{{ error }}</div>
     {% endif %}

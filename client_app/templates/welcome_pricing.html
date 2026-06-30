@@ -5,13 +5,13 @@
 {% include "_onboarding_stepper.html" %}
 {% endwith %}
 <h1>Pricing</h1>
-<p class="home-intro">Start invoicing straight away. No account needed at first.</p>
+<p class="home-intro">Start invoicing now. No account needed.</p>
 <ul class="welcome-list">
-    <li><strong>Free trial:</strong> up to 20 invoices or $20,000 ex GST (lifetime)</li>
+    <li><strong>Free trial:</strong> 20 invoices or $20,000 ex GST</li>
     <li><strong>Then subscribe:</strong> {{ subscription_monthly_display }} or {{ subscription_annual_display }} ({{ subscription_annual_savings }})</li>
     <li>Works offline. Your invoice data stays on this PC.</li>
 </ul>
-<p>When you hit the trial limit, create an account and subscribe to keep generating invoices.</p>
+<p>After the trial, subscribe to keep generating invoices.</p>
 <div class="onboarding-actions onboarding-actions--center onboarding-actions--fill">
     <a href="{{ url_for('welcome_done') }}" class="btn btn-primary">Continue</a>
 </div>

@@ -7,7 +7,7 @@
         {{ usage_meter.lifetime_ex_gst_fmt }} / {{ usage_meter.max_ex_gst_fmt }} ex GST
     </p>
     {% if usage_meter.trial_exhausted %}
-    <p class="free-allowance-bar-caption">Trial limit reached — subscribe to keep invoicing.</p>
+    <p class="free-allowance-bar-caption">Trial limit reached. Subscribe to keep invoicing.</p>
     {% elif usage_meter.authenticated and usage_meter.subscription_active %}
     <p class="free-allowance-bar-caption">Subscribed{% if usage_meter.email %} · {{ usage_meter.email }}{% endif %}</p>
     {% endif %}

@@ -110,7 +110,7 @@ def reveal_pdf_in_folder(pdf_path):
     if not os.path.isfile(pdf_path):
         raise EmailComposeError("Invoice PDF not found.")
     if sys.platform != "win32":
-        raise EmailComposeError("Show in folder is only available on Windows.")
+        raise EmailComposeError("Show in folder is Windows only.")
 
     path = os.path.normpath(os.path.abspath(pdf_path))
 
@@ -133,7 +133,7 @@ def reveal_pdf_in_folder(pdf_path):
         os.startfile(folder)
         raise EmailComposeError(
             "Opened the invoice folder but couldn't highlight the PDF. "
-            "Look for the file in the folder that opened."
+            "Find the file in the folder that opened."
         )
     except OSError as exc:
         log.warning("os.startfile failed for %s: %s", folder, exc)

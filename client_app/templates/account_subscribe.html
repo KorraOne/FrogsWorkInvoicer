@@ -7,7 +7,7 @@
 {% endwith %}
 
 <h1>Subscribe to {{ brand_name }}</h1>
-<p class="home-intro">Your free trial has ended. Choose a plan — Stripe collects your email and payment. Then you set a password in this app.</p>
+<p class="home-intro">Your free trial has ended. Choose a plan. Stripe collects your email and payment. Then set a password in this app.</p>
 
 <div class="subscribe-plans">
     <article class="subscribe-plan">
@@ -64,7 +64,7 @@
 
 {% if opened_checkout or awaiting_payment %}
 <div class="subscribe-notice subscribe-notice--success" id="subscribe-waiting">
-    <p><strong>Step 2 — Pay in your browser.</strong> Use the email you want for your account. When payment succeeds, this screen will continue automatically.</p>
+    <p><strong>Step 2: Pay in your browser.</strong> Use the email you want for your account. This screen continues when payment succeeds.</p>
     {% if checkout_url %}
     <p><a href="{{ checkout_url }}" class="btn btn-secondary btn-small" target="_blank" rel="noopener">Open payment page again</a></p>
     {% endif %}

@@ -9,9 +9,9 @@
 <h1>Invoice ready</h1>
 
 {% if invoice_number %}
-<p class="done-lead">Invoice <strong>#{{ invoice_number }}</strong> has been saved.</p>
+<p class="done-lead">Invoice <strong>#{{ invoice_number }}</strong> saved.</p>
 {% else %}
-<p class="done-lead">Your invoice has been saved.</p>
+<p class="done-lead">Invoice saved.</p>
 {% endif %}
 
 <div class="done-steps">
@@ -39,7 +39,7 @@
             {% if marked_sent %}
             <p class="done-step-hint">Marked as sent{% if sent_date %} on {{ sent_date | fmt_invoice_date }}{% endif %}.</p>
             {% elif send_later %}
-            <p class="done-step-hint">You'll send this later. It stays in Past invoices under Not sent.</p>
+            <p class="done-step-hint">Send later. Stays in Past invoices under Not sent.</p>
             {% else %}
             <p class="done-step-hint">Use Prepare to send to copy the email text, attach the PDF, and mark as sent.</p>
             {% if invoice_number %}
