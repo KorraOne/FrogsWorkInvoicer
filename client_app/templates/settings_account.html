@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Your account · {{ brand_name }}{% endblock %}
 {% block content %}
+<div class="settings-page">
 <h1>Your account</h1>
 <p class="home-intro">Sign-in and subscription.</p>
 
@@ -41,7 +42,7 @@
                 <button type="submit" class="btn btn-primary btn-small">Manage subscription</button>
             </form>
         </div>
-        <p class="form-hint">Manage subscription opens Stripe’s billing portal to update payment method, change plan, or cancel.</p>
+        <p class="settings-section-hint">Manage subscription opens Stripe’s billing portal to update payment method, change plan, or cancel.</p>
         <p id="resubscribe-row" class="settings-account-resubscribe{% if entitlement.active %} hidden{% endif %}">
             <a href="{{ url_for('account_subscribe') }}" class="btn btn-secondary btn-small">Resubscribe</a>
         </p>
@@ -166,4 +167,5 @@
 })();
 </script>
 {% endif %}
+</div>
 {% endblock %}

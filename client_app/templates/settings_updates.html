@@ -1,22 +1,23 @@
 {% extends "base.html" %}
 {% block title %}App update · {{ brand_name }}{% endblock %}
 {% block content %}
+<div class="settings-page">
 <h1>App update</h1>
 <p class="home-intro">Installed version <strong>{{ app_version }}</strong>. Updates don't change your invoices or account data in AppData.</p>
 
 {% if not packaged %}
-<div class="preview-section">
-    <p>Updates only run in the packaged app. For development, rebuild with <code>build_client.ps1</code>.</p>
-</div>
+<section class="settings-panel">
+    <p class="settings-section-hint">Updates only run in the packaged app. For development, rebuild with <code>build_client.ps1</code>.</p>
+</section>
 {% elif server_unreachable %}
 <div class="error">Couldn't reach the server to check for updates. Try again when you're online.</div>
 {% elif pending %}
-<div class="preview-section update-panel">
-    <h2 class="billing-section-heading">Version {{ pending.version }} available</h2>
+<section class="settings-panel update-panel">
+    <h2 class="settings-section-heading">Version {{ pending.version }} available</h2>
     {% if pending.notes %}
-    <p>{{ pending.notes }}</p>
+    <p class="settings-section-hint">{{ pending.notes }}</p>
     {% else %}
-    <p>A newer version of {{ brand_name }} is ready to install.</p>
+    <p class="settings-section-hint">A newer version of {{ brand_name }} is ready to install.</p>
     {% endif %}
     {% if error %}
     <div class="error">{{ error }}</div>
@@ -25,8 +26,8 @@
         <input type="hidden" name="action" value="apply">
         <button type="submit" class="btn btn-primary">Update now</button>
     </form>
-    <p class="billing-panel-note">The app downloads the update, restarts, and replaces its files. Your data in <code>%APPDATA%\FrogsWork\</code> is not touched.</p>
-</div>
+    <p class="settings-page-note">The app downloads the update, restarts, and replaces its files. Your data in <code>%APPDATA%\FrogsWork\</code> is not touched.</p>
+</section>
 {% else %}
 <div class="form-success">
     <p>You are on the latest version.</p>
@@ -37,4 +38,5 @@
     <input type="hidden" name="action" value="check">
     <button type="submit" class="btn btn-secondary">Check again</button>
 </form>
+</div>
 {% endblock %}

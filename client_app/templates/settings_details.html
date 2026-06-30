@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Your details · {{ brand_name }}{% endblock %}
 {% block content %}
+<div class="settings-page">
 <h1>Your details</h1>
 <p class="home-intro">Business and bank details on your invoices.</p>
 
@@ -10,7 +11,7 @@
 
 <form method="POST" class="settings-details-form">
     <section class="settings-details-section">
-        <h2 class="settings-details-heading">Business</h2>
+        <h2 class="settings-section-heading">Business</h2>
         <div class="form-group">
             <label for="business_name">Business name</label>
             <input type="text" name="business_name" id="business_name" value="{{ settings.business_name }}" placeholder="{{ ph.business_name }}">
@@ -28,7 +29,7 @@
     </section>
 
     <section class="settings-details-section">
-        <h2 class="settings-details-heading">Bank details</h2>
+        <h2 class="settings-section-heading">Bank details</h2>
         <div class="settings-details-grid">
             <div class="form-group">
                 <label for="bsb">BSB</label>
@@ -55,6 +56,7 @@
 
     <button type="submit" class="btn btn-primary">Save</button>
 </form>
+</div>
 
 <script src="{{ url_for('static', filename='gst_registration_ui.js') }}"></script>
 <script src="{{ url_for('static', filename='due_rule_ui.js') }}"></script>

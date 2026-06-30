@@ -1,20 +1,21 @@
 {% extends "base.html" %}
 {% block title %}Backup · {{ brand_name }}{% endblock %}
 {% block content %}
+<div class="settings-page">
 <h1>Backup &amp; restore</h1>
 <p class="home-intro">Export your config and invoice PDFs, or restore from a previous backup ZIP.</p>
 
-<section class="backup-panel">
-    <h2 class="backup-panel-heading">Export</h2>
-    <p class="form-hint">Saves settings, customers, invoices, and PDFs to a ZIP file on your computer.</p>
+<section class="settings-panel backup-panel">
+    <h2 class="settings-section-heading">Export</h2>
+    <p class="settings-section-hint">Saves settings, customers, invoices, and PDFs to a ZIP file on your computer.</p>
     <form method="POST" action="{{ url_for('backup_export') }}">
         <button type="submit" class="btn btn-primary">Save backup (ZIP)…</button>
     </form>
 </section>
 
-<section class="backup-panel">
-    <h2 class="backup-panel-heading">Restore</h2>
-    <p class="form-hint">Restore replaces AppData files and copies PDFs into your folders.</p>
+<section class="settings-panel backup-panel">
+    <h2 class="settings-section-heading">Restore</h2>
+    <p class="settings-section-hint">Restore replaces AppData files and copies PDFs into your folders.</p>
     {% if error %}
     <div class="error">{{ error }}</div>
     {% endif %}
@@ -26,4 +27,5 @@
         <button type="submit" class="btn btn-secondary">Restore from backup</button>
     </form>
 </section>
+</div>
 {% endblock %}

@@ -2202,16 +2202,41 @@ button.onboarding-skip {
 
 .subscribe-plans {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1rem;
-    margin: 1.5rem 0;
+    margin: 1.25rem 0 1.5rem;
+    align-items: stretch;
+    flex: 1 1 auto;
+}
+
+.subscribe-page {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 
 .subscribe-plan {
+    display: flex;
+    flex-direction: column;
     border: 2px solid var(--fw-green-200);
     border-radius: 8px;
-    padding: 1.25rem;
+    padding: 1.15rem 1.25rem;
     background: #fff;
+    min-height: 100%;
+}
+
+.subscribe-plan-header {
+    flex: 1 1 auto;
+}
+
+.subscribe-plan-foot {
+    margin-top: auto;
+    padding-top: 0.85rem;
+}
+
+.subscribe-plan-form {
+    margin: 0;
 }
 
 .subscribe-plan--featured {
@@ -2220,34 +2245,47 @@ button.onboarding-skip {
 }
 
 .subscribe-plan-badge {
-    margin: 0 0 0.5rem;
-    font-size: 0.85rem;
+    margin: 0 0 0.35rem;
+    font-size: 0.8rem;
     font-weight: 600;
     color: var(--fw-green-700);
     text-transform: uppercase;
     letter-spacing: 0.04em;
+    line-height: 1.2;
+}
+
+.subscribe-plan-badge--placeholder {
+    visibility: hidden;
 }
 
 .subscribe-plan-title {
     margin: 0 0 0.35rem;
-    font-size: 1.15rem;
+    font-size: 1.1rem;
 }
 
 .subscribe-plan-price {
-    margin: 0 0 0.75rem;
-    font-size: 1.5rem;
+    margin: 0 0 0.35rem;
+    font-size: 1.45rem;
     font-weight: 700;
     color: var(--fw-green-900);
+    line-height: 1.2;
 }
 
 .subscribe-plan-savings {
-    margin: -0.35rem 0 0.75rem;
+    margin: 0 0 0.5rem;
     font-size: 0.95rem;
     color: var(--fw-green-700);
+    line-height: 1.3;
+    min-height: 1.25rem;
+}
+
+.subscribe-plan-savings--placeholder {
+    visibility: hidden;
 }
 
 .subscribe-plan-btn {
     width: 100%;
+    margin-bottom: 0;
 }
 
 .subscribe-notice {
@@ -2292,15 +2330,121 @@ button.onboarding-skip {
 }
 
 .subscribe-terms {
+    margin-bottom: 0.5rem;
+}
+
+.subscribe-terms.form-group {
+    margin-bottom: 0.5rem;
+}
+
+.subscribe-terms .checkbox-label {
+    font-size: 0.95rem;
+    line-height: 1.4;
+}
+
+.subscribe-page .onboarding-stepper {
+    margin-bottom: 1.25rem;
+}
+
+.subscribe-page h1 {
+    font-size: 1.85rem;
     margin-bottom: 0.75rem;
 }
 
+.subscribe-page .home-intro {
+    font-size: 1.15rem;
+    margin: 0 0 1rem;
+    line-height: 1.45;
+}
+
+.subscribe-page .form-footer {
+    margin-top: auto;
+    padding-top: 1.25rem;
+    font-size: 1.05rem;
+}
+
+@media (max-width: 640px) {
+    .subscribe-plans {
+        grid-template-columns: 1fr;
+    }
+}
+
 .subscribe-account-email {
-    margin: 0 0 1.25rem;
+    margin: 0 0 1rem;
     padding: 0.85rem 1rem;
     background: #f4f8f5;
     border-radius: 6px;
     border: 1px solid var(--fw-green-200);
+}
+
+.account-password-page {
+    max-width: 520px;
+    margin: 0 auto;
+    padding-bottom: 2.5rem;
+    flex: 0 0 auto;
+}
+
+.account-password-page h1 {
+    margin-bottom: 0.75rem;
+}
+
+.account-password-page .home-intro {
+    margin: 0 0 1rem;
+    font-size: 1.15rem;
+    line-height: 1.45;
+}
+
+.account-password-page .onboarding-stepper {
+    margin-bottom: 1.25rem;
+}
+
+.account-password-page .subscribe-account-email {
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.account-password-page .form-hint {
+    margin: 0 0 1rem;
+}
+
+.account-password-page .form-group {
+    margin-bottom: 1.1rem;
+}
+
+.account-password-submit {
+    margin-top: 1.25rem;
+    margin-bottom: 0;
+}
+
+.account-password-submit .btn {
+    margin-bottom: 0;
+}
+
+.account-password-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 0.25rem;
+    max-width: 100%;
+}
+
+.account-password-actions .btn {
+    flex: 0 0 auto;
+    width: 100%;
+    min-height: 48px;
+    height: auto;
+    margin-bottom: 0;
+    font-size: 1.15rem;
+    padding: 0.7rem 1.25rem;
+    line-height: 1.3;
+}
+
+.account-password-actions form {
+    margin: 0;
+}
+
+.container:has(.account-password-page) {
+    padding-bottom: 2.5rem;
 }
 
 .page-actions {
@@ -2637,6 +2781,10 @@ button.onboarding-skip {
     padding-bottom: 0;
 }
 
+.settings-page .settings-details-heading {
+    margin: 0 0 0.5rem;
+}
+
 .settings-details-heading {
     margin: 0 0 0.65rem;
     font-size: 1.05rem;
@@ -2941,6 +3089,87 @@ button.onboarding-skip {
 .billing-section-compact {
     padding-bottom: 1rem;
     margin-bottom: 1.5rem;
+}
+
+.settings-page .home-intro {
+    font-size: 1.15rem;
+    color: var(--fw-text-muted);
+    margin: -0.35rem 0 1.25rem 0;
+    line-height: 1.45;
+}
+
+.settings-section-heading,
+.settings-page .settings-details-heading,
+.settings-page .due-rule-heading,
+.settings-page .backup-panel-heading,
+.settings-page .billing-section-heading,
+.settings-page .storage-current-label,
+.settings-page .gst-registration-legend {
+    margin: 0 0 0.5rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--fw-text);
+}
+
+.settings-section-hint,
+.settings-page .due-rule-hint,
+.settings-page .form-hint,
+.settings-page .storage-current-hint,
+.settings-page .billing-section-intro,
+.settings-page .gst-registration-fieldset > .form-hint {
+    margin: 0 0 1rem;
+    font-size: 0.95rem;
+    color: #555555;
+    line-height: 1.45;
+}
+
+.settings-page-note,
+.settings-page .storage-note,
+.settings-page .billing-panel-note {
+    margin: 1.25rem 0 0;
+    font-size: 0.95rem;
+    color: #64748b;
+    line-height: 1.45;
+}
+
+.settings-page .billing-panel-note {
+    padding: 0.75rem 1rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    color: #475569;
+}
+
+.settings-panel,
+.settings-subscription-panel,
+.backup-panel {
+    margin-bottom: 1.25rem;
+    padding: 1.25rem;
+    border: 2px solid var(--fw-green-200);
+    border-radius: 8px;
+    background: #f8fcf9;
+}
+
+.settings-nav .nav-card-title {
+    font-size: 1.25rem;
+}
+
+.settings-page .settings-link-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.settings-page .settings-link-hint {
+    font-size: 0.95rem;
+    color: #555555;
+    line-height: 1.45;
+}
+
+.settings-nav .nav-card-hint {
+    font-size: 0.95rem;
+    font-weight: 400;
+    opacity: 1;
+    color: #555555;
 }
 
 .settings-nav {

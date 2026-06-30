@@ -1,14 +1,18 @@
 {% extends "base.html" %}
 {% block title %}Logo design · {{ brand_name }}{% endblock %}
 {% block content %}
+<div class="settings-page">
 <h1>Logo design</h1>
-<p class="home-intro">We're using a draft logo for now. Email us if you'd like to help design the frog mark.</p>
+<p class="home-intro">We're using a draft logo for now. Email us if you'd like to help design the FrogsWork mark.</p>
 
-<p class="logo-design-email">
-    <a href="{{ mailto_href }}">{{ contact_email }}</a>
-</p>
+<section class="settings-panel">
+    <p class="logo-design-email">
+        <a href="{{ mailto_href }}">{{ contact_email }}</a>
+    </p>
 
-<div class="onboarding-actions onboarding-actions--center">
-    <a href="{{ mailto_href }}" class="btn btn-primary">Send email</a>
+    <div class="onboarding-actions onboarding-actions--center">
+        <a href="{{ mailto_href }}" class="btn btn-primary">Send email</a>
+    </div>
+</section>
 </div>
 {% endblock %}

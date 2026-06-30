@@ -1,51 +1,61 @@
 {% extends "base.html" %}
 {% block title %}Subscribe · {{ brand_name }}{% endblock %}
 {% block content %}
+<div class="subscribe-page">
 {% with step=1, total=signup_steps|default(3), title="Choose a plan" %}
 {% include "_onboarding_stepper.html" %}
 {% endwith %}
 
 <h1>Subscribe to {{ brand_name }}</h1>
-<p class="home-intro">Your free trial has ended. Choose a plan — Stripe will collect your email and payment. Then you will set a password in this app.</p>
-<p class="form-hint">Already subscribed with this email? <a href="{{ url_for('account_login') }}">Sign in</a> instead of paying again.</p>
+<p class="home-intro">Your free trial has ended. Choose a plan — Stripe collects your email and payment. Then you set a password in this app.</p>
 
 <div class="subscribe-plans">
     <article class="subscribe-plan">
-        <h2 class="subscribe-plan-title">Monthly</h2>
-        <p class="subscribe-plan-price">{{ subscription_monthly_display }}</p>
+        <div class="subscribe-plan-header">
+            <p class="subscribe-plan-badge subscribe-plan-badge--placeholder" aria-hidden="true">Best value</p>
+            <h2 class="subscribe-plan-title">Monthly</h2>
+            <p class="subscribe-plan-price">{{ subscription_monthly_display }}</p>
+            <p class="subscribe-plan-savings subscribe-plan-savings--placeholder" aria-hidden="true">{{ subscription_annual_savings }}</p>
+        </div>
         {% if has_monthly_link %}
-        <form method="POST">
-            <input type="hidden" name="plan" value="monthly">
-            <div class="form-group form-group-checkbox subscribe-terms">
-                <label class="checkbox-label">
-                    <input type="checkbox" name="accept_terms" value="1" required>
-                    I agree to the <a href="{{ brand_terms_url }}" target="_blank" rel="noopener noreferrer">Terms</a>
-                    and <a href="{{ brand_privacy_url }}" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
-                </label>
-            </div>
-            <button type="submit" class="btn btn-secondary subscribe-plan-btn">Pay monthly</button>
-        </form>
+        <div class="subscribe-plan-foot">
+            <form method="POST" class="subscribe-plan-form">
+                <input type="hidden" name="plan" value="monthly">
+                <div class="form-group form-group-checkbox subscribe-terms">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="accept_terms" value="1" required>
+                        I agree to the <a href="{{ brand_terms_url }}" target="_blank" rel="noopener noreferrer">Terms</a>
+                        and <a href="{{ brand_privacy_url }}" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+                    </label>
+                </div>
+                <button type="submit" class="btn btn-secondary subscribe-plan-btn">Pay monthly</button>
+            </form>
+        </div>
         {% else %}
         <p class="form-hint">Not configured yet.</p>
         {% endif %}
     </article>
     <article class="subscribe-plan subscribe-plan--featured">
-        <p class="subscribe-plan-badge">Best value</p>
-        <h2 class="subscribe-plan-title">Annual</h2>
-        <p class="subscribe-plan-price">{{ subscription_annual_display }}</p>
-        <p class="subscribe-plan-savings">{{ subscription_annual_savings }}</p>
+        <div class="subscribe-plan-header">
+            <p class="subscribe-plan-badge">Best value</p>
+            <h2 class="subscribe-plan-title">Annual</h2>
+            <p class="subscribe-plan-price">{{ subscription_annual_display }}</p>
+            <p class="subscribe-plan-savings">{{ subscription_annual_savings }}</p>
+        </div>
         {% if has_annual_link %}
-        <form method="POST">
-            <input type="hidden" name="plan" value="annual">
-            <div class="form-group form-group-checkbox subscribe-terms">
-                <label class="checkbox-label">
-                    <input type="checkbox" name="accept_terms" value="1" required>
-                    I agree to the <a href="{{ brand_terms_url }}" target="_blank" rel="noopener noreferrer">Terms</a>
-                    and <a href="{{ brand_privacy_url }}" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
-                </label>
-            </div>
-            <button type="submit" class="btn btn-primary subscribe-plan-btn">Pay annually</button>
-        </form>
+        <div class="subscribe-plan-foot">
+            <form method="POST" class="subscribe-plan-form">
+                <input type="hidden" name="plan" value="annual">
+                <div class="form-group form-group-checkbox subscribe-terms">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="accept_terms" value="1" required>
+                        I agree to the <a href="{{ brand_terms_url }}" target="_blank" rel="noopener noreferrer">Terms</a>
+                        and <a href="{{ brand_privacy_url }}" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+                    </label>
+                </div>
+                <button type="submit" class="btn btn-primary subscribe-plan-btn">Pay annually</button>
+            </form>
+        </div>
         {% else %}
         <p class="form-hint">Not configured yet.</p>
         {% endif %}
@@ -64,6 +74,7 @@
 {% if error %}<div class="error">{{ error }}</div>{% endif %}
 
 <p class="form-footer">Already subscribed? <a href="{{ url_for('account_login') }}">Sign in</a></p>
+</div>
 
 {% if awaiting_payment %}
 <script>
