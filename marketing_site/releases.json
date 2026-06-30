@@ -1,21 +1,10 @@
 {
-  "published_at": "2026-06-28",
-  "history": [
-    {
-      "notes": "Windows installer with cleaner uninstall",
-      "version": "1.1.0",
-      "published_at": "2026-06-28"
-    },
-    {
-      "version": "1.0.0",
-      "published_at": "2026-06-01",
-      "notes": "First public release. Create sales invoices, track customers, and work offline within the free allowance."
-    }
-  ],
-  "version": "1.1.0",
-  "setup_sha256": "bdea91c1a1367f38771b2fcbfb1a3992ba0c3b2a60f1e847001a250b5ebd8090",
-  "sha256": "b5e2c4b47e771df25fc74f70d1d369df1d3be6ee09a1e16f39695051b0c89f27",
-  "notes": "Windows installer with cleaner uninstall",
-  "download_path": "https://downloads.frogswork.com/FrogsWork-1.1.0-setup.exe",
-  "update_zip_path": "https://downloads.frogswork.com/FrogsWork-1.1.0-win64.zip"
+  "published_at": "",
+  "version": "",
+  "notes": "",
+  "download_path": "",
+  "setup_sha256": "",
+  "sha256": "",
+  "update_zip_path": "",
+  "history": []
 }

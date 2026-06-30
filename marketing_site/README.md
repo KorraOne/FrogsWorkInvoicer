@@ -1,11 +1,11 @@
 # FrogsWork marketing site
 
-Static site at **https://frogswork.com**. Deployed via Cloudflare Worker **`frogswork-invoicer`** and [`wrangler.toml`](wrangler.toml) in this folder.
+Static site at **https://frogswork.com**. Deployed via Cloudflare Worker **`frogswork-invoicer`** and [`wrangler.toml`](wrangler.toml).
 
-Release files: **https://downloads.frogswork.com** (R2, not in git):
+**Installers and update zips** live on **https://downloads.frogswork.com** (R2, not deployed with this site):
 
 - **`FrogsWork-x.y.z-setup.exe`** — linked from `/download.html` via `releases.json` → `download_path`
-- **`FrogsWork-x.y.z-win64.zip`** — in-app updates only (Pi `CLIENT_RELEASE_*`)
+- **`FrogsWork-x.y.z-win64.zip`** — in-app updates via account API `CLIENT_RELEASE_*` vars
 
 **Deploy:** [DEPLOY.md](../docs/commercial/DEPLOY.md) · [STRIPE_SETUP.md](../docs/commercial/STRIPE_SETUP.md)
 
@@ -14,10 +14,17 @@ Release files: **https://downloads.frogswork.com** (R2, not in git):
 | Path | Purpose |
 |------|---------|
 | `/` | Home |
-| `/pricing.html` | Pricing |
+| `/pricing.html` | Pricing (subscribe happens in the desktop app) |
 | `/download.html` | Latest release (`releases.json`) |
+| `/support.html` | Support hub |
+| `/issues.html` | Frequent issues + troubleshooting |
+| `/contact.html` | Contact support |
 | `/privacy.html` | Privacy |
 | `/terms.html` | Terms |
+
+## Layout
+
+Public HTML lives at the **site root** (flat URLs — no build step). `downloads/` is local packaging only and excluded from deploy.
 
 ## Publish a release (Windows)
 
@@ -27,11 +34,9 @@ Release files: **https://downloads.frogswork.com** (R2, not in git):
 
 Then:
 
-1. Upload **setup.exe** and **zip** to R2
-2. Set `CLIENT_RELEASE_*` on the account API Worker (zip URL + zip SHA256)
-3. Push `marketing_site/releases.json` and deploy (`cd marketing_site; npx wrangler deploy`)
-
-See [DEPLOY.md](../docs/commercial/DEPLOY.md) for the full checklist.
+1. Upload **setup.exe** and **zip** to R2 (`downloads.frogswork.com`)
+2. Set `CLIENT_RELEASE_*` on the account API Worker (zip URL + SHA256)
+3. Commit `marketing_site/releases.json` and deploy: `cd marketing_site; npx wrangler deploy`
 
 ## Local preview
 
@@ -40,10 +45,12 @@ cd marketing_site
 python -m http.server 8088
 ```
 
-## Cloudflare settings
+## Cloudflare
 
 | Setting | Value |
 |---------|--------|
-| Deploy command | `npx wrangler deploy` |
-| Build command | *(none)* |
-| Custom domain | `frogswork.com` |
+| Deploy | `npx wrangler deploy` |
+| Build | *(none — static assets)* |
+| Domain | `frogswork.com` |
+
+The `downloads/` folder is for local packaging only; it is excluded from Worker deploy (see `wrangler.toml`).

@@ -13,15 +13,16 @@ Create matching **live** prices before go-live and update `account_api/worker/wr
 
 ## Payment links (recommended)
 
-Use **Stripe Payment Links** for checkout in the desktop app and marketing site. No API call (and no Cloudflare) needed when the user pays.
+Use **Stripe Payment Links** for checkout in the **desktop app**. No API call needed when the user pays.
 
 ### Create links
 
 1. Stripe Dashboard → **Payment links** → **New**
 2. Product: monthly ($12.99) or annual ($129.90) subscription price
 3. **After payment** must **redirect** (not Stripe’s hosted confirmation page) to:  
-   `http://127.0.0.1:5000/account/stripe/return?session_id={CHECKOUT_SESSION_ID}`
-4. Copy each link (`https://buy.stripe.com/…`) into `.dev.vars`
+   `http://127.0.0.1:5000/account/stripe/return?session_id={CHECKOUT_SESSION_ID}`  
+   For production packaged app, use the same URL pattern — the app serves `127.0.0.1:5000` locally.
+4. Copy each link (`https://buy.stripe.com/…`) into `account_api/dev/.dev.vars`
 
 Or run (updates links via API from `.dev.vars`):
 
@@ -44,17 +45,11 @@ Payment link **After payment** URL must be exactly:
 
 (Shown at the bottom of the in-app subscribe page.)
 
-Or set environment variables before running the app.
-
 ### Marketing site
 
-Edit `marketing_site/pricing.html` — replace `test_REPLACE_MONTHLY` / `test_REPLACE_ANNUAL` in the button URLs.
+Subscription checkout runs **in the app**, not on [pricing.html](../../marketing_site/pricing.html). The marketing site describes pricing only.
 
 ---
-
-## Checkout API (optional)
-
-The Worker/Flask `POST /checkout/create` route still exists if you prefer programmatic Checkout sessions. Payment links are simpler for the desktop app.
 
 ## Checkout flow (payment links)
 
@@ -74,14 +69,7 @@ Business details and customers stay in **Welcome** or **Settings** — not in th
 3. Stripe redirects to `http://127.0.0.1:5000/account/stripe/return?session_id=…`; app polls and continues
 4. User sets password → API registers using checkout session email → full access
 
----
-
-## Legacy: Checkout API flow
-
-1. Desktop app calls `POST /checkout/create` with `{ "plan": "monthly" | "annual" }`.
-2. User pays on Stripe-hosted Checkout.
-3. Success redirect: `https://frogswork.com/subscribe/success.html?session_id={CHECKOUT_SESSION_ID}`.
-4. User registers with email + password + `checkout_session_id`; API links Stripe customer to the account.
+See also [`account_api/ROUTES.md`](../../account_api/ROUTES.md).
 
 ## Customer portal
 
@@ -101,10 +89,6 @@ Subscribe to:
 - `customer.subscription.deleted`
 
 Entitlements are checked live on `/entitlements`; webhooks acknowledge events for future automation.
-
-## Marketing site (optional)
-
-Payment link buttons on [pricing.html](../../marketing_site/pricing.html) — replace placeholder URLs with your `buy.stripe.com` links.
 
 ## Local development
 
