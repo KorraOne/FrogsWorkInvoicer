@@ -1,6 +1,13 @@
+import sys
+
+# Uninstall helper must exit before Flask/desktop imports (Inno runs: FrogsWork.exe --export-uninstall-data).
+if __name__ == "__main__" and len(sys.argv) > 1 and sys.argv[1] == "--export-uninstall-data":
+    from app_platform.win.uninstall import export_for_uninstall
+
+    raise SystemExit(export_for_uninstall())
+
 import logging
 import os
-import sys
 import threading
 import time
 import urllib.request
@@ -335,8 +342,4 @@ _register_all_routes()
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "--export-uninstall-data":
-        from app_platform.win.uninstall import export_for_uninstall
-
-        raise SystemExit(export_for_uninstall())
     main()

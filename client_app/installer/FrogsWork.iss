@@ -54,6 +54,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Shortcuts:"
+Name: "startupicon"; Description: "Start {#AppName} when Windows starts"; GroupDescription: "Shortcuts:"; Flags: unchecked
 
 [Files]
 Source: "{#AppSource}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -61,12 +62,13 @@ Source: "{#AppSource}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs 
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExeName}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
+Name: "{userstartup}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: startupicon
 
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "Launch {#AppName}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
-Filename: "{app}\{#AppExeName}"; Parameters: "--export-uninstall-data"; Flags: waituntilidle runhidden
+Filename: "{app}\{#AppExeName}"; Parameters: "--export-uninstall-data"; Flags: runhidden waituntilterminated skipifdoesntexist
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{userappdata}\FrogsWork"
@@ -197,12 +199,23 @@ end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
-  AppDir: String;
+  AppDir, AppDataDir: String;
 begin
+  if CurUninstallStep = usUninstall then
+  begin
+    StopFrogsWorkProcesses();
+    Exit;
+  end;
+
   if CurUninstallStep <> usPostUninstall then
     Exit;
 
   StopFrogsWorkProcesses();
+
+  AppDataDir := ExpandConstant('{userappdata}\FrogsWork');
+  if DirExists(AppDataDir) then
+    DelTree(AppDataDir, True, True, True);
+
   AppDir := ExpandConstant('{app}');
   if TryRemoveInstallDir(AppDir) then
     Exit;

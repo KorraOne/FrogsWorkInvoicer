@@ -33,7 +33,9 @@ Custom PyInstaller folder:
 | Invoice PDF folder | Wizard page: parent folder + `pdfs` subfolder → `{userappdata}\FrogsWork\bootstrap.json` (first install only) |
 | Publisher / version | KorraOne, version metadata on setup.exe, clickable link to korraone.com on finish page |
 | Privileges | `lowest` (no admin) |
-| Uninstall PDF export | `FrogsWork.exe --export-uninstall-data` (silent, always runs) |
+| Desktop shortcut | Optional task on install wizard |
+| Start at logon | Optional task — shortcut in Startup folder |
+| Uninstall PDF export | `FrogsWork.exe --export-uninstall-data` (lightweight, no Flask) |
 | Stop running app | `taskkill` before uninstall; retries install folder removal after |
 | Remove AppData | `{userappdata}\FrogsWork` on uninstall |
 

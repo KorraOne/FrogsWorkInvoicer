@@ -1,16 +1,21 @@
-﻿{
-    "version":  "2.0.0",
-    "setup_sha256":  "dcf326aa7090dc1e587fa219387810ae39525a97f48796dbbd1594f377011a64",
-    "published_at":  "2026-07-01",
-    "update_zip_path":  "https://downloads.frogswork.com/FrogsWork-2.0.0-win64.zip",
-    "notes":  "Replaces usage-based billing with subscription. Free trial: 20 invoices or 20000 ex GST before subscribe.",
-    "history":  [
-                    {
-                        "published_at":  "2026-07-01",
-                        "version":  "2.0.0",
-                        "notes":  "Replaces usage-based billing with subscription. Free trial: 20 invoices or 20000 ex GST before subscribe."
-                    }
-                ],
-    "download_path":  "https://downloads.frogswork.com/FrogsWork-2.0.0-setup.exe",
-    "sha256":  "a8e9d219d73a29873152683b98dcba03ff93097f37b7161d21013ed3ca3576d3"
+{
+  "version": "2.0.1",
+  "published_at": "2026-07-01",
+  "sha256": "b2ea37b35eeec14d127065eec78abb748e9d282de0e3b33cf22784b1912bfc01",
+  "history": [
+    {
+      "published_at": "2026-07-01",
+      "notes": "Ensure fully cleans itself on app uninstall.",
+      "version": "2.0.1"
+    },
+    {
+      "published_at": "2026-07-01",
+      "version": "2.0.0",
+      "notes": "Replaces usage-based billing with subscription. Free trial: 20 invoices or 20000 ex GST before subscribe."
+    }
+  ],
+  "notes": "",
+  "download_path": "https://downloads.frogswork.com/FrogsWork-2.0.1-setup.exe",
+  "update_zip_path": "https://downloads.frogswork.com/FrogsWork-2.0.1-win64.zip",
+  "setup_sha256": "5759effa2dd03d311c5ff14d9d1e22d5e3e61e920caecab98c7e3d32c5f1dfe0"
 }
