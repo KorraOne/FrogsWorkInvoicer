@@ -1,8 +1,8 @@
 ; FrogsWork Windows installer (Inno Setup 6)
-; Build: client_app\scripts\build_installer.ps1 -Version "1.1.0"
+; Build: client_app\scripts\build_installer.ps1 -Version "2.0.0"
 
 #ifndef AppVersion
-#define AppVersion "1.1.0"
+#define AppVersion "2.0.0"
 #endif
 
 #ifndef AppSource
@@ -39,7 +39,7 @@ DefaultDirName={localappdata}\Programs\{#AppName}
 DefaultGroupName={#AppName}
 AllowNoIcons=yes
 PrivilegesRequired=lowest
-OutputDir=..\client_app\dist
+OutputDir=..\dist
 OutputBaseFilename=FrogsWork-{#AppVersion}-setup
 UninstallDisplayIcon={app}\{#AppExeName}
 Compression=lzma2/ultra64

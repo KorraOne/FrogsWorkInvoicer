@@ -17,6 +17,12 @@ Start API + desktop app from repo root:
 
 Copy `dev/.dev.vars.example` → `dev/.dev.vars` and add Stripe test keys.
 
+**Production D1 (first time):** from repo root, after `npx wrangler login`:
+
+```powershell
+.\scripts\setup-d1-production.ps1
+```
+
 ## Docs
 
 - [DEPLOY.md](../docs/DEPLOY.md)

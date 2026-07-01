@@ -29,7 +29,7 @@ Public HTML lives at the **site root** (flat URLs — no build step). `downloads
 ## Publish a release (Windows)
 
 ```powershell
-.\scripts\package_client_release.ps1 -Version "1.1.0" -ReleaseNotes "Release note."
+.\scripts\package_client_release.ps1 -Version "2.0.0" -ReleaseNotes "Replaces usage-based billing with subscription."
 ```
 
 Then:

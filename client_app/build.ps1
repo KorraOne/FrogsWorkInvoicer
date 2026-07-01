@@ -4,9 +4,8 @@ param(
     [switch]$OneFile,
     [switch]$Clean,
     [switch]$SkipVenv,
-    [string]$AccountApiUrl = "",
     [Alias("BillingUrl")]
-    [string]$BillingUrl = ""
+    [string]$AccountApiUrl = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -17,10 +16,6 @@ $VenvDir = Join-Path $RepoRoot ".client-venv"
 $Requirements = Join-Path $AppDir "requirements.txt"
 $DistOnedir = Join-Path $AppDir "dist\FrogsWork"
 $DistOneFile = Join-Path $AppDir "dist\FrogsWork.exe"
-
-if (-not $AccountApiUrl -and $BillingUrl) {
-    $AccountApiUrl = $BillingUrl
-}
 
 function Stop-RunningApp {
     Get-Process -Name "FrogsWork" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue

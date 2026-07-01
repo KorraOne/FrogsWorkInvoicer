@@ -36,7 +36,7 @@ Seed test data:
 ```powershell
 .\client_app\build.ps1
 # Full release (installer + update zip):
-.\scripts\package_client_release.ps1 -Version "1.1.0" -ReleaseNotes "..."
+.\scripts\package_client_release.ps1 -Version "2.0.0" -ReleaseNotes "..."
 ```
 
 Install: **Inno Setup** `FrogsWork-x.y.z-setup.exe` → `%LOCALAPPDATA%\Programs\FrogsWork\`. See [installer/README.md](installer/README.md) and [DEPLOY.md](../docs/DEPLOY.md).

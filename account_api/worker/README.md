@@ -11,6 +11,12 @@ Local development: [`../dev/server.py`](../dev/server.py) (Flask on port 8787).
 ```bash
 cd account_api/worker
 npm install
+npx wrangler login
+```
+
+**First-time D1 (production):** from repo root run `.\scripts\setup-d1-production.ps1` — or:
+
+```bash
 npx wrangler d1 create frogswork-account
 # Paste database_id into wrangler.toml
 npx wrangler d1 execute frogswork-account --remote --file=../schema.sql
@@ -22,7 +28,10 @@ npx wrangler d1 execute frogswork-account --remote --file=../schema.sql
 npx wrangler secret put STRIPE_SECRET_KEY
 npx wrangler secret put STRIPE_WEBHOOK_SECRET
 npx wrangler secret put JWT_SECRET
+npx wrangler secret put ADMIN_PASSWORD
 ```
+
+`ADMIN_PASSWORD` protects `GET /admin` and `/admin/api/summary`.
 
 Optional release vars (or `[vars]` in wrangler.toml):
 

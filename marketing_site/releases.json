@@ -1,10 +1,16 @@
-{
-  "published_at": "",
-  "version": "",
-  "notes": "",
-  "download_path": "",
-  "setup_sha256": "",
-  "sha256": "",
-  "update_zip_path": "",
-  "history": []
+﻿{
+    "version":  "2.0.0",
+    "setup_sha256":  "dcf326aa7090dc1e587fa219387810ae39525a97f48796dbbd1594f377011a64",
+    "published_at":  "2026-07-01",
+    "update_zip_path":  "https://downloads.frogswork.com/FrogsWork-2.0.0-win64.zip",
+    "notes":  "Replaces usage-based billing with subscription. Free trial: 20 invoices or 20000 ex GST before subscribe.",
+    "history":  [
+                    {
+                        "published_at":  "2026-07-01",
+                        "version":  "2.0.0",
+                        "notes":  "Replaces usage-based billing with subscription. Free trial: 20 invoices or 20000 ex GST before subscribe."
+                    }
+                ],
+    "download_path":  "https://downloads.frogswork.com/FrogsWork-2.0.0-setup.exe",
+    "sha256":  "a8e9d219d73a29873152683b98dcba03ff93097f37b7161d21013ed3ca3576d3"
 }

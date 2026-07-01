@@ -2,9 +2,15 @@ name = "frogswork-api"
 main = "src/index.js"
 compatibility_date = "2024-11-01"
 
+# Replace placeholder after: .\scripts\setup-d1-production.ps1
+# Or: npx wrangler d1 create frogswork-account  (paste uuid below)
 [[d1_databases]]
 binding = "DB"
 database_name = "frogswork-account"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "2d4c5469-d281-492b-b067-4ffd72e926d8"
 
 [vars]
+CLIENT_RELEASE_VERSION = "2.0.0"
+CLIENT_RELEASE_URL = "https://downloads.frogswork.com/FrogsWork-2.0.0-win64.zip"
+CLIENT_RELEASE_SHA256 = "a8e9d219d73a29873152683b98dcba03ff93097f37b7161d21013ed3ca3576d3"
+CLIENT_RELEASE_NOTES = "Replaces usage-based billing with subscription. Free trial: 20 invoices or 20000 ex GST before subscribe."

@@ -12,15 +12,15 @@ Builds **`FrogsWork-x.y.z-setup.exe`** from PyInstaller onedir output.
 From repo root (normally invoked by `package_client_release.ps1`):
 
 ```powershell
-.\client_app\scripts\build_installer.ps1 -Version "1.1.0"
+.\client_app\scripts\build_installer.ps1 -Version "2.0.0"
 ```
 
-Output: `client_app\dist\FrogsWork-1.1.0-setup.exe`
+Output: `client_app\dist\FrogsWork-2.0.0-setup.exe`
 
 Custom PyInstaller folder:
 
 ```powershell
-.\client_app\scripts\build_installer.ps1 -Version "1.1.0" -AppSource "C:\path\to\FrogsWork"
+.\client_app\scripts\build_installer.ps1 -Version "2.0.0" -AppSource "C:\path\to\FrogsWork"
 ```
 
 ## Script

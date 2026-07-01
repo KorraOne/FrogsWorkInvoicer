@@ -4,9 +4,8 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$Version,
     [switch]$SkipBuild,
-    [string]$AccountApiUrl = "https://api.frogswork.com",
     [Alias("BillingUrl")]
-    [string]$BillingUrl = "",
+    [string]$AccountApiUrl = "https://api.frogswork.com",
     [string]$MarketingSiteUrl = "https://frogswork.com",
     [string]$DownloadHost = "https://downloads.frogswork.com",
     [string]$ReleaseNotes = "",
@@ -27,10 +26,6 @@ $MarketingZipPath = Join-Path $DownloadsDir $ZipName
 $MarketingSetupPath = Join-Path $DownloadsDir $SetupName
 $SetupDownloadUrl = "$($DownloadHost.TrimEnd('/'))/$SetupName"
 $ZipDownloadUrl = "$($DownloadHost.TrimEnd('/'))/$ZipName"
-
-if (-not $AccountApiUrl -and $BillingUrl) {
-    $AccountApiUrl = $BillingUrl
-}
 
 if (-not $SkipBuild) {
     $buildClient = Join-Path $Root "client_app\build.ps1"
