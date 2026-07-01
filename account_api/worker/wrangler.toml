@@ -13,7 +13,7 @@ database_name = "frogswork-account"
 database_id = "2d4c5469-d281-492b-b067-4ffd72e926d8"
 
 [vars]
-CLIENT_RELEASE_VERSION = "2.2.2"
-CLIENT_RELEASE_URL = "https://downloads.frogswork.com/FrogsWork-2.2.2-win64.zip"
-CLIENT_RELEASE_SHA256 = "7b8d66803a5ad25947c7efcfa84e17bbdffb382500e2961b42b5a0addbb35b81"
-CLIENT_RELEASE_NOTES = "Fix sign-in page copy; subscription model wording."
+CLIENT_RELEASE_VERSION = "2.2.3"
+CLIENT_RELEASE_URL = "https://downloads.frogswork.com/FrogsWork-2.2.3-win64.zip"
+CLIENT_RELEASE_SHA256 = "b3124752febd2ec480a0b6cdce71790076f0b6c5cf67e2e90f511999708260fd"
+CLIENT_RELEASE_NOTES = "Fix in-app updater launch, immediate feedback, and logging."

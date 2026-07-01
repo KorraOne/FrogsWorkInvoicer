@@ -8,7 +8,7 @@ import re
 import shutil
 import subprocess
 import sys
-import tempfile
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -25,10 +25,11 @@ log = logging.getLogger(__name__)
 _STATE_FILE = "update_state.json"
 _RESULT_FILE = "update_apply_result.json"
 _LOG_FILE = "update.log"
+_UPDATE_DIR_NAME = "update"
 _CACHE_SECONDS = 3600
 _CREATE_NO_WINDOW = 0x08000000
-_DETACHED_PROCESS = 0x00000008
-_ROBOCOPY_ATTEMPTS = 15
+_ROBOCOPY_ATTEMPTS = 20
+_SHUTDOWN_DELAY_SECONDS = 2.0
 
 _cache = {"at": 0.0, "latest": None, "failed": False}
 
@@ -47,6 +48,10 @@ def _bootstrap_dir():
     return storage.get_bootstrap_dir()
 
 
+def _update_dir():
+    return os.path.join(_bootstrap_dir(), _UPDATE_DIR_NAME)
+
+
 def _state_path():
     return os.path.join(_bootstrap_dir(), _STATE_FILE)
 
@@ -57,6 +62,20 @@ def _result_path():
 
 def _log_path():
     return os.path.join(_bootstrap_dir(), _LOG_FILE)
+
+
+def _updater_script_path():
+    return os.path.join(_update_dir(), "apply-update.ps1")
+
+
+def append_update_log(message):
+    try:
+        os.makedirs(_bootstrap_dir(), exist_ok=True)
+        line = f"{datetime.now(timezone.utc).isoformat()} {message}\n"
+        with open(_log_path(), "a", encoding="utf-8") as f:
+            f.write(line)
+    except OSError:
+        log.exception("Could not write update log")
 
 
 def _read_state_file():
@@ -236,6 +255,16 @@ def mark_apply_started(version):
     save_state(state)
 
 
+def _record_apply_failure(version, error):
+    append_update_log(f"Update failed: {error}")
+    state = load_state()
+    state["last_apply_failed"] = True
+    state["last_apply_error"] = error
+    if version:
+        state["last_apply_version"] = version
+    save_state(state)
+
+
 def _sha256_file(path):
     digest = hashlib.sha256()
     with open(path, "rb") as f:
@@ -272,7 +301,7 @@ def _ps1_escape(value):
 def _build_updater_script(*, pid_to_wait, staging_root, install, target_exe, version):
     log_path = _log_path()
     result_path = _result_path()
-    return f"""$ErrorActionPreference = 'Stop'
+    return f"""$ErrorActionPreference = 'Continue'
 $pidToWait = {pid_to_wait}
 $staging = '{_ps1_escape(staging_root)}'
 $install = '{_ps1_escape(install)}'
@@ -283,51 +312,51 @@ $resultPath = '{_ps1_escape(result_path)}'
 
 function Write-UpdateLog {{
     param([string]$Message)
-    $line = "$(Get-Date -Format o) $Message"
-    Add-Content -Path $logPath -Value $line -Encoding UTF8
+    try {{
+        $line = "$(Get-Date -Format o) [updater] $Message"
+        Add-Content -Path $logPath -Value $line -Encoding UTF8
+    }} catch {{}}
 }}
 
 function Write-ApplyResult {{
     param([bool]$Ok, [string]$ErrorMsg)
-    @{{
-        ok = $Ok
-        version = $version
-        error = $ErrorMsg
-    }} | ConvertTo-Json | Set-Content -Path $resultPath -Encoding UTF8
-}}
-
-function Stop-FrogsWorkChildren {{
-    param([string]$InstallDir, [int]$MainPid)
     try {{
-        Get-CimInstance Win32_Process | Where-Object {{
-            $_.ParentProcessId -eq $MainPid -and $_.ExecutablePath -like "$InstallDir*"
-        }} | ForEach-Object {{
-            Write-UpdateLog "Stopping child PID $($_.ProcessId) $($_.Name)"
-            Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
-        }}
+        @{{
+            ok = $Ok
+            version = $version
+            error = $ErrorMsg
+        }} | ConvertTo-Json | Set-Content -Path $resultPath -Encoding UTF8
     }} catch {{
-        Write-UpdateLog "Stop-FrogsWorkChildren: $_"
+        Write-UpdateLog "Could not write apply result: $_"
     }}
 }}
 
-Write-UpdateLog "Updater started for version $version (pid $pidToWait)"
+function Stop-InstallProcesses {{
+    param([string]$InstallDir, [int]$MainPid)
+    try {{
+        Get-CimInstance Win32_Process | Where-Object {{
+            $_.ProcessId -ne $MainPid -and $_.ExecutablePath -and (
+                $_.ExecutablePath.StartsWith($InstallDir, [System.StringComparison]::OrdinalIgnoreCase) -or
+                ($_.Name -eq 'msedgewebview2.exe' -and $_.CommandLine -like "*$InstallDir*")
+            )
+        }} | ForEach-Object {{
+            Write-UpdateLog "Stopping PID $($_.ProcessId) $($_.Name)"
+            Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+        }}
+    }} catch {{
+        Write-UpdateLog "Stop-InstallProcesses: $_"
+    }}
+}}
+
+Write-UpdateLog "Updater started for version $version (wait pid $pidToWait)"
 try {{
     Wait-Process -Id $pidToWait -ErrorAction SilentlyContinue
 }} catch {{
     Write-UpdateLog "Wait-Process: $_"
 }}
+Start-Sleep -Seconds 3
+Stop-InstallProcesses -InstallDir $install -MainPid $pidToWait
 Start-Sleep -Seconds 2
-Stop-FrogsWorkChildren -InstallDir $install -MainPid $pidToWait
-
-Get-Process -Name 'FrogsWork' -ErrorAction SilentlyContinue | Where-Object {{
-    $_.Path -and $_.Path.StartsWith($install, [System.StringComparison]::OrdinalIgnoreCase)
-}} | ForEach-Object {{
-    if ($_.Id -ne $pidToWait) {{
-        Write-UpdateLog "Stopping FrogsWork PID $($_.Id)"
-        Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
-    }}
-}}
-Start-Sleep -Seconds 1
 
 $copyOk = $false
 $lastCode = 0
@@ -340,6 +369,7 @@ for ($i = 1; $i -le {_ROBOCOPY_ATTEMPTS}; $i++) {{
         $copyOk = $true
         break
     }}
+    Stop-InstallProcesses -InstallDir $install -MainPid $pidToWait
     Start-Sleep -Seconds 2
 }}
 
@@ -356,31 +386,74 @@ Write-UpdateLog "Update succeeded"
 """
 
 
-def apply_update(release, shutdown_callback):
+def _launch_updater(script_path):
+    append_update_log(f"Launching updater via cmd start: {script_path}")
+    subprocess.Popen(
+        [
+            "cmd.exe",
+            "/c",
+            "start",
+            "",
+            "powershell.exe",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            script_path,
+        ],
+        cwd=_bootstrap_dir(),
+        creationflags=_CREATE_NO_WINDOW,
+        close_fds=False,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+
+def _prepare_update_package(release):
+    version = (release.get("version") or "").strip()
+    update_dir = _update_dir()
+    staging_root = os.path.join(update_dir, "staging")
+    extracted = os.path.join(update_dir, "extracted")
+    zip_path = os.path.join(update_dir, "update.zip")
+
+    if os.path.isdir(update_dir):
+        shutil.rmtree(update_dir, ignore_errors=True)
+    os.makedirs(staging_root, exist_ok=True)
+    os.makedirs(extracted, exist_ok=True)
+
+    append_update_log(f"Update {version}: downloading {release['download_url']}")
+    _download_file(release["download_url"], zip_path)
+
+    expected = (release.get("sha256") or "").lower()
+    if expected:
+        digest = _sha256_file(zip_path)
+        if digest != expected:
+            raise RuntimeError("Update file failed integrity check.")
+        append_update_log(f"Update {version}: sha256 ok")
+
+    append_update_log(f"Update {version}: extracting")
+    _extract_zip(zip_path, extracted)
+    source_root = _find_update_root(extracted)
+    shutil.copytree(source_root, staging_root, dirs_exist_ok=True)
+    append_update_log(f"Update {version}: staged at {staging_root}")
+    return staging_root
+
+
+def _run_apply_update(release, shutdown_callback):
     if not is_packaged():
         raise RuntimeError("Updates are only available in the packaged app.")
 
     version = (release.get("version") or "").strip()
     mark_apply_started(version)
-
-    tmp = tempfile.mkdtemp(prefix="FrogsWork-update-")
-    zip_path = os.path.join(tmp, "update.zip")
-    extracted = os.path.join(tmp, "extracted")
-    os.makedirs(extracted, exist_ok=True)
+    append_update_log(f"Update {version}: apply started (pid {os.getpid()})")
 
     try:
-        _download_file(release["download_url"], zip_path)
-        expected = (release.get("sha256") or "").lower()
-        if expected:
-            digest = _sha256_file(zip_path)
-            if digest != expected:
-                raise RuntimeError("Update file failed integrity check.")
-
-        _extract_zip(zip_path, extracted)
-        staging_root = _find_update_root(extracted)
+        staging_root = _prepare_update_package(release)
         install = install_dir()
         target_exe = exe_path()
-        updater_path = os.path.join(tmp, "apply-update.ps1")
+        script_path = _updater_script_path()
+        os.makedirs(_update_dir(), exist_ok=True)
         script = _build_updater_script(
             pid_to_wait=os.getpid(),
             staging_root=staging_root,
@@ -388,29 +461,36 @@ def apply_update(release, shutdown_callback):
             target_exe=target_exe,
             version=version,
         )
-        with open(updater_path, "w", encoding="utf-8") as f:
+        with open(script_path, "w", encoding="utf-8") as f:
             f.write(script)
+        append_update_log(f"Update {version}: updater script written to {script_path}")
 
-        subprocess.Popen(
-            [
-                "powershell.exe",
-                "-NoProfile",
-                "-ExecutionPolicy",
-                "Bypass",
-                "-File",
-                updater_path,
-            ],
-            creationflags=_CREATE_NO_WINDOW | _DETACHED_PROCESS,
-            close_fds=True,
-        )
-    except Exception:
-        shutil.rmtree(tmp, ignore_errors=True)
-        state = load_state()
-        state["last_apply_failed"] = True
-        state["last_apply_error"] = "Download or prepare failed before restart"
-        if version:
-            state["last_apply_version"] = version
-        save_state(state)
+        _launch_updater(script_path)
+        time.sleep(_SHUTDOWN_DELAY_SECONDS)
+        append_update_log(f"Update {version}: shutting down app")
+        shutdown_callback()
+    except Exception as exc:
+        _record_apply_failure(version, str(exc))
         raise
 
-    shutdown_callback()
+
+def start_apply_update(release, shutdown_callback):
+    """Download in a worker thread; return immediately for UI feedback."""
+    if not is_packaged():
+        raise RuntimeError("Updates are only available in the packaged app.")
+
+    version = (release.get("version") or "").strip()
+    append_update_log(f"Update {version}: queued")
+
+    def _worker():
+        try:
+            _run_apply_update(release, shutdown_callback)
+        except Exception:
+            log.exception("Background update failed")
+
+    threading.Thread(target=_worker, name="frogswork-update", daemon=False).start()
+
+
+def apply_update(release, shutdown_callback):
+    """Blocking apply (tests / legacy callers)."""
+    _run_apply_update(release, shutdown_callback)

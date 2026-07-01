@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Updating · {{ brand_name }}{% endblock %}
+{% block back %}{% endblock %}
+{% block content %}
+<div class="update-applying-page">
+    <h1>Updating {{ brand_name }}</h1>
+    <p class="home-intro">
+        Downloading version <strong>{{ version }}</strong> and preparing to restart.
+        This window will close on its own when the update is ready.
+    </p>
+    <div class="update-applying-status" role="status" aria-live="polite">
+        <span class="entitlement-status-spinner" aria-hidden="true"></span>
+        <span>Please wait…</span>
+    </div>
+    <p class="settings-page-note">
+        Installed now: {{ current_version }}. Do not open {{ brand_name }} again until it restarts.
+        If nothing happens after a few minutes, check <code>%APPDATA%\FrogsWork\update.log</code>.
+    </p>
+</div>
+{% endblock %}

@@ -31,6 +31,7 @@ def register_settings_routes(app, request_shutdown):
 
     @app.route("/updates/apply", methods=["POST"])
     def updates_apply():
+        from app_config import APP_VERSION
         from app_platform import updates as app_update
 
         pending = app_update.get_pending_update(force_check=True)
@@ -38,14 +39,19 @@ def register_settings_routes(app, request_shutdown):
             flash("No update is available right now.", "info")
             return redirect(request.referrer or url_for("home"))
         try:
-            app_update.apply_update(pending, request_shutdown)
-            flash("Downloading update. The app will restart shortly.", "info")
+            app_update.start_apply_update(pending, request_shutdown)
         except Exception as exc:
             flash(f"Update failed: {exc}", "error")
-        return redirect(request.referrer or url_for("settings_updates"))
+            return redirect(request.referrer or url_for("settings_updates"))
+        return render_template(
+            "update_applying.html",
+            version=pending["version"],
+            current_version=APP_VERSION,
+        )
 
     @app.route("/settings/updates", methods=["GET", "POST"])
     def settings_updates():
+        from app_config import APP_VERSION
         from app_platform import updates as app_update
 
         error = None
@@ -62,9 +68,12 @@ def register_settings_routes(app, request_shutdown):
                     pending = app_update.get_pending_update(force_check=True)
             elif action == "apply" and pending:
                 try:
-                    app_update.apply_update(pending, request_shutdown)
-                    flash("Downloading update. The app will restart shortly.", "info")
-                    return redirect(url_for("settings_updates"))
+                    app_update.start_apply_update(pending, request_shutdown)
+                    return render_template(
+                        "update_applying.html",
+                        version=pending["version"],
+                        current_version=APP_VERSION,
+                    )
                 except Exception as exc:
                     error = str(exc)
 
