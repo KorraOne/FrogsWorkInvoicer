@@ -11,22 +11,36 @@
 </section>
 {% elif server_unreachable %}
 <div class="error">Couldn't reach the server to check for updates. Try again when you're online.</div>
-{% elif pending %}
+{% elif pending or update_apply_failed %}
 <section class="settings-panel update-panel">
+    {% if update_apply_failed %}
+    <div class="error">
+        Last update to version {{ update_apply_failed.version }} did not finish.
+        {% if update_apply_failed.error %} {{ update_apply_failed.error }}.{% endif %}
+        Try again below, or download the installer from <a href="{{ brand_url }}/download.html" target="_blank" rel="noopener noreferrer">{{ brand_url }}/download.html</a>.
+    </div>
+    {% endif %}
+    {% if pending %}
     <h2 class="settings-section-heading">Version {{ pending.version }} available</h2>
     {% if pending.notes %}
     <p class="settings-section-hint">{{ pending.notes }}</p>
     {% else %}
     <p class="settings-section-hint">A newer version of {{ brand_name }} is ready to install.</p>
     {% endif %}
+    {% elif update_apply_failed %}
+    <h2 class="settings-section-heading">Retry update to version {{ update_apply_failed.version }}</h2>
+  <p class="settings-section-hint">Check again if no update is listed, then choose Update now.</p>
+    {% endif %}
     {% if error %}
     <div class="error">{{ error }}</div>
     {% endif %}
+    {% if pending %}
     <form method="POST" class="update-actions">
         <input type="hidden" name="action" value="apply">
         <button type="submit" class="btn btn-primary">Update now</button>
     </form>
-    <p class="settings-page-note">The app downloads the update, restarts, and replaces its files. Your data in <code>%APPDATA%\FrogsWork\</code> is not touched.</p>
+    {% endif %}
+    <p class="settings-page-note">The app downloads the update, restarts, and replaces its files. Your data in <code>%APPDATA%\FrogsWork\</code> is not touched. Details are logged to <code>%APPDATA%\FrogsWork\update.log</code>.</p>
 </section>
 {% else %}
 <div class="form-success">

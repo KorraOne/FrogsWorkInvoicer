@@ -18,9 +18,9 @@
         <span class="nav-card-title">Backup &amp; restore</span>
         <span class="nav-card-hint">Export or import your data</span>
     </a>
-    <a href="{{ url_for('settings_updates') }}" class="btn btn-secondary nav-card nav-card-utility{% if pending_update %} nav-card-highlight{% endif %}">
+    <a href="{{ url_for('settings_updates') }}" class="btn btn-secondary nav-card nav-card-utility{% if pending_update or update_apply_failed %} nav-card-highlight{% endif %}">
         <span class="nav-card-title">App update</span>
-        <span class="nav-card-hint">{% if pending_update %}Version {{ pending_update.version }} available{% else %}Check for a newer version{% endif %}</span>
+        <span class="nav-card-hint">{% if update_apply_failed %}Update failed — retry version {{ update_apply_failed.version }}{% elif pending_update %}Version {{ pending_update.version }} available{% else %}Check for a newer version{% endif %}</span>
     </a>
     {% if show_logo_design_settings %}
     <a href="{{ url_for('settings_logo_design') }}" class="btn btn-secondary nav-card nav-card-utility">

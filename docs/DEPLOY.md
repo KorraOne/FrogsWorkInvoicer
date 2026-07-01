@@ -133,6 +133,16 @@ Update `marketing_site/releases.json`, commit, push, then from `marketing_site/`
 - [ ] Settings → Your account → subscription verified
 - [ ] In-app update from older build
 
+### Stuck on an old version after a failed update
+
+If the app closed during an update but did not reopen, or Settings still shows an older version:
+
+1. Download the latest installer from [frogswork.com/download.html](https://frogswork.com/download.html) and run it (your data in `%APPDATA%\FrogsWork\` is kept).
+2. Or delete `dismissed_version` from `%APPDATA%\FrogsWork\update_state.json`, then **Settings → App update → Check again → Update now**.
+3. Check `%APPDATA%\FrogsWork\update.log` for robocopy errors.
+
+Versions before **2.2.1** may need the manual installer once; **2.2.1+** includes a more reliable in-app updater (retries, logging, auto-restart).
+
 ---
 
 ## Stripe (subscribe flow)

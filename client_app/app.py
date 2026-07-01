@@ -157,9 +157,11 @@ def _inject_update():
     from app_config import APP_VERSION
 
     pending = app_update.get_pending_update()
+    apply_failure = app_update.get_apply_failure()
     return {
         "app_version": APP_VERSION,
         "pending_update": pending,
+        "update_apply_failed": apply_failure,
         "show_update_banner": bool(pending and not pending.get("banner_hidden")),
     }
 

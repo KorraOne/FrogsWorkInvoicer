@@ -1,7 +1,11 @@
 {% if show_update_banner and pending_update %}
 <div class="update-banner" role="status">
     <p class="update-banner-text">
+        {% if pending_update.apply_failed %}
+        <strong>Update failed:</strong> version {{ pending_update.version }} did not install. Try again.
+        {% else %}
         <strong>Update available:</strong> version {{ pending_update.version }} is ready.
+        {% endif %}
         {% if pending_update.notes %}{{ pending_update.notes }}{% endif %}
     </p>
     <div class="update-banner-actions">

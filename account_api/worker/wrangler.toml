@@ -13,7 +13,7 @@ database_name = "frogswork-account"
 database_id = "2d4c5469-d281-492b-b067-4ffd72e926d8"
 
 [vars]
-CLIENT_RELEASE_VERSION = "2.2.0"
-CLIENT_RELEASE_URL = "https://downloads.frogswork.com/FrogsWork-2.2.0-win64.zip"
-CLIENT_RELEASE_SHA256 = "65430fdbc592a803449bc1dda68d4809775e08c14e7ce5bbfd3fd4cc32aa3b7b"
-CLIENT_RELEASE_NOTES = "Live Stripe billing; use promo code EARLY100 for early access."
+CLIENT_RELEASE_VERSION = "2.2.1"
+CLIENT_RELEASE_URL = "https://downloads.frogswork.com/FrogsWork-2.2.1-win64.zip"
+CLIENT_RELEASE_SHA256 = "d468f828fb1a2b144b73e58f4cd2be80ac759f366a2229938114e22d893e218a"
+CLIENT_RELEASE_NOTES = "Fix in-app update restart and logging."
