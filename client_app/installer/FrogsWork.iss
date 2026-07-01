@@ -1,8 +1,8 @@
 ; FrogsWork Windows installer (Inno Setup 6)
-; Build: client_app\scripts\build_installer.ps1 -Version "2.1.2"
+; Build: client_app\scripts\build_installer.ps1 -Version "2.2.0"
 
 #ifndef AppVersion
-#define AppVersion "2.1.2"
+#define AppVersion "2.2.0"
 #endif
 
 #ifndef AppSource

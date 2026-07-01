@@ -1,10 +1,15 @@
 ﻿{
-    "version":  "2.1.2",
-    "setup_sha256":  "c19f647fa0a0d6b0f83e774f1687254d67341baae50557a8ec56812918e82ef6",
+    "version":  "2.2.0",
+    "setup_sha256":  "dc1b08b62da2f09040b51b60c4b2f66dd2e691ed9b5a4222d8b3a2f22120acec",
     "published_at":  "2026-07-01",
-    "update_zip_path":  "https://downloads.frogswork.com/FrogsWork-2.1.2-win64.zip",
-    "notes":  "Enable Stripe subscribe flow (test mode).",
+    "update_zip_path":  "https://downloads.frogswork.com/FrogsWork-2.2.0-win64.zip",
+    "notes":  "Live Stripe billing; use promo code EARLY100 for early access.",
     "history":  [
+                    {
+                        "published_at":  "2026-07-01",
+                        "version":  "2.2.0",
+                        "notes":  "Live Stripe billing; use promo code EARLY100 for early access."
+                    },
                     {
                         "published_at":  "2026-07-01",
                         "version":  "2.1.2",
@@ -31,6 +36,6 @@
                         "notes":  "Replaces usage-based billing with subscription. Free trial: 20 invoices or 20000 ex GST before subscribe."
                     }
                 ],
-    "download_path":  "https://downloads.frogswork.com/FrogsWork-2.1.2-setup.exe",
-    "sha256":  "471c303d448627997ccd70fc140036d2f284c95a2d283e900289ca04ea28fca3"
+    "download_path":  "https://downloads.frogswork.com/FrogsWork-2.2.0-setup.exe",
+    "sha256":  "65430fdbc592a803449bc1dda68d4809775e08c14e7ce5bbfd3fd4cc32aa3b7b"
 }
