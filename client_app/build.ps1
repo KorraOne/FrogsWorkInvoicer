@@ -5,7 +5,9 @@ param(
     [switch]$Clean,
     [switch]$SkipVenv,
     [Alias("BillingUrl")]
-    [string]$AccountApiUrl = ""
+    [string]$AccountApiUrl = "",
+    [string]$PaymentLinkMonthly = "",
+    [string]$PaymentLinkAnnual = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -36,15 +38,40 @@ Set-Location $AppDir
 Stop-RunningApp
 
 $configBackup = $null
-if ($AccountApiUrl) {
+$needsRestore = $false
+
+function Patch-AppConfigLine {
+    param([string]$Content, [string]$Name, [string]$Value)
+    if (-not $Value) { return $Content }
+    $pattern = "(?m)^$Name = os\.environ\.get\(""[^""]*"", ""[^""]*""\)\.strip\(\)"
+    $replacement = "$Name = os.environ.get(""$Name"", ""$Value"").strip()"
+    if ($Content -notmatch $pattern) {
+        throw "Could not patch $Name in app_config.py"
+    }
+    return ($Content -replace $pattern, $replacement)
+}
+
+if ($AccountApiUrl -or $PaymentLinkMonthly -or $PaymentLinkAnnual) {
     $configBackup = Get-Content $ConfigFile -Raw
-    $escaped = [regex]::Escape("http://127.0.0.1:8787")
-    $updated = $configBackup -replace $escaped, $AccountApiUrl
-    if ($updated -eq $configBackup) {
-        throw "Could not patch app_config.py with AccountApiUrl. Check DEFAULT_ACCOUNT_API_URL default."
+    $updated = $configBackup
+    if ($AccountApiUrl) {
+        $escaped = [regex]::Escape("http://127.0.0.1:8787")
+        $updated = $updated -replace $escaped, $AccountApiUrl
+        if ($updated -eq $configBackup) {
+            throw "Could not patch app_config.py with AccountApiUrl. Check DEFAULT_ACCOUNT_API_URL default."
+        }
+        Write-Host "Using account API URL for this build: $AccountApiUrl"
+    }
+    if ($PaymentLinkMonthly) {
+        $updated = Patch-AppConfigLine -Content $updated -Name "STRIPE_PAYMENT_LINK_MONTHLY" -Value $PaymentLinkMonthly
+        Write-Host "Baking monthly Payment Link into build."
+    }
+    if ($PaymentLinkAnnual) {
+        $updated = Patch-AppConfigLine -Content $updated -Name "STRIPE_PAYMENT_LINK_ANNUAL" -Value $PaymentLinkAnnual
+        Write-Host "Baking annual Payment Link into build."
     }
     Set-Content -Path $ConfigFile -Value $updated -NoNewline
-    Write-Host "Using account API URL for this build: $AccountApiUrl"
+    $needsRestore = $true
 }
 
 try {
@@ -85,7 +112,7 @@ try {
     Write-Host "Requires Microsoft Edge WebView2 Runtime on target PCs."
 }
 finally {
-    if ($null -ne $configBackup) {
+    if ($needsRestore -and $null -ne $configBackup) {
         Set-Content -Path $ConfigFile -Value $configBackup -NoNewline
     }
 }

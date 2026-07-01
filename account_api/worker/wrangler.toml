@@ -13,7 +13,7 @@ database_name = "frogswork-account"
 database_id = "2d4c5469-d281-492b-b067-4ffd72e926d8"
 
 [vars]
-CLIENT_RELEASE_VERSION = "2.1.0"
-CLIENT_RELEASE_URL = "https://downloads.frogswork.com/FrogsWork-2.1.0-win64.zip"
-CLIENT_RELEASE_SHA256 = "3476334bb169ea983d8e36c2695d7561cb028c9a196f8f0d4e25795e5951080d"
-CLIENT_RELEASE_NOTES = "Installer: reliable uninstall PDF export, AppData cleanup, optional start at Windows logon."
+CLIENT_RELEASE_VERSION = "2.1.1"
+CLIENT_RELEASE_URL = "https://downloads.frogswork.com/FrogsWork-2.1.1-win64.zip"
+CLIENT_RELEASE_SHA256 = "8296da5734b54d4a564c3796647a694b4540151dbf58f6864f9a27c4f2732fa0"
+CLIENT_RELEASE_NOTES = "Installer: honour PDF folder choice on upgrade; remove marked PDF folder on uninstall."

@@ -40,6 +40,8 @@ Thumbs.db
 
 account_api/dev/account_api.db
 
+client_app/production.env
+
 .wrangler
 .dev.vars*
 !.dev.vars.example

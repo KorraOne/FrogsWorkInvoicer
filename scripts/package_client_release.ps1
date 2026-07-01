@@ -14,6 +14,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 $Root = Split-Path $PSScriptRoot -Parent
+. (Join-Path $PSScriptRoot "_production-env.ps1")
+$productionEnv = Require-ProductionPaymentLinks
 $DistDir = Join-Path $Root "client_app\dist\FrogsWork"
 $OutDir = Join-Path $Root "client_app\dist"
 $MarketingDir = Join-Path $Root "marketing_site"
@@ -29,11 +31,13 @@ $ZipDownloadUrl = "$($DownloadHost.TrimEnd('/'))/$ZipName"
 
 if (-not $SkipBuild) {
     $buildClient = Join-Path $Root "client_app\build.ps1"
-    if ($AccountApiUrl) {
-        & $buildClient -Clean -AccountApiUrl $AccountApiUrl
-    } else {
-        & $buildClient -Clean
+    $buildArgs = @{
+        Clean               = $true
+        AccountApiUrl       = $AccountApiUrl
+        PaymentLinkMonthly  = $productionEnv["STRIPE_PAYMENT_LINK_MONTHLY"]
+        PaymentLinkAnnual   = $productionEnv["STRIPE_PAYMENT_LINK_ANNUAL"]
     }
+    & $buildClient @buildArgs
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 

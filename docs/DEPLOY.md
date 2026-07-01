@@ -135,6 +135,54 @@ Update `marketing_site/releases.json`, commit, push, then from `marketing_site/`
 
 ---
 
+## Stripe (subscribe flow)
+
+The desktop app opens **Stripe Payment Links** baked in at build time. The account API validates checkout and subscriptions (needs Stripe secrets on the Worker).
+
+### 1. Stripe Dashboard
+
+1. **Products** — monthly `$12.99`, annual `$129.90` (test mode for beta).
+2. **Payment links** — create one monthly and one annual link.
+3. **Customer portal** — enable (used for manage billing).
+
+### 2. Local config (not committed)
+
+```powershell
+copy client_app\production.env.example client_app\production.env
+# Edit production.env — paste Payment Link URLs + STRIPE_SECRET_KEY (sk_test_… for beta)
+```
+
+### 3. API Worker secrets + Payment Link redirects
+
+```powershell
+.\scripts\setup-stripe-production.ps1
+```
+
+This sets `STRIPE_SECRET_KEY`, `JWT_SECRET`, `STRIPE_WEBHOOK_SECRET` on `frogswork-api` and points both Payment Links to:
+
+`http://127.0.0.1:5000/account/stripe/return?session_id={CHECKOUT_SESSION_ID}`
+
+The packaged app runs a local server on port 5000 — Stripe redirects back to the running app after payment.
+
+### 4. Rebuild and deploy the desktop app
+
+Payment links are **baked into the installer** at build time (`production.env` required):
+
+```powershell
+.\scripts\deploy-release-2.0.0.ps1 -Version "2.1.2" -R2Bucket "frogswork-invoicer-releases" -ReleaseNotes "Enable Stripe subscribe flow."
+```
+
+### 5. Smoke test
+
+- [ ] Subscribe page shows Pay monthly / Pay annually (not "Not configured yet")
+- [ ] Stripe checkout opens in browser; test card `4242 4242 4242 4242`
+- [ ] After payment, browser hits localhost return page; app continues to set password
+- [ ] Settings → Your account shows active subscription
+
+See also [`account_api/worker/README.md`](../account_api/worker/README.md).
+
+---
+
 ## Marketing site (Cloudflare)
 
 | Setting | Value |
