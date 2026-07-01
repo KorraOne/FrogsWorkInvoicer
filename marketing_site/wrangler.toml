@@ -11,4 +11,3 @@ enabled = true
 
 [assets]
 directory = "."
-exclude = ["downloads/**"]

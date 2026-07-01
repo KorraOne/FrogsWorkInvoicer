@@ -1,0 +1,6 @@
+# Installers live on R2 (downloads.frogswork.com), not the marketing Worker.
+downloads/**
+
+# Wrangler / local tooling
+.wrangler/**
+package-lock.json

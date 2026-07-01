@@ -74,7 +74,7 @@ function Upload-R2Object {
         throw "File not found: $FilePath"
     }
     Write-Host "Uploading $Key to R2 bucket $Bucket..."
-    npx wrangler r2 object put "$Bucket/$Key" --file=$FilePath --remote
+    npx wrangler r2 object put "$Bucket/$Key" --file=$FilePath
     if ($LASTEXITCODE -ne 0) { throw "R2 upload failed for $Key" }
 }
 
@@ -86,7 +86,7 @@ if (-not $SkipBuild) {
 }
 
 if (-not (Test-Path $ReleasesJson)) {
-    throw "Missing $ReleasesJson — run package script first."
+    throw "Missing $ReleasesJson - run package script first."
 }
 $manifest = Get-Content $ReleasesJson -Raw | ConvertFrom-Json
 
@@ -125,7 +125,6 @@ if (-not $SkipWorkerDeploy) {
 if (-not $SkipMarketingDeploy) {
     Push-Location $MarketingDir
     try {
-        if (-not (Test-Path "node_modules")) { npm install }
         npx wrangler deploy
         if ($LASTEXITCODE -ne 0) { throw "Marketing deploy failed." }
     } finally {

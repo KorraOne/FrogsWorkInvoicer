@@ -1,21 +1,26 @@
-{
-  "version": "2.0.1",
-  "published_at": "2026-07-01",
-  "sha256": "b2ea37b35eeec14d127065eec78abb748e9d282de0e3b33cf22784b1912bfc01",
-  "history": [
-    {
-      "published_at": "2026-07-01",
-      "notes": "Ensure fully cleans itself on app uninstall.",
-      "version": "2.0.1"
-    },
-    {
-      "published_at": "2026-07-01",
-      "version": "2.0.0",
-      "notes": "Replaces usage-based billing with subscription. Free trial: 20 invoices or 20000 ex GST before subscribe."
-    }
-  ],
-  "notes": "",
-  "download_path": "https://downloads.frogswork.com/FrogsWork-2.0.1-setup.exe",
-  "update_zip_path": "https://downloads.frogswork.com/FrogsWork-2.0.1-win64.zip",
-  "setup_sha256": "5759effa2dd03d311c5ff14d9d1e22d5e3e61e920caecab98c7e3d32c5f1dfe0"
+﻿{
+    "version":  "2.1.0",
+    "setup_sha256":  "1a236c531271e3c0d787579bbccd4e8c10291b2475ec0c436015e6e46d5035dc",
+    "published_at":  "2026-07-01",
+    "update_zip_path":  "https://downloads.frogswork.com/FrogsWork-2.1.0-win64.zip",
+    "notes":  "Installer: reliable uninstall PDF export, AppData cleanup, optional start at Windows logon.",
+    "history":  [
+                    {
+                        "published_at":  "2026-07-01",
+                        "version":  "2.1.0",
+                        "notes":  "Installer: reliable uninstall PDF export, AppData cleanup, optional start at Windows logon."
+                    },
+                    {
+                        "published_at":  "2026-07-01",
+                        "notes":  "Ensure fully cleans itself on app uninstall.",
+                        "version":  "2.0.1"
+                    },
+                    {
+                        "published_at":  "2026-07-01",
+                        "version":  "2.0.0",
+                        "notes":  "Replaces usage-based billing with subscription. Free trial: 20 invoices or 20000 ex GST before subscribe."
+                    }
+                ],
+    "download_path":  "https://downloads.frogswork.com/FrogsWork-2.1.0-setup.exe",
+    "sha256":  "3476334bb169ea983d8e36c2695d7561cb028c9a196f8f0d4e25795e5951080d"
 }

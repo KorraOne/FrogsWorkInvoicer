@@ -13,7 +13,7 @@ database_name = "frogswork-account"
 database_id = "2d4c5469-d281-492b-b067-4ffd72e926d8"
 
 [vars]
-CLIENT_RELEASE_VERSION = "2.0.0"
-CLIENT_RELEASE_URL = "https://downloads.frogswork.com/FrogsWork-2.0.0-win64.zip"
-CLIENT_RELEASE_SHA256 = "a8e9d219d73a29873152683b98dcba03ff93097f37b7161d21013ed3ca3576d3"
-CLIENT_RELEASE_NOTES = "Replaces usage-based billing with subscription. Free trial: 20 invoices or 20000 ex GST before subscribe."
+CLIENT_RELEASE_VERSION = "2.1.0"
+CLIENT_RELEASE_URL = "https://downloads.frogswork.com/FrogsWork-2.1.0-win64.zip"
+CLIENT_RELEASE_SHA256 = "3476334bb169ea983d8e36c2695d7561cb028c9a196f8f0d4e25795e5951080d"
+CLIENT_RELEASE_NOTES = "Installer: reliable uninstall PDF export, AppData cleanup, optional start at Windows logon."
