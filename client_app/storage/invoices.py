@@ -74,6 +74,7 @@ def add_invoice(record):
         "invoice_number": record["invoice_number"],
         "invoice_date": record["invoice_date"],
         "customer_name": record["customer_name"],
+        "business_name": record.get("business_name", ""),
         "description": record["description"],
         "total_inc_gst": record["total_inc_gst"],
         "amount_ex_gst": str(record.get("amount_ex_gst", "0")),

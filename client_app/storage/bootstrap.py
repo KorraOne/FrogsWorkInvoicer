@@ -279,7 +279,8 @@ Invoice PDFs are saved separately ({pdf_note}).
 
 FILES HERE
 ----------
-  settings.json          - Business details, bank info, invoice counter
+  settings.json          - Due-date defaults, default business, welcome flag
+  businesses.json        - Business profiles (invoice From details)
   customers.json         - Saved customers
   invoices.json          - Past invoices and sent/paid status
   account_auth.json      - Login tokens (encrypted)

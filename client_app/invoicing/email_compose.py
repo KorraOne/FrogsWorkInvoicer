@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 
+import storage
 from .gst_settings import invoice_uses_tax_invoice
 
 log = logging.getLogger(__name__)
@@ -19,7 +20,8 @@ def _invoice_label(invoice, settings):
 
 
 def build_invoice_email_context(invoice, customer, settings, pdf_path):
-    business = settings.get("business_name", "").strip() or "Your business"
+    business_name = storage.invoice_business_name(invoice) or storage.get_default_business_name()
+    business = business_name.strip() or "Your business"
     customer_name = invoice.get("customer_name", "")
     inv_num = invoice.get("invoice_number", "")
     if isinstance(inv_num, int):

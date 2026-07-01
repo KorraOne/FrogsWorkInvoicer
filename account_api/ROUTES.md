@@ -56,6 +56,7 @@ Configure Payment Link redirects for local dev: `.\scripts\configure-payment-lin
     "lifetime_invoice_count": 8,
     "lifetime_ex_gst": "4200.00",
     "customer_count": 3,
+    "business_count": 1,
     "invoices_sent": 5,
     "invoices_paid": 2
   }

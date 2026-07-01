@@ -20,8 +20,9 @@ def apply_gst_registered_to_settings(settings, form):
     settings["gst_registered"] = parse_gst_registered_form(form.get("gst_registered"))
 
 
-def validate_business_gst_settings(settings):
-    if is_gst_registered(settings) and not (settings.get("business_abn") or "").strip():
+def validate_business_gst_settings(profile):
+    abn = (profile.get("business_abn") or profile.get("abn") or "").strip()
+    if is_gst_registered(profile) and not abn:
         return "ABN required when registered for GST."
     return None
 

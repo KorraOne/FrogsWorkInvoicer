@@ -12,6 +12,7 @@ from account import auth_store, client, entitlement_cache, sync
 from invoicing.due_dates import due_rule_from_form_data, due_rule_template_context
 from app_platform.folder_picker import FolderPickerError, pick_folder
 from invoicing.gst_settings import apply_gst_registered_to_settings, validate_business_gst_settings
+from routes.businesses import _edit_form_context, _profile_from_form
 
 
 def register_settings_routes(app, request_shutdown):
@@ -92,38 +93,82 @@ def register_settings_routes(app, request_shutdown):
 
     @app.route("/settings/details", methods=["GET", "POST"])
     def settings_details():
-        def _render(settings, error=None, form=None):
-            ctx = due_rule_template_context(date.today(), settings, form)
+        businesses = storage.load_businesses()
+        business_count = len(businesses)
+
+        if business_count >= 2:
+            settings = storage.load_settings()
+            if request.method == "POST":
+                rule = due_rule_from_form_data(request.form, settings)
+                settings["due_rule_type"] = rule["due_rule_type"]
+                settings["due_net_days"] = rule["due_net_days"]
+                storage.save_settings(settings)
+                flash("Saved.", "success")
+                return redirect(url_for("settings_details"))
+
+            ctx = due_rule_template_context(date.today(), settings)
+            return render_template(
+                "businesses_list.html",
+                businesses=businesses,
+                error=None,
+                **ctx,
+            )
+
+        is_add = business_count == 0
+        business_name, profile = storage.resolve_business() if not is_add else ("", {})
+
+        def _render_single(error=None, form=None):
+            ctx = due_rule_template_context(
+                date.today(),
+                storage.load_settings(),
+                form,
+            )
+            if form is None:
+                form = _edit_form_context(business_name, profile, is_add=is_add)["form"]
             return render_template(
                 "settings_details.html",
-                settings=settings,
+                form=form,
+                is_add=is_add,
+                show_add_another=not is_add,
                 error=error,
                 **ctx,
             )
 
         if request.method == "POST":
             settings = storage.load_settings()
-            settings["business_name"] = request.form.get("business_name", "").strip()
-            settings["business_address"] = request.form.get("business_address", "").strip()
-            settings["business_abn"] = request.form.get("business_abn", "").strip()
-            apply_gst_registered_to_settings(settings, request.form)
-            settings["account_name"] = request.form.get("account_name", "").strip()
-            settings["bsb"] = request.form.get("bsb", "").strip()
-            settings["acc"] = request.form.get("acc", "").strip()
+            name = request.form.get("name", "").strip() if is_add else business_name
+            profile_data = _profile_from_form(request.form, profile if not is_add else None)
+
+            if is_add and not name:
+                return _render_single(error="Enter a business name.")
+
+            if is_add and storage.business_name_exists(name):
+                return _render_single(
+                    error="A business with this name already exists.",
+                    form={**_edit_form_context(name, profile_data, is_add=True)["form"], "name": name},
+                )
+
+            gst_err = validate_business_gst_settings(profile_data)
+            if gst_err:
+                return _render_single(error=gst_err)
+
+            businesses = storage.load_businesses()
+            if is_add:
+                businesses[name] = profile_data
+                storage.save_businesses(businesses)
+                storage.set_default_business(name)
+            else:
+                businesses[business_name] = profile_data
+                storage.save_businesses(businesses)
+
             rule = due_rule_from_form_data(request.form, settings)
             settings["due_rule_type"] = rule["due_rule_type"]
             settings["due_net_days"] = rule["due_net_days"]
-
-            gst_err = validate_business_gst_settings(settings)
-            if gst_err:
-                return _render(settings, error=gst_err, form=request.form)
-
             storage.save_settings(settings)
             flash("Saved.", "success")
             return redirect(url_for("settings_page"))
 
-        settings = storage.load_settings()
-        return _render(settings)
+        return _render_single()
 
     @app.route("/settings/account", methods=["GET", "POST"])
     def settings_account():

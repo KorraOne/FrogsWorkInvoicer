@@ -41,6 +41,17 @@
                     {% endfor %}
                 </select>
             </div>
+            {% if show_business_filter %}
+            <div class="form-group">
+                <label for="business">Invoice from</label>
+                <select name="business" id="business">
+                    <option value="">{{ select_labels.invoice_business_all }}</option>
+                    {% for b in business_names %}
+                    <option value="{{ b }}" {% if business_filter == b %}selected{% endif %}>{{ b }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
             <div class="form-group">
                 <label for="from">From</label>
                 <input type="date" name="from" id="from" value="{{ date_from }}">
@@ -75,6 +86,9 @@
                 </div>
                 <p><strong>Date:</strong> {{ inv.invoice_date | fmt_invoice_date }}</p>
                 <p><strong>Customer:</strong> {{ inv.customer_name }}</p>
+                {% if show_business_on_cards %}
+                <p><strong>From:</strong> {{ inv.business_name or default_business }}</p>
+                {% endif %}
                 <p><strong>Amount:</strong> {{ inv | fmt_invoice_amount }}</p>
                 {% if inv.description %}
                 <p class="invoice-description">{{ inv.description }}</p>
@@ -128,6 +142,9 @@
                 <p><strong>Due:</strong> {{ due_info.due_date_fmt }}</p>
                 {% endif %}
                 <p><strong>Customer:</strong> {{ inv.customer_name }}</p>
+                {% if show_business_on_cards %}
+                <p><strong>From:</strong> {{ inv.business_name or default_business }}</p>
+                {% endif %}
                 <p><strong>Amount:</strong> {{ inv | fmt_invoice_amount }}</p>
                 {% if inv.description %}
                 <p class="invoice-description">{{ inv.description }}</p>
@@ -168,6 +185,9 @@
                 </div>
                 <p><strong>Date:</strong> {{ inv.invoice_date | fmt_invoice_date }}</p>
                 <p><strong>Customer:</strong> {{ inv.customer_name }}</p>
+                {% if show_business_on_cards %}
+                <p><strong>From:</strong> {{ inv.business_name or default_business }}</p>
+                {% endif %}
                 <p><strong>Amount:</strong> {{ inv | fmt_invoice_amount }}</p>
                 {% if inv.description %}
                 <p class="invoice-description">{{ inv.description }}</p>

@@ -39,6 +39,8 @@ PLACEHOLDERS = {
 # First / empty options on dropdowns.
 SELECT_LABELS = {
     "customer_picker": "Select a customer",
+    "business_picker": "Select a business",
     "invoice_status_all": "All statuses",
     "invoice_customer_all": "All customers",
+    "invoice_business_all": "All businesses",
 }

@@ -83,7 +83,8 @@ def parse_line_items(descriptions, amounts, quantities=None, gst_free_flags=None
 
 def line_items_from_request(form, gst_registered=None):
     if gst_registered is None:
-        gst_registered = is_gst_registered(storage.load_settings())
+        _, profile = storage.resolve_business(form.get("business"))
+        gst_registered = is_gst_registered(profile)
     return parse_line_items(
         form.getlist("item_description"),
         form.getlist("item_amount"),
@@ -106,6 +107,7 @@ def create_form_from_request(req):
         quantities = req.form.getlist("item_quantity")
         gst_free_flags = req.form.getlist("item_gst_free")
         customer = req.form.get("customer", "").strip()
+        business = req.form.get("business", "").strip()
         comment = req.form.get("comment", "").strip()
         due_rule_type = req.form.get("due_rule_type", "").strip()
         due_net_days = req.form.get("due_net_days", "").strip()
@@ -117,6 +119,7 @@ def create_form_from_request(req):
         quantities = req.args.getlist("item_quantity")
         gst_free_flags = req.args.getlist("item_gst_free")
         customer = req.args.get("customer", "")
+        business = req.args.get("business", "")
         comment = req.args.get("comment", "")
         due_rule_type = req.args.get("due_rule_type", "")
         due_net_days = req.args.get("due_net_days", "")
@@ -132,6 +135,7 @@ def create_form_from_request(req):
         items = [{"description": "", "amount": "", "qty": "1", "gst_free": False}]
     return {
         "customer": customer,
+        "business": business,
         "comment": comment,
         "line_items": items,
         "due_rule_type": due_rule_type,
@@ -161,7 +165,8 @@ def has_invoice_draft():
 
 def line_items_from_form_dict(form, gst_registered=None):
     if gst_registered is None:
-        gst_registered = is_gst_registered(storage.load_settings())
+        _, profile = storage.resolve_business(form.get("business"))
+        gst_registered = is_gst_registered(profile)
     descriptions = [item["description"] for item in form["line_items"]]
     amounts = [item["amount"] for item in form["line_items"]]
     quantities = [item["qty"] for item in form["line_items"]]
@@ -186,19 +191,38 @@ def due_context_from_form(form, invoice_date=None):
 def create_invoice_template_context(form, error=None):
     settings = storage.load_settings()
     customers = storage.load_customers()
+    businesses = storage.load_businesses()
+    business_count = len(businesses)
+    default_business = storage.get_default_business_name()
+    selected_business = (form.get("business") or "").strip() or default_business
+    if business_count == 1:
+        selected_business = default_business
+    elif business_count > 1 and selected_business not in businesses:
+        selected_business = default_business
+
+    if business_count == 0:
+        business_error = "Set up your business details before creating an invoice."
+        error = error or business_error
+
+    _, business_profile = storage.resolve_business(selected_business)
     merge_due_rule_into_form(form, settings)
     due_ctx = due_rule_template_context(date.today(), settings, form)
     try:
         invoice_number_raw = parse_invoice_number_input(
-            form.get("invoice_number") or suggested_invoice_number(settings)
+            form.get("invoice_number")
+            or suggested_invoice_number(selected_business, business_profile)
         )
     except ValueError:
-        invoice_number_raw = suggested_invoice_number(settings)
+        invoice_number_raw = suggested_invoice_number(selected_business, business_profile)
     return {
         "customers": customers,
+        "businesses": businesses,
+        "business_count": business_count,
+        "selected_business": selected_business,
+        "default_business": default_business,
         "form": form,
         "error": error,
-        "gst_registered": is_gst_registered(settings),
+        "gst_registered": is_gst_registered(business_profile),
         "invoice_number_raw": invoice_number_raw,
         "invoice_number_display": format_invoice_number(invoice_number_raw),
         **due_ctx,
@@ -213,17 +237,25 @@ def render_create_invoice(form, error=None):
 def render_preview_from_form(form):
     settings = storage.load_settings()
     customers = storage.load_customers()
+    businesses = storage.load_businesses()
     customer_name = form["customer"]
     comment = form["comment"]
+
+    if not businesses:
+        return render_create_invoice(form, error="Set up your business details before creating an invoice.")
+
+    business_name, business_profile = storage.resolve_business(form.get("business"))
+    if not business_name:
+        return render_create_invoice(form, error="Select which business to invoice from.")
 
     if not customer_name or customer_name not in customers:
         return render_create_invoice(form, error="Select a customer.")
 
-    gst_err = validate_business_gst_settings(settings)
+    gst_err = validate_business_gst_settings(business_profile)
     if gst_err:
         return render_create_invoice(form, error=gst_err)
 
-    gst_registered = is_gst_registered(settings)
+    gst_registered = is_gst_registered(business_profile)
     try:
         items, subtotal, gst_amount, total_inc_gst, taxable_ex_gst, gst_free_ex_gst = line_items_from_form_dict(
             form, gst_registered=gst_registered
@@ -231,7 +263,7 @@ def render_preview_from_form(form):
     except ValueError as exc:
         return render_create_invoice(form, error=str(exc))
 
-    save_invoice_draft(form)
+    save_invoice_draft({**form, "business": business_name})
     customer = customers[customer_name]
     invoice_date = date.today()
     due = due_context_from_form(form, invoice_date)
@@ -255,20 +287,22 @@ def render_preview_from_form(form):
         for item in items
     ]
 
+    sender = storage.business_invoice_fields(business_name, business_profile)
     return render_template(
         "preview_invoice.html",
-        business_name=settings.get("business_name", ""),
-        business_address=settings.get("business_address", ""),
-        business_abn=format_abn(settings.get("business_abn", "")),
-        account_name=settings.get("account_name", ""),
-        bsb=settings.get("bsb", ""),
-        acc=format_account(settings.get("acc", "")),
+        business_name=sender["business_name"],
+        business_address=sender["business_address"],
+        business_abn=format_abn(sender["business_abn"]),
+        account_name=sender["account_name"],
+        bsb=sender["bsb"],
+        acc=format_account(sender["acc"]),
         due_date_fmt=due["due_date_fmt"],
         due_rule_label=due["due_rule_label"],
         due_rule_type=due["due_rule_type"],
         due_net_days=due["due_net_days"],
         due_fixed_date=due.get("due_fixed_date") or "",
         customer_name=customer_name,
+        selected_business=business_name,
         customer_address=customer.get("address", ""),
         customer_abn=format_abn(customer.get("abn", "")),
         items=preview_items,

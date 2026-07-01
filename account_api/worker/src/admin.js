@@ -96,6 +96,10 @@ export async function buildAdminSummary(db) {
     db,
     "SELECT COUNT(*) AS c FROM installs WHERE customer_count >= 2"
   );
+  const multiBusiness = await scalar(
+    db,
+    "SELECT COUNT(*) AS c FROM installs WHERE business_count >= 2"
+  );
   const sentAny = await scalar(
     db,
     "SELECT COUNT(*) AS c FROM installs WHERE invoices_sent >= 1"
@@ -154,6 +158,7 @@ export async function buildAdminSummary(db) {
       uninstall_pct: pct(uninstalled, installs),
       gst_registered_pct: pct(gstRegistered, installs),
       multi_customer_pct: pct(multiCustomer, installs),
+      multi_business_pct: pct(multiBusiness, installs),
       sent_any_pct: pct(sentAny, installs),
       custom_pdf_pct: pct(customPdf, installs),
       backup_export_pct: pct(backupExport, installs),

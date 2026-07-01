@@ -11,6 +11,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 
 import storage
+from invoicing.gst_settings import is_gst_registered
 from account.install_secret import _install_path, get_install_secret
 from app_config import APP_VERSION, TRIAL_MAX_EX_GST, TRIAL_MAX_INVOICES
 
@@ -128,18 +129,21 @@ def build_usage_snapshot():
 
     settings = storage.load_settings()
     customers = storage.load_customers()
+    businesses = storage.load_businesses()
     invoices = storage.load_invoices()
     count, total = lifetime_totals()
     status_counts = _invoice_status_counts(invoices)
 
     due_rule = settings.get("due_rule_type") or settings.get("last_due_rule_type") or ""
+    _, default_profile = storage.resolve_business()
 
     return {
-        "gst_registered": bool(settings.get("gst_registered")),
+        "gst_registered": is_gst_registered(default_profile),
         "welcome_complete": bool(settings.get("welcome_complete")),
         "lifetime_invoice_count": count,
         "lifetime_ex_gst": str(total.quantize(Decimal("0.01"))),
         "customer_count": len(customers),
+        "business_count": len(businesses),
         "invoices_not_sent": status_counts["not_sent"],
         "invoices_sent": status_counts["sent"],
         "invoices_paid": status_counts["paid"],

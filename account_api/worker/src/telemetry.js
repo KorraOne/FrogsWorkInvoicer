@@ -42,6 +42,7 @@ function snapshotFields(snapshot) {
     ["lifetime_invoice_count", "lifetime_invoice_count", (v) => Number(v) || 0],
     ["lifetime_ex_gst", "lifetime_ex_gst", String],
     ["customer_count", "customer_count", (v) => Number(v) || 0],
+    ["business_count", "business_count", (v) => Number(v) || 0],
     ["invoices_sent", "invoices_sent", (v) => Number(v) || 0],
     ["invoices_paid", "invoices_paid", (v) => Number(v) || 0],
     ["invoices_not_sent", "invoices_not_sent", (v) => Number(v) || 0],

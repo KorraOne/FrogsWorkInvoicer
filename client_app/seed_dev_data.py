@@ -19,16 +19,23 @@ import storage
 # --- Seed content (edit freely for your dev scenarios) ---
 
 SEED_SETTINGS = {
-    "business_name": "Sam Chen — Garden & Property",
-    "business_address": "Unit 4, 18 Kingsley Street\nFremantle WA 6160",
-    "business_abn": "51824793601",
-    "gst_registered": True,
-    "account_name": "Sam Chen",
-    "bsb": "016-001",
-    "acc": "284719",
     "due_rule_type": "net_days",
     "due_net_days": 14,
     "welcome_complete": True,
+}
+
+SEED_BUSINESS_NAME = "Sam Chen — Garden & Property"
+
+SEED_BUSINESSES = {
+    SEED_BUSINESS_NAME: {
+        "address": "Unit 4, 18 Kingsley Street\nFremantle WA 6160",
+        "abn": "51824793601",
+        "gst_registered": True,
+        "account_name": "Sam Chen",
+        "bsb": "016-001",
+        "acc": "284719",
+        "invoice_counter": 1,
+    },
 }
 
 SEED_CUSTOMERS = {
@@ -147,7 +154,10 @@ def _apply_due_fields(invoice, settings):
     return invoice
 
 
-def _pdf_data_for_invoice(invoice, settings, customers):
+def _pdf_data_for_invoice(invoice, businesses, customers, settings):
+    business_name = invoice.get("business_name") or SEED_BUSINESS_NAME
+    profile = businesses.get(business_name, {})
+    sender = storage.business_invoice_fields(business_name, profile)
     customer = customers.get(invoice["customer_name"], {})
     inv_date = date.fromisoformat(invoice["invoice_date"])
     if invoice.get("line_items"):
@@ -181,12 +191,7 @@ def _pdf_data_for_invoice(invoice, settings, customers):
     return {
         "invoice_number": invoice["invoice_number"],
         "invoice_date": inv_date,
-        "business_name": settings.get("business_name", ""),
-        "business_address": settings.get("business_address", ""),
-        "business_abn": settings.get("business_abn", ""),
-        "account_name": settings.get("account_name", ""),
-        "bsb": settings.get("bsb", ""),
-        "acc": settings.get("acc", ""),
+        **sender,
         "due_date": due["due_date"],
         "due_date_fmt": due["due_date_fmt"],
         "due_rule_label": due["due_rule_label"],
@@ -199,7 +204,7 @@ def _pdf_data_for_invoice(invoice, settings, customers):
         "gst_free_ex_gst": gst_free_ex_gst,
         "gst_amount": gst_amount,
         "total_inc_gst": total_inc_gst,
-        "gst_registered": settings.get("gst_registered", False),
+        "gst_registered": sender.get("gst_registered", False),
         "comment": "",
     }
 
@@ -208,7 +213,7 @@ def _seed_invoice_numbers():
     return {spec["invoice_number"] for spec in _seed_invoice_specs()}
 
 
-def _ensure_seed_pdfs(invoices, settings, customers, added_keys, reset=False):
+def _ensure_seed_pdfs(invoices, settings, businesses, customers, added_keys, reset=False):
     pdf_dir = storage.get_pdf_dir()
     seed_numbers = _seed_invoice_numbers()
     generated = 0
@@ -223,7 +228,7 @@ def _ensure_seed_pdfs(invoices, settings, customers, added_keys, reset=False):
 
         pdf_path = pdf_generator.generate_invoice(
             pdf_dir,
-            _pdf_data_for_invoice(invoice, settings, customers),
+            _pdf_data_for_invoice(invoice, businesses, customers, settings),
         )
         invoice["filename"] = os.path.basename(pdf_path)
         generated += 1
@@ -332,26 +337,36 @@ def run_seed(reset=False):
             added_customers += 1
     storage.save_customers(customers)
 
-    invoices = storage.load_invoices()
-    added_invoices = 0
-    added_keys = set()
-    for spec in _seed_invoice_specs():
-        key = _invoice_key(spec["invoice_number"])
-        if key not in invoices:
-            invoices[key] = spec
-            added_invoices += 1
-            added_keys.add(key)
-
     settings = storage.load_settings()
+    businesses = storage.load_businesses()
     if reset:
+        storage.save_businesses(SEED_BUSINESSES.copy())
+        businesses = storage.load_businesses()
+        settings["default_business"] = SEED_BUSINESS_NAME
         for key, value in SEED_SETTINGS.items():
             settings[key] = value
     else:
+        if not businesses:
+            storage.save_businesses(SEED_BUSINESSES.copy())
+            businesses = storage.load_businesses()
+            settings["default_business"] = SEED_BUSINESS_NAME
         for key, value in SEED_SETTINGS.items():
             if key == "welcome_complete":
                 settings[key] = True
             elif not settings.get(key):
                 settings[key] = value
+
+    invoices = storage.load_invoices()
+    added_invoices = 0
+    added_keys = set()
+    for spec in _seed_invoice_specs():
+        if "business_name" not in spec:
+            spec["business_name"] = SEED_BUSINESS_NAME
+        key = _invoice_key(spec["invoice_number"])
+        if key not in invoices:
+            invoices[key] = spec
+            added_invoices += 1
+            added_keys.add(key)
 
     for invoice in invoices.values():
         if invoice["invoice_number"] in _seed_invoice_numbers():
@@ -361,12 +376,18 @@ def run_seed(reset=False):
     storage.save_settings(settings)
 
     max_number = max((int(k) for k in invoices), default=0)
-    settings["invoice_counter"] = max(settings.get("invoice_counter", 1), max_number + 1)
-    storage.save_settings(settings)
+    seed_profile = businesses.get(SEED_BUSINESS_NAME, {})
+    seed_profile["invoice_counter"] = max(
+        int(seed_profile.get("invoice_counter", 1)),
+        max_number + 1,
+    )
+    businesses[SEED_BUSINESS_NAME] = seed_profile
+    storage.save_businesses(businesses)
 
     pdfs_generated = _ensure_seed_pdfs(
         invoices,
         settings,
+        businesses,
         customers,
         added_keys=added_keys,
         reset=reset,
@@ -380,7 +401,7 @@ def run_seed(reset=False):
         "invoices_total": len(invoices),
         "invoices_added": added_invoices,
         "pdfs_generated": pdfs_generated,
-        "next_invoice_number": settings["invoice_counter"],
+        "next_invoice_number": seed_profile["invoice_counter"],
         "data_path": storage.get_bootstrap_dir(),
         "pdf_path": storage.get_pdf_dir(),
     }

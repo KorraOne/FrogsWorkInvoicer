@@ -7,20 +7,13 @@ from storage._json_cache import cached_read, invalidate
 from storage.bootstrap import get_data_path
 
 DEFAULT_SETTINGS = {
-    "business_name": "",
-    "business_address": "",
-    "business_abn": "",
-    "gst_registered": False,
-    "account_name": "",
-    "bsb": "",
-    "acc": "",
+    "default_business": "",
     "payment_terms": "",
     "due_rule_type": "net_days",
     "due_net_days": 14,
     "last_due_rule_type": "",
     "last_due_net_days": 14,
     "last_due_fixed_date": "",
-    "invoice_counter": 1,
     "welcome_complete": False,
 }
 

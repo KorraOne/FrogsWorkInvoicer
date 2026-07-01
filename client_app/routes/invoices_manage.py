@@ -22,16 +22,25 @@ def register_invoice_manage_routes(app):
         q = request.args.get("q", "").strip().lower()
         status_filter = request.args.get("status", "")
         customer_filter = request.args.get("customer", "")
+        business_filter = request.args.get("business", "")
         date_from = request.args.get("from", "")
         date_to = request.args.get("to", "")
 
-        if q or status_filter or customer_filter or date_from or date_to:
+        businesses = storage.load_businesses()
+        default_business = storage.get_default_business_name()
+        show_business_filter = len(businesses) >= 2
+
+        if q or status_filter or customer_filter or business_filter or date_from or date_to:
             filtered = {}
             for key, inv in invoices.items():
                 if status_filter and inv.get("status") != status_filter:
                     continue
                 if customer_filter and inv.get("customer_name") != customer_filter:
                     continue
+                if business_filter:
+                    inv_business = storage.invoice_business_name(inv) or default_business
+                    if inv_business != business_filter:
+                        continue
                 if date_from and inv.get("invoice_date", "") < date_from:
                     continue
                 if date_to and inv.get("invoice_date", "") > date_to:
@@ -53,7 +62,9 @@ def register_invoice_manage_routes(app):
         customers = sorted(storage.load_customers().keys())
         g.invoice_list_settings = storage.load_settings()
 
-        filters_active = bool(q or status_filter or customer_filter or date_from or date_to)
+        filters_active = bool(
+            q or status_filter or customer_filter or business_filter or date_from or date_to
+        )
         filter_summary_parts = []
         if q:
             filter_summary_parts.append(f'Search: "{q}"')
@@ -62,6 +73,8 @@ def register_invoice_manage_routes(app):
             filter_summary_parts.append(labels.get(status_filter, status_filter))
         if customer_filter:
             filter_summary_parts.append(customer_filter)
+        if business_filter:
+            filter_summary_parts.append(f"From: {business_filter}")
         if date_from or date_to:
             if date_from and date_to:
                 filter_summary_parts.append(f"{date_from} to {date_to}")
@@ -80,6 +93,11 @@ def register_invoice_manage_routes(app):
             q=q,
             status_filter=status_filter,
             customer_filter=customer_filter,
+            business_filter=business_filter,
+            business_names=sorted(businesses.keys()) if show_business_filter else [],
+            show_business_filter=show_business_filter,
+            show_business_on_cards=show_business_filter,
+            default_business=default_business,
             date_from=date_from,
             date_to=date_to,
             customers=customers,

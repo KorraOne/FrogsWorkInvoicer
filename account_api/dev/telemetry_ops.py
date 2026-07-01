@@ -46,6 +46,7 @@ def _snapshot_fields(snapshot):
         ("lifetime_invoice_count", "lifetime_invoice_count", lambda v: int(v or 0)),
         ("lifetime_ex_gst", "lifetime_ex_gst", str),
         ("customer_count", "customer_count", lambda v: int(v or 0)),
+        ("business_count", "business_count", lambda v: int(v or 0)),
         ("invoices_sent", "invoices_sent", lambda v: int(v or 0)),
         ("invoices_paid", "invoices_paid", lambda v: int(v or 0)),
         ("invoices_not_sent", "invoices_not_sent", lambda v: int(v or 0)),

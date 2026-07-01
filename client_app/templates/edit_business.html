@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Your details · {{ brand_name }}{% endblock %}
+{% block title %}{% if is_add %}Add business{% else %}Edit business{% endif %} · {{ brand_name }}{% endblock %}
 {% block content %}
 <div class="settings-page">
-<h1>Your details</h1>
-<p class="home-intro">Business and bank details on your invoices.</p>
+<h1>{% if is_add %}Add business{% else %}Edit business{% endif %}</h1>
+<p class="home-intro">Details shown as <strong>From</strong> on your invoices.</p>
 
 {% if error %}
 <div class="error">{{ error }}</div>
@@ -50,27 +50,9 @@
         </div>
     </section>
 
-    <section class="settings-details-section">
-        {% set legend = "Default payment due" %}
-        {% set hint = "Default for new invoices. Resets when a specific date passes." %}
-        {% set show_due_preview = true %}
-        {% set show_fixed_date = false %}
-        {% include "_due_rule_fields.html" %}
-    </section>
-
     <button type="submit" class="btn btn-primary">Save</button>
 </form>
-
-{% if show_add_another %}
-<p class="home-intro" style="margin-top: 1.5rem;">
-    <a href="{{ url_for('businesses_add') }}">Invoice from another entity?</a>
-</p>
-{% endif %}
 </div>
 
 <script src="{{ url_for('static', filename='gst_registration_ui.js') }}"></script>
-<script src="{{ url_for('static', filename='due_rule_ui.js') }}"></script>
-<script>
-initDueRuleUi({ invoiceDateIso: {{ invoice_date_iso | tojson }} });
-</script>
 {% endblock %}

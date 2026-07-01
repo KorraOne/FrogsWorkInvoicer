@@ -31,6 +31,7 @@ from invoicing.form import has_invoice_draft, invoices_by_status
 from app_platform import exe_dir, resource_path
 from routes.account import register_account_routes
 from routes.backup import register_backup_routes
+from routes.businesses import register_business_routes
 from routes.customers import register_customer_routes
 from routes.invoices import register_invoice_routes
 from routes.settings import register_settings_routes
@@ -59,6 +60,8 @@ NAV_PARENTS = {
     "customers_add": ("customers_list", "Customers"),
     "customers_edit": ("customers_list", "Customers"),
     "settings_page": ("home", "Home"),
+    "businesses_add": ("settings_details", "Business details"),
+    "businesses_edit": ("settings_details", "Business details"),
     "settings_details": ("home", "Home"),
     "settings_account": ("settings_page", "Settings"),
     "settings_storage": ("settings_page", "Settings"),
@@ -232,6 +235,7 @@ def _register_all_routes():
     register_system_routes(app)
     register_invoice_routes(app)
     register_customer_routes(app)
+    register_business_routes(app)
     register_settings_routes(app, request_shutdown)
     register_welcome_routes(app, helpers)
     register_account_routes(app)

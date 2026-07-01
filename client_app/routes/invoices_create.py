@@ -50,6 +50,7 @@ def register_invoice_create_routes(app):
         else:
             form = {
                 "customer": "",
+                "business": "",
                 "comment": "",
                 "line_items": [{"description": "", "amount": "", "qty": "1"}],
             }
@@ -105,18 +106,28 @@ def register_invoice_create_routes(app):
 
         settings = storage.load_settings()
         customers = storage.load_customers()
+        businesses = storage.load_businesses()
+
+        if not businesses:
+            return redirect(
+                url_for("create_invoice", error="Set up your business details before creating an invoice.")
+            )
 
         customer_name = request.form.get("customer", "").strip()
+        business_name, business_profile = storage.resolve_business(request.form.get("business", "").strip())
         comment = request.form.get("comment", "").strip()
+
+        if not business_name:
+            return redirect(url_for("create_invoice", error="Select which business to invoice from."))
 
         if not customer_name or customer_name not in customers:
             return redirect(url_for("create_invoice", error="Select a customer."))
 
-        gst_err = validate_business_gst_settings(settings)
+        gst_err = validate_business_gst_settings(business_profile)
         if gst_err:
             return redirect(url_for("create_invoice", error=gst_err))
 
-        gst_registered = is_gst_registered(settings)
+        gst_registered = is_gst_registered(business_profile)
         try:
             items, subtotal, gst_amount, total_inc_gst, taxable_ex_gst, gst_free_ex_gst = line_items_from_request(
                 request.form, gst_registered=gst_registered
@@ -156,12 +167,7 @@ def register_invoice_create_routes(app):
         invoice_data = {
             "invoice_number": invoice_number,
             "invoice_date": invoice_date,
-            "business_name": settings.get("business_name", ""),
-            "business_address": settings.get("business_address", ""),
-            "business_abn": settings.get("business_abn", ""),
-            "account_name": settings.get("account_name", ""),
-            "bsb": settings.get("bsb", ""),
-            "acc": settings.get("acc", ""),
+            **storage.business_invoice_fields(business_name, business_profile),
             "due_date": due["due_date"],
             "due_date_fmt": due["due_date_fmt"],
             "due_rule_label": due["due_rule_label"],
@@ -183,13 +189,14 @@ def register_invoice_create_routes(app):
 
         rule = due_rule_from_form_data(form_data, settings)
         save_last_due_prefs(settings, rule)
-        persist_invoice_counter(settings, invoice_number)
         storage.save_settings(settings)
+        persist_invoice_counter(business_name, invoice_number)
 
         storage.add_invoice(
             {
                 "invoice_number": invoice_number,
                 "invoice_date": invoice_date.isoformat(),
+                "business_name": business_name,
                 "customer_name": customer_name,
                 "description": invoice_summary_description(items),
                 "total_inc_gst": str(total_inc_gst),

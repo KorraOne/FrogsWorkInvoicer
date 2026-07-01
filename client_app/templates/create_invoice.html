@@ -15,6 +15,24 @@
 <form method="POST" action="{{ url_for('preview_invoice') }}" id="invoice-form">
     {% include "_invoice_number_field.html" %}
 
+    {% if business_count >= 2 %}
+    <section class="invoice-form-section">
+        <h2 class="invoice-form-section-heading">Invoice from</h2>
+        <div class="form-group">
+            <label for="business">Which business is this invoice from?</label>
+            <select name="business" id="business" required>
+                <option value="">{{ select_labels.business_picker }}</option>
+                {% for name in businesses %}
+                <option value="{{ name }}" {% if selected_business == name %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </section>
+    {% elif business_count == 1 %}
+    <input type="hidden" name="business" value="{{ selected_business }}">
+    <p class="home-intro">From: <strong>{{ selected_business }}</strong></p>
+    {% endif %}
+
     <section class="invoice-form-section">
         <h2 class="invoice-form-section-heading">Customer</h2>
         <div class="form-group">

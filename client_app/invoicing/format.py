@@ -23,20 +23,41 @@ def parse_invoice_number_input(raw):
     return number
 
 
-def suggested_invoice_number(settings):
-    counter = int(settings.get("invoice_counter", 1))
+def _invoice_business_name(inv):
+    from storage.businesses import get_default_business_name, invoice_business_name
+
+    return invoice_business_name(inv) or get_default_business_name()
+
+
+def suggested_invoice_number(business_name=None, business_profile=None):
+    from storage.businesses import resolve_business
+
+    if business_profile is None:
+        business_name, business_profile = resolve_business(business_name)
+    counter = int((business_profile or {}).get("invoice_counter", 1))
     invoices = storage.load_invoices()
-    if not invoices:
+    matching = [
+        int(inv.get("invoice_number", 0))
+        for inv in invoices.values()
+        if _invoice_business_name(inv) == business_name
+    ]
+    if not matching:
         return counter
-    max_number = max(int(inv.get("invoice_number", 0)) for inv in invoices.values())
-    return max(counter, max_number + 1)
+    return max(counter, max(matching) + 1)
 
 
-def persist_invoice_counter(settings, used_number):
-    settings["invoice_counter"] = max(
-        int(settings.get("invoice_counter", 1)),
+def persist_invoice_counter(business_name, used_number):
+    from storage.businesses import load_businesses, save_businesses
+
+    businesses = load_businesses()
+    if business_name not in businesses:
+        return
+    profile = businesses[business_name]
+    profile["invoice_counter"] = max(
+        int(profile.get("invoice_counter", 1)),
         int(used_number) + 1,
     )
+    save_businesses(businesses)
 
 
 def format_abn(abn):

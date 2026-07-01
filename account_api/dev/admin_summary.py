@@ -87,6 +87,7 @@ def build_admin_summary(db):
         "SELECT ROUND(AVG(CAST(signup_ex_gst AS REAL)), 2) FROM installs WHERE signup_ex_gst IS NOT NULL",
     )
     multi_customer = _scalar(db, "SELECT COUNT(*) FROM installs WHERE customer_count >= 2")
+    multi_business = _scalar(db, "SELECT COUNT(*) FROM installs WHERE business_count >= 2")
     sent_any = _scalar(db, "SELECT COUNT(*) FROM installs WHERE invoices_sent >= 1")
     custom_pdf = _scalar(db, "SELECT COUNT(*) FROM installs WHERE custom_pdf_folder = 1")
     backup_export = _scalar(db, "SELECT COUNT(*) FROM installs WHERE has_backup_export = 1")
@@ -139,6 +140,7 @@ def build_admin_summary(db):
             "uninstall_pct": _pct(uninstalled, installs),
             "gst_registered_pct": _pct(gst_registered, installs),
             "multi_customer_pct": _pct(multi_customer, installs),
+            "multi_business_pct": _pct(multi_business, installs),
             "sent_any_pct": _pct(sent_any, installs),
             "custom_pdf_pct": _pct(custom_pdf, installs),
             "backup_export_pct": _pct(backup_export, installs),
@@ -275,6 +277,7 @@ def render_admin_html(summary):
   <table>
     <tr><th>Feature</th><th>Rate</th></tr>
     <tr><td>2+ customers</td><td>{_fmt_pct(r['multi_customer_pct'])}</td></tr>
+    <tr><td>2+ businesses</td><td>{_fmt_pct(r['multi_business_pct'])}</td></tr>
     <tr><td>Marked ≥1 sent</td><td>{_fmt_pct(r['sent_any_pct'])}</td></tr>
     <tr><td>Custom PDF folder</td><td>{_fmt_pct(r['custom_pdf_pct'])}</td></tr>
     <tr><td>Backup export</td><td>{_fmt_pct(r['backup_export_pct'])}</td></tr>

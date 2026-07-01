@@ -29,6 +29,8 @@ def test_build_signup_snapshot_keys(monkeypatch, tmp_path):
     monkeypatch.setattr("storage.load_invoices", lambda: {})
     monkeypatch.setattr("storage.load_customers", lambda: {})
     monkeypatch.setattr("storage.load_settings", lambda: {"gst_registered": True, "welcome_complete": False})
+    monkeypatch.setattr("storage.load_businesses", lambda: {"Acme": {"gst_registered": True}})
+    monkeypatch.setattr("storage.resolve_business", lambda name=None: ("Acme", {"gst_registered": True}))
 
     snap = build_signup_snapshot()
     assert snap["lifetime_invoice_count"] == 0

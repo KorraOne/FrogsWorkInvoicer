@@ -279,6 +279,7 @@
     <form method="POST" action="{{ url_for('generate') }}" id="generate-form" class="preview-action-form">
 
         <input type="hidden" name="customer" value="{{ customer_name }}">
+        <input type="hidden" name="business" value="{{ selected_business }}">
 
         {% for item in items %}
 

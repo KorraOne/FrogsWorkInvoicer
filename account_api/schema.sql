@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS installs (
   trial_gate_hit TEXT,
   plan_interval TEXT,
   customer_count INTEGER,
+  business_count INTEGER,
   invoices_sent INTEGER,
   invoices_paid INTEGER,
   invoices_not_sent INTEGER,

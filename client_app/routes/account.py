@@ -8,7 +8,7 @@ from flask import flash, redirect, render_template, request, session, url_for
 import storage
 from account import auth_store, checkout_handoff, client, messages, sync
 from account.client import AccountError, AccountOfflineError
-from invoicing.gst_settings import apply_gst_registered_to_settings, validate_business_gst_settings
+from invoicing.gst_settings import is_gst_registered, validate_business_gst_settings
 
 log = logging.getLogger(__name__)
 
@@ -96,39 +96,43 @@ def register_account_routes(app):
 
     @app.route("/account/onboard/business", methods=["GET", "POST"])
     def account_onboard_business():
-        settings = storage.load_settings()
+        businesses = storage.load_businesses()
+        default_name, default_profile = storage.resolve_business()
+
         if request.method == "POST":
+            from routes.businesses import _profile_from_form
+
             business_name = request.form.get("business_name", "").strip()
-            business_address = request.form.get("business_address", "").strip()
-            business_abn = request.form.get("business_abn", "").strip()
+            profile = _profile_from_form(request.form, default_profile if default_name else None)
+
             if business_name:
-                settings["business_name"] = business_name
-            if business_address:
-                settings["business_address"] = business_address
-            settings["business_abn"] = business_abn
-            apply_gst_registered_to_settings(settings, request.form)
-            gst_err = validate_business_gst_settings(settings)
-            if gst_err:
-                return render_template(
-                    "account_onboard_business.html",
-                    error=gst_err,
-                    form={
-                        "business_name": business_name or settings.get("business_name", ""),
-                        "business_address": business_address or settings.get("business_address", ""),
-                        "business_abn": business_abn,
-                        "gst_registered": settings.get("gst_registered", False),
-                    },
-                )
-            storage.save_settings(settings)
+                gst_err = validate_business_gst_settings(profile)
+                if gst_err:
+                    return render_template(
+                        "account_onboard_business.html",
+                        error=gst_err,
+                        form={
+                            "business_name": business_name,
+                            "business_address": profile.get("address", ""),
+                            "business_abn": profile.get("abn", ""),
+                            "gst_registered": profile.get("gst_registered", False),
+                        },
+                    )
+
+                businesses[business_name] = profile
+                if not storage.get_default_business_name():
+                    storage.set_default_business(business_name)
+                storage.save_businesses(businesses)
             return redirect(url_for("settings_page"))
+
         return render_template(
             "account_onboard_business.html",
             error=None,
             form={
-                "business_name": settings.get("business_name", ""),
-                "business_address": settings.get("business_address", ""),
-                "business_abn": settings.get("business_abn", ""),
-                "gst_registered": settings.get("gst_registered", False),
+                "business_name": default_name,
+                "business_address": default_profile.get("address", ""),
+                "business_abn": default_profile.get("abn", ""),
+                "gst_registered": default_profile.get("gst_registered", False),
             },
         )
 
