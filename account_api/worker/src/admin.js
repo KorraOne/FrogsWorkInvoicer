@@ -115,7 +115,7 @@ export async function buildAdminSummary(db) {
 
   const planRows = await db
     .prepare(
-      `SELECT plan_interval AS interval, COUNT(*) AS count FROM installs
+      `SELECT plan_interval AS plan_key, COUNT(*) AS count FROM installs
        WHERE subscribed_at IS NOT NULL AND plan_interval IS NOT NULL AND plan_interval != ''
        GROUP BY plan_interval`
     )
@@ -204,7 +204,7 @@ export function renderAdminHtml(summary) {
     .map((row) => `<tr><td>${row.gate}</td><td>${row.count}</td></tr>`)
     .join("");
   const planHtml = (s.plan_interval || [])
-    .map((row) => `<tr><td>${row.interval}</td><td>${row.count}</td></tr>`)
+    .map((row) => `<tr><td>${row.plan_key}</td><td>${row.count}</td></tr>`)
     .join("");
   const versionHtml = (summary.versions || [])
     .map((row) => `<tr><td>${row.version}</td><td>${row.count}</td></tr>`)

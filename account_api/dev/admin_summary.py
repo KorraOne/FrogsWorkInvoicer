@@ -95,7 +95,7 @@ def build_admin_summary(db):
     plan_rows = [
         dict(r)
         for r in db.execute(
-            """SELECT plan_interval AS interval, COUNT(*) AS count FROM installs
+            """SELECT plan_interval AS plan_key, COUNT(*) AS count FROM installs
                WHERE subscribed_at IS NOT NULL AND plan_interval IS NOT NULL AND plan_interval != ''
                GROUP BY plan_interval"""
         ).fetchall()
@@ -193,7 +193,7 @@ def render_admin_html(summary):
         for row in s.get("trial_gate") or []
     ) or "<tr><td colspan=2>—</td></tr>"
     plan_html = "".join(
-        f"<tr><td>{row['interval']}</td><td>{row['count']}</td></tr>"
+        f"<tr><td>{row['plan_key']}</td><td>{row['count']}</td></tr>"
         for row in s.get("plan_interval") or []
     ) or "<tr><td colspan=2>—</td></tr>"
     version_html = "".join(

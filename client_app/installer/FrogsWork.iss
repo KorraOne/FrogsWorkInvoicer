@@ -94,6 +94,26 @@ begin
   end;
 end;
 
+function BootstrapNeedsPdfFolder(const BootstrapPath: String): Boolean;
+var
+  Content: AnsiString;
+begin
+  if not FileExists(BootstrapPath) then
+  begin
+    Result := True;
+    Exit;
+  end;
+  if LoadStringFromFile(BootstrapPath, Content) then
+  begin
+    Result :=
+      (Pos('"pdf_folder": ""', Content) > 0) or
+      (Pos('"pdf_folder":""', Content) > 0) or
+      (Pos('"pdf_folder":', Content) = 0);
+    Exit;
+  end;
+  Result := True;
+end;
+
 procedure WriteBootstrapPdfFolder(const PdfFolder: String);
 var
   AppDataDir, BootstrapPath, JsonContent: String;
@@ -101,7 +121,7 @@ begin
   AppDataDir := ExpandConstant('{userappdata}\FrogsWork');
   ForceDirectories(AppDataDir);
   BootstrapPath := AppDataDir + '\bootstrap.json';
-  if FileExists(BootstrapPath) then
+  if not BootstrapNeedsPdfFolder(BootstrapPath) then
     Exit;
   JsonContent := '{' + #13#10 +
     '  "pdf_folder": "' + JsonEscapePath(PdfFolder) + '"' + #13#10 +
@@ -159,6 +179,10 @@ begin
     PdfFolder := AddBackslash(PdfParent) + 'pdfs';
 
   ForceDirectories(PdfFolder);
+  SaveStringToFile(
+    AddBackslash(PdfFolder) + '\.frogswork-pdfs',
+    'FrogsWork PDF folder marker.' + #13#10,
+    False);
   WriteBootstrapPdfFolder(PdfFolder);
 end;
 

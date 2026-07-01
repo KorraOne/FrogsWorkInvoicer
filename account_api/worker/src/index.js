@@ -401,17 +401,25 @@ export default {
     if (path === "/admin/api/summary" && request.method === "GET") {
       const auth = checkAdminAuth(request, env.ADMIN_PASSWORD);
       if (!auth.ok) return auth.response;
-      const summary = await buildAdminSummary(env.DB);
-      return json(summary);
+      try {
+        const summary = await buildAdminSummary(env.DB);
+        return json(summary);
+      } catch (exc) {
+        return textError(String(exc.message || exc), 500);
+      }
     }
 
     if (path === "/admin" && request.method === "GET") {
       const auth = checkAdminAuth(request, env.ADMIN_PASSWORD);
       if (!auth.ok) return auth.response;
-      const summary = await buildAdminSummary(env.DB);
-      return new Response(renderAdminHtml(summary), {
-        headers: { "Content-Type": "text/html; charset=utf-8" },
-      });
+      try {
+        const summary = await buildAdminSummary(env.DB);
+        return new Response(renderAdminHtml(summary), {
+          headers: { "Content-Type": "text/html; charset=utf-8" },
+        });
+      } catch (exc) {
+        return textError(String(exc.message || exc), 500);
+      }
     }
 
     if (path === "/releases/latest" && request.method === "GET") {
