@@ -13,7 +13,7 @@ database_name = "frogswork-account"
 database_id = "2d4c5469-d281-492b-b067-4ffd72e926d8"
 
 [vars]
-CLIENT_RELEASE_VERSION = "2.1.1"
-CLIENT_RELEASE_URL = "https://downloads.frogswork.com/FrogsWork-2.1.1-win64.zip"
-CLIENT_RELEASE_SHA256 = "8296da5734b54d4a564c3796647a694b4540151dbf58f6864f9a27c4f2732fa0"
-CLIENT_RELEASE_NOTES = "Installer: honour PDF folder choice on upgrade; remove marked PDF folder on uninstall."
+CLIENT_RELEASE_VERSION = "2.1.2"
+CLIENT_RELEASE_URL = "https://downloads.frogswork.com/FrogsWork-2.1.2-win64.zip"
+CLIENT_RELEASE_SHA256 = "471c303d448627997ccd70fc140036d2f284c95a2d283e900289ca04ea28fca3"
+CLIENT_RELEASE_NOTES = "Enable Stripe subscribe flow (test mode)."

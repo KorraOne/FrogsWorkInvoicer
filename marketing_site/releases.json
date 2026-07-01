@@ -1,10 +1,15 @@
 ﻿{
-    "version":  "2.1.1",
-    "setup_sha256":  "191caa4c3e05d05f634f468bd660dc4a0731761397eae49f2f460a9d5f6d6202",
+    "version":  "2.1.2",
+    "setup_sha256":  "c19f647fa0a0d6b0f83e774f1687254d67341baae50557a8ec56812918e82ef6",
     "published_at":  "2026-07-01",
-    "update_zip_path":  "https://downloads.frogswork.com/FrogsWork-2.1.1-win64.zip",
-    "notes":  "Installer: honour PDF folder choice on upgrade; remove marked PDF folder on uninstall.",
+    "update_zip_path":  "https://downloads.frogswork.com/FrogsWork-2.1.2-win64.zip",
+    "notes":  "Enable Stripe subscribe flow (test mode).",
     "history":  [
+                    {
+                        "published_at":  "2026-07-01",
+                        "version":  "2.1.2",
+                        "notes":  "Enable Stripe subscribe flow (test mode)."
+                    },
                     {
                         "published_at":  "2026-07-01",
                         "version":  "2.1.1",
@@ -26,6 +31,6 @@
                         "notes":  "Replaces usage-based billing with subscription. Free trial: 20 invoices or 20000 ex GST before subscribe."
                     }
                 ],
-    "download_path":  "https://downloads.frogswork.com/FrogsWork-2.1.1-setup.exe",
-    "sha256":  "8296da5734b54d4a564c3796647a694b4540151dbf58f6864f9a27c4f2732fa0"
+    "download_path":  "https://downloads.frogswork.com/FrogsWork-2.1.2-setup.exe",
+    "sha256":  "471c303d448627997ccd70fc140036d2f284c95a2d283e900289ca04ea28fca3"
 }

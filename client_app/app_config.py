@@ -2,7 +2,7 @@
 
 import os
 
-DEFAULT_ACCOUNT_API_URL = os.environ.get("FROGSWORK_ACCOUNT_API_URL") or "https://api.frogswork.com"
+DEFAULT_ACCOUNT_API_URL = os.environ.get("FROGSWORK_ACCOUNT_API_URL") or "http://127.0.0.1:8787"
 # Windows: %APPDATA%\<APP_DATA_DIR_NAME>\ — macOS/Linux use platformdirs later.
 APP_DATA_DIR_NAME = "FrogsWork"
 
@@ -56,8 +56,8 @@ SUBSCRIPTION_ANNUAL_DISPLAY = "$129.90/yr"
 SUBSCRIPTION_ANNUAL_SAVINGS = "2 months free"
 
 # Stripe Payment Links (Dashboard → Payment links). No API call needed for checkout.
-STRIPE_PAYMENT_LINK_MONTHLY = os.environ.get("STRIPE_PAYMENT_LINK_MONTHLY", "https://buy.stripe.com/test_00w5kE3h49dbaWlaD38Zq01").strip()
-STRIPE_PAYMENT_LINK_ANNUAL = os.environ.get("STRIPE_PAYMENT_LINK_ANNUAL", "https://buy.stripe.com/test_aFa9AU7xk4WV6G5aD38Zq00").strip()
+STRIPE_PAYMENT_LINK_MONTHLY = os.environ.get("STRIPE_PAYMENT_LINK_MONTHLY", "").strip()
+STRIPE_PAYMENT_LINK_ANNUAL = os.environ.get("STRIPE_PAYMENT_LINK_ANNUAL", "").strip()
 
 _ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets")
 APP_ICON_PATH = os.path.join(_ASSETS_DIR, "app.ico")
