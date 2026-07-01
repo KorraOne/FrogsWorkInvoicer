@@ -2,6 +2,9 @@ name = "frogswork-api"
 main = "src/index.js"
 compatibility_date = "2024-11-01"
 
+# Custom domain api.frogswork.com must be moved to this Worker in the Cloudflare
+# dashboard (Workers & Pages) — it is currently on an older Worker/script.
+
 # Replace placeholder after: .\scripts\setup-d1-production.ps1
 # Or: npx wrangler d1 create frogswork-account  (paste uuid below)
 [[d1_databases]]

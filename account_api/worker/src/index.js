@@ -12,6 +12,15 @@ import { buildAdminSummary, checkAdminAuth, renderAdminHtml } from "./admin.js";
 
 const ACCESS_TTL_SEC = 12 * 60 * 60;
 const REFRESH_TTL_SEC = 30 * 24 * 60 * 60;
+const STRIPE_API_VERSION = "2024-11-20.acacia";
+
+function getStripe(env) {
+  const key = env.STRIPE_SECRET_KEY;
+  if (!key) {
+    throw new Error("Stripe is not configured.");
+  }
+  return new Stripe(key, { apiVersion: STRIPE_API_VERSION });
+}
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -217,9 +226,6 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/$/, "") || "/";
-    const stripe = new Stripe(env.STRIPE_SECRET_KEY || "", {
-      apiVersion: "2024-11-20.acacia",
-    });
 
     if (path === "/health" && request.method === "GET") {
       return json({ ok: true, stripe: Boolean(env.STRIPE_SECRET_KEY) });
@@ -231,6 +237,7 @@ export default {
         return textError("Invalid checkout session.", 400);
       }
       try {
+        const stripe = getStripe(env);
         const { email } = await validatedCheckoutSession(stripe, sessionId);
         const existing = await userByEmail(env.DB, email);
         return json({
@@ -261,9 +268,10 @@ export default {
       let email;
       let customerId;
       try {
+        const stripe = getStripe(env);
         ({ email, customerId } = await validatedCheckoutSession(stripe, sessionId));
       } catch (exc) {
-        return textError(String(exc.message || exc), 400);
+        return textError(String(exc.message || exc), exc.message === "Stripe is not configured." ? 503 : 400);
       }
 
       if (await userByEmail(env.DB, email)) {
@@ -292,6 +300,7 @@ export default {
           body.signup_snapshot
         );
         const user = await userById(env.DB, result.meta.last_row_id);
+        const stripe = getStripe(env);
         const sub = await subscriptionStatus(stripe, customerId);
         await updateSubscriptionMilestones(env.DB, user, sub);
       }
@@ -310,9 +319,10 @@ export default {
       let email;
       let customerId;
       try {
+        const stripe = getStripe(env);
         ({ email, customerId } = await validatedCheckoutSession(stripe, sessionId));
       } catch (exc) {
-        return textError(String(exc.message || exc), 400);
+        return textError(String(exc.message || exc), exc.message === "Stripe is not configured." ? 503 : 400);
       }
       if (email !== auth.user.email.trim().toLowerCase()) {
         return textError("Checkout email does not match your account.", 400);
@@ -356,6 +366,12 @@ export default {
     if (path === "/entitlements" && request.method === "GET") {
       const auth = await requireUser(request, env);
       if (auth.error) return auth.error;
+      let stripe;
+      try {
+        stripe = getStripe(env);
+      } catch {
+        return textError("Stripe is not configured.", 503);
+      }
       const sub = await subscriptionStatus(stripe, auth.user.stripe_customer_id);
       sub.portal_url = await portalUrl(stripe, auth.user.stripe_customer_id);
       await updateSubscriptionMilestones(env.DB, auth.user, sub);
@@ -414,6 +430,12 @@ export default {
       // Ack only — GET /entitlements queries Stripe live; no DB cache yet.
       if (!env.STRIPE_WEBHOOK_SECRET) {
         return textError("Webhook secret not configured.", 500);
+      }
+      let stripe;
+      try {
+        stripe = getStripe(env);
+      } catch {
+        return textError("Stripe is not configured.", 500);
       }
       const payload = await request.text();
       const sig = request.headers.get("Stripe-Signature") || "";
