@@ -1,10 +1,15 @@
 ﻿{
-    "version":  "2.2.3",
-    "setup_sha256":  "879313ebc2be1a8a4ec39956187e68f13c74184be5c329dd9458509c1acb0be5",
-    "published_at":  "2026-07-01",
-    "update_zip_path":  "https://downloads.frogswork.com/FrogsWork-2.2.3-win64.zip",
-    "notes":  "Fix in-app updater launch, immediate feedback, and logging.",
+    "version":  "2.2.4",
+    "setup_sha256":  "cf5b13a6b1929a069ff6794c30e67b203283f297ffcbe6641bdc252a2a18c26d",
+    "published_at":  "2026-07-02",
+    "update_zip_path":  "https://downloads.frogswork.com/FrogsWork-2.2.4-win64.zip",
+    "notes":  "Field validation, normalisation, cleaning; structured addresses; optional invoice logo; work-completed photos appendix; and post-save redirect to Home.",
     "history":  [
+                    {
+                        "published_at":  "2026-07-02",
+                        "version":  "2.2.4",
+                        "notes":  "Field validation, normalisation, cleaning; structured addresses; optional invoice logo; work-completed photos appendix; and post-save redirect to Home."
+                    },
                     {
                         "published_at":  "2026-07-01",
                         "version":  "2.2.3",
@@ -51,6 +56,6 @@
                         "notes":  "Replaces usage-based billing with subscription. Free trial: 20 invoices or 20000 ex GST before subscribe."
                     }
                 ],
-    "download_path":  "https://downloads.frogswork.com/FrogsWork-2.2.3-setup.exe",
-    "sha256":  "b3124752febd2ec480a0b6cdce71790076f0b6c5cf67e2e90f511999708260fd"
+    "download_path":  "https://downloads.frogswork.com/FrogsWork-2.2.4-setup.exe",
+    "sha256":  "45881123b970468e79db71f68273e30821674117069bdefb436086591b6a3485"
 }
