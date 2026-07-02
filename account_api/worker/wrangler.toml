@@ -13,7 +13,7 @@ database_name = "frogswork-account"
 database_id = "2d4c5469-d281-492b-b067-4ffd72e926d8"
 
 [vars]
-CLIENT_RELEASE_VERSION = "2.2.5"
-CLIENT_RELEASE_URL = "https://downloads.frogswork.com/FrogsWork-2.2.5-win64.zip"
-CLIENT_RELEASE_SHA256 = "cd2ad40088a80bbf06918b629dca641746725d8e8ec7c86649eea36591af8f75"
-CLIENT_RELEASE_NOTES = "Add your business logo to invoices: upload an image, position it with a live header preview, and show it on PDF invoices. Toggle the logo on or off anytime."
+CLIENT_RELEASE_VERSION = "2.2.6"
+CLIENT_RELEASE_URL = "https://downloads.frogswork.com/FrogsWork-2.2.6-win64.zip"
+CLIENT_RELEASE_SHA256 = "51a434bdccc5bb0df86e4bb283378b8e6a3d3e2cb4535fd2a4dd20a6c9b36f64"
+CLIENT_RELEASE_NOTES = "Fix subscribe and welcome wizard step counts (2 steps, not 3)."

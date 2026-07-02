@@ -2,7 +2,7 @@
 {% block title %}Subscribe · {{ brand_name }}{% endblock %}
 {% block content %}
 <div class="subscribe-page">
-{% with step=1, total=signup_steps|default(3), title="Choose a plan" %}
+{% with step=1, total=signup_steps|default(2), title="Subscribe" %}
 {% include "_onboarding_stepper.html" %}
 {% endwith %}
 
@@ -64,7 +64,7 @@
 
 {% if opened_checkout or awaiting_payment %}
 <div class="subscribe-notice subscribe-notice--success" id="subscribe-waiting">
-    <p><strong>Step 2: Pay in your browser.</strong> Use the email you want for your account. This screen continues when payment succeeds.</p>
+    <p><strong>Pay in your browser.</strong> Use the email you want for your account. This screen continues when payment succeeds.</p>
     {% if checkout_url %}
     <p><a href="{{ checkout_url }}" class="btn btn-secondary btn-small" target="_blank" rel="noopener">Open payment page again</a></p>
     {% endif %}

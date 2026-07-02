@@ -14,7 +14,7 @@ from invoicing.validators import normalize_abn
 
 log = logging.getLogger(__name__)
 
-SIGNUP_STEPS = 3
+SIGNUP_STEPS = 2
 
 
 def register_account_routes(app):

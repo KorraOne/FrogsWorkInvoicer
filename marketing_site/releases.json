@@ -1,10 +1,15 @@
 ﻿{
-    "version":  "2.2.5",
-    "setup_sha256":  "785ab57946515796744d6bd6e12dc7b995336469bbd99092573a3529ec393a24",
+    "version":  "2.2.6",
+    "setup_sha256":  "7882f911a81f207bb2f2b73f30c8eb855b1439be40123201f218fde6115831e1",
     "published_at":  "2026-07-02",
-    "update_zip_path":  "https://downloads.frogswork.com/FrogsWork-2.2.5-win64.zip",
-    "notes":  "Add your business logo to invoices: upload an image, position it with a live header preview, and show it on PDF invoices. Toggle the logo on or off anytime.",
+    "update_zip_path":  "https://downloads.frogswork.com/FrogsWork-2.2.6-win64.zip",
+    "notes":  "Fix subscribe and welcome wizard step counts (2 steps, not 3).",
     "history":  [
+                    {
+                        "published_at":  "2026-07-02",
+                        "version":  "2.2.6",
+                        "notes":  "Fix subscribe and welcome wizard step counts (2 steps, not 3)."
+                    },
                     {
                         "published_at":  "2026-07-02",
                         "version":  "2.2.5",
@@ -61,6 +66,6 @@
                         "notes":  "Replaces usage-based billing with subscription. Free trial: 20 invoices or 20000 ex GST before subscribe."
                     }
                 ],
-    "download_path":  "https://downloads.frogswork.com/FrogsWork-2.2.5-setup.exe",
-    "sha256":  "cd2ad40088a80bbf06918b629dca641746725d8e8ec7c86649eea36591af8f75"
+    "download_path":  "https://downloads.frogswork.com/FrogsWork-2.2.6-setup.exe",
+    "sha256":  "51a434bdccc5bb0df86e4bb283378b8e6a3d3e2cb4535fd2a4dd20a6c9b36f64"
 }
