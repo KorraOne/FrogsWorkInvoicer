@@ -13,7 +13,7 @@ database_name = "frogswork-account"
 database_id = "2d4c5469-d281-492b-b067-4ffd72e926d8"
 
 [vars]
-CLIENT_RELEASE_VERSION = "2.2.7"
-CLIENT_RELEASE_URL = "https://downloads.frogswork.com/FrogsWork-2.2.7-win64.zip"
-CLIENT_RELEASE_SHA256 = "d02a5532018fa9eee123295a9cf8940142c5906f726cd3ca0bad039fa154a4ff"
-CLIENT_RELEASE_NOTES = "Fix business name editing on Your details and Edit business."
+CLIENT_RELEASE_VERSION = "2.2.8"
+CLIENT_RELEASE_URL = "https://downloads.frogswork.com/FrogsWork-2.2.8-win64.zip"
+CLIENT_RELEASE_SHA256 = "2aace7939cf86aa93f03e5ea624a6baa46250b634395c3445d2319671234a873"
+CLIENT_RELEASE_NOTES = "GST line items: per-line GST applicable or GST-free toggle (default on); unit prices always ex GST. Fix GST tax invoice line table full width."

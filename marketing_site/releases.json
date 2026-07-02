@@ -1,10 +1,15 @@
 ﻿{
-    "version":  "2.2.7",
-    "setup_sha256":  "e4cb7b4ccc1295761e5fab94527722390d8f597ada5ebf59bb6407ea69c6790e",
+    "version":  "2.2.8",
+    "setup_sha256":  "080cb45f96757ec78b4e54a6e9f6003c45dbde64fb680e2c8ec93ea1d78dadec",
     "published_at":  "2026-07-02",
-    "update_zip_path":  "https://downloads.frogswork.com/FrogsWork-2.2.7-win64.zip",
-    "notes":  "Fix business name editing on Your details and Edit business.",
+    "update_zip_path":  "https://downloads.frogswork.com/FrogsWork-2.2.8-win64.zip",
+    "notes":  "GST line items: per-line GST applicable or GST-free toggle (default on); unit prices always ex GST. Fix GST tax invoice line table full width.",
     "history":  [
+                    {
+                        "published_at":  "2026-07-02",
+                        "version":  "2.2.8",
+                        "notes":  "GST line items: per-line GST applicable or GST-free toggle (default on); unit prices always ex GST. Fix GST tax invoice line table full width."
+                    },
                     {
                         "published_at":  "2026-07-02",
                         "version":  "2.2.7",
@@ -71,6 +76,6 @@
                         "notes":  "Replaces usage-based billing with subscription. Free trial: 20 invoices or 20000 ex GST before subscribe."
                     }
                 ],
-    "download_path":  "https://downloads.frogswork.com/FrogsWork-2.2.7-setup.exe",
-    "sha256":  "d02a5532018fa9eee123295a9cf8940142c5906f726cd3ca0bad039fa154a4ff"
+    "download_path":  "https://downloads.frogswork.com/FrogsWork-2.2.8-setup.exe",
+    "sha256":  "2aace7939cf86aa93f03e5ea624a6baa46250b634395c3445d2319671234a873"
 }
