@@ -12,7 +12,7 @@
 <div class="error">{{ error }}</div>
 {% endif %}
 
-<form method="POST" action="{{ url_for('preview_invoice') }}" id="invoice-form">
+<form method="POST" action="{{ url_for('preview_invoice') }}" id="invoice-form" enctype="multipart/form-data">
     {% include "_invoice_number_field.html" %}
 
     {% if business_count >= 2 %}
@@ -52,10 +52,9 @@
                     <label for="new_customer_name">Customer name</label>
                     <input type="text" name="new_customer_name" id="new_customer_name" form="add-customer-form" required placeholder="{{ ph.customer_name }}">
                 </div>
-                <div class="form-group">
-                    <label for="new_customer_address">Address</label>
-                    <textarea name="new_customer_address" id="new_customer_address" form="add-customer-form" placeholder="{{ ph.customer_address }}"></textarea>
-                </div>
+                {% with prefix='new_customer_', kind='customer', form={} %}
+                {% include "_address_fields.html" %}
+                {% endwith %}
                 <div class="form-group">
                     <label for="new_customer_abn">ABN (optional)</label>
                     <input type="text" name="new_customer_abn" id="new_customer_abn" form="add-customer-form" placeholder="{{ ph.customer_abn }}">
@@ -139,6 +138,18 @@
         <div class="form-group">
             <label for="comment">Comment (optional)</label>
             <textarea name="comment" id="comment" placeholder="{{ ph.invoice_comment }}">{{ form.comment }}</textarea>
+        </div>
+    </section>
+
+    <section class="invoice-form-section">
+        <h2 class="invoice-form-section-heading">Work completed photos</h2>
+        <p class="invoice-form-section-hint">Optional. Add up to 6 photos to appear as an appendix in the PDF.</p>
+        {% if form.work_photos %}
+        <p class="home-intro">{{ form.work_photos|length }} photo(s) currently attached. Review to remove.</p>
+        {% endif %}
+        <div class="form-group">
+            <label for="work_photos">Add photos</label>
+            <input type="file" name="work_photos" id="work_photos" accept="image/png,image/jpeg" multiple>
         </div>
     </section>
 

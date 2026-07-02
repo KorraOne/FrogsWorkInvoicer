@@ -55,6 +55,22 @@ def register_backup_routes(app, helpers):
                         target = os.path.join(pdf_dir, os.path.basename(member))
                         with zf.open(member) as src, open(target, "wb") as dst:
                             shutil.copyfileobj(src, dst)
+                    elif member.startswith("logos/") and not member.endswith("/"):
+                        logos_dir = os.path.join(data_path, "logos")
+                        os.makedirs(logos_dir, exist_ok=True)
+                        target = os.path.join(logos_dir, os.path.basename(member))
+                        with zf.open(member) as src, open(target, "wb") as dst:
+                            shutil.copyfileobj(src, dst)
+                    elif member.startswith("attachments/") and not member.endswith("/"):
+                        parts = member.split("/")
+                        if len(parts) >= 3:
+                            inv_key = parts[1]
+                            fname = parts[-1]
+                            target_dir = os.path.join(data_path, "attachments", inv_key)
+                            os.makedirs(target_dir, exist_ok=True)
+                            target = os.path.join(target_dir, fname)
+                            with zf.open(member) as src, open(target, "wb") as dst:
+                                shutil.copyfileobj(src, dst)
                     elif not member.endswith("/"):
                         target = os.path.join(data_path, os.path.basename(member))
                         with zf.open(member) as src, open(target, "wb") as dst:

@@ -83,11 +83,40 @@ def add_invoice(record):
         "due_date": record.get("due_date"),
         "due_rule_type": record.get("due_rule_type"),
         "due_net_days": record.get("due_net_days"),
+        "attachments": list(record.get("attachments") or []),
         "status": "not_sent",
         "sent_date": None,
         "paid_date": None,
     }
     save_invoices(invoices)
+
+
+def invoice_attachments_dir(number):
+    key = _invoice_key(number)
+    path = os.path.join(get_data_path(), "attachments", key)
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def remove_invoice_attachments(number):
+    key = _invoice_key(number)
+    path = os.path.join(get_data_path(), "attachments", key)
+    if os.path.isdir(path):
+        shutil.rmtree(path, ignore_errors=True)
+
+
+def archive_invoice_attachments(number):
+    key = _invoice_key(number)
+    src = os.path.join(get_data_path(), "attachments", key)
+    if not os.path.isdir(src):
+        return None
+    dest_root = os.path.join(get_deleted_pdf_dir(), "attachments")
+    os.makedirs(dest_root, exist_ok=True)
+    dest = os.path.join(dest_root, key)
+    if os.path.isdir(dest):
+        dest = os.path.join(dest_root, f"{key}_{int(time.time())}")
+    shutil.move(src, dest)
+    return os.path.basename(dest)
 
 
 def set_invoice_status(number, status):

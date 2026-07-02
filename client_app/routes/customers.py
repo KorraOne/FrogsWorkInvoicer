@@ -5,6 +5,8 @@ from urllib.parse import unquote
 from flask import redirect, render_template, request, url_for
 
 import storage
+from invoicing.address import normalize_au_address
+from invoicing.validators import normalize_abn
 
 
 def register_customer_routes(app):
@@ -17,7 +19,11 @@ def register_customer_routes(app):
     def customers_add():
         if request.method == "POST":
             name = request.form.get("name", "").strip()
-            address = request.form.get("address", "").strip()
+            address_line1 = request.form.get("address_line1", "").strip()
+            address_line2 = request.form.get("address_line2", "").strip()
+            suburb = request.form.get("suburb", "").strip()
+            state = request.form.get("state", "").strip()
+            postcode = request.form.get("postcode", "").strip()
             abn = request.form.get("abn", "").strip()
             email = request.form.get("email", "").strip()
 
@@ -25,7 +31,16 @@ def register_customer_routes(app):
                 return render_template(
                     "edit_customer.html",
                     customer=None,
-                    form={"name": name, "address": address, "abn": abn, "email": email},
+                    form={
+                        "name": name,
+                        "address_line1": address_line1,
+                        "address_line2": address_line2,
+                        "suburb": suburb,
+                        "state": state,
+                        "postcode": postcode,
+                        "abn": abn,
+                        "email": email,
+                    },
                     error="Enter a customer name.",
                     is_add=True,
                 )
@@ -34,13 +49,49 @@ def register_customer_routes(app):
                 return render_template(
                     "edit_customer.html",
                     customer=None,
-                    form={"name": name, "address": address, "abn": abn, "email": email},
+                    form={
+                        "name": name,
+                        "address_line1": address_line1,
+                        "address_line2": address_line2,
+                        "suburb": suburb,
+                        "state": state,
+                        "postcode": postcode,
+                        "abn": abn,
+                        "email": email,
+                    },
                     error="A customer with this name already exists.",
                     is_add=True,
                 )
 
+            try:
+                addr = normalize_au_address(
+                    line1=address_line1,
+                    line2=address_line2,
+                    suburb=suburb,
+                    state=state,
+                    postcode=postcode,
+                )
+                abn = normalize_abn(abn)
+            except ValueError as exc:
+                return render_template(
+                    "edit_customer.html",
+                    customer=None,
+                    form={
+                        "name": name,
+                        "address_line1": address_line1,
+                        "address_line2": address_line2,
+                        "suburb": suburb,
+                        "state": state,
+                        "postcode": postcode,
+                        "abn": abn,
+                        "email": email,
+                    },
+                    error=str(exc),
+                    is_add=True,
+                )
+
             customers = storage.load_customers()
-            customers[name] = {"address": address, "abn": abn, "email": email}
+            customers[name] = {**addr, "abn": abn, "email": email}
             storage.save_customers(customers)
             from account import telemetry
 
@@ -50,7 +101,16 @@ def register_customer_routes(app):
         return render_template(
             "edit_customer.html",
             customer=None,
-            form={"name": "", "address": "", "abn": "", "email": ""},
+            form={
+                "name": "",
+                "address_line1": "",
+                "address_line2": "",
+                "suburb": "",
+                "state": "",
+                "postcode": "",
+                "abn": "",
+                "email": "",
+            },
             error=None,
             is_add=True,
         )
@@ -66,10 +126,40 @@ def register_customer_routes(app):
         customer = customers[name]
 
         if request.method == "POST":
-            address = request.form.get("address", "").strip()
+            address_line1 = request.form.get("address_line1", "").strip()
+            address_line2 = request.form.get("address_line2", "").strip()
+            suburb = request.form.get("suburb", "").strip()
+            state = request.form.get("state", "").strip()
+            postcode = request.form.get("postcode", "").strip()
             abn = request.form.get("abn", "").strip()
             email = request.form.get("email", "").strip()
-            customers[name] = {"address": address, "abn": abn, "email": email}
+            try:
+                addr = normalize_au_address(
+                    line1=address_line1,
+                    line2=address_line2,
+                    suburb=suburb,
+                    state=state,
+                    postcode=postcode,
+                )
+                abn = normalize_abn(abn)
+            except ValueError as exc:
+                return render_template(
+                    "edit_customer.html",
+                    customer=name,
+                    form={
+                        "name": name,
+                        "address_line1": address_line1,
+                        "address_line2": address_line2,
+                        "suburb": suburb,
+                        "state": state,
+                        "postcode": postcode,
+                        "abn": abn,
+                        "email": email,
+                    },
+                    error=str(exc),
+                    is_add=False,
+                )
+            customers[name] = {**addr, "abn": abn, "email": email}
             storage.save_customers(customers)
             return redirect(url_for("customers_list"))
 
@@ -78,7 +168,11 @@ def register_customer_routes(app):
             customer=name,
             form={
                 "name": name,
-                "address": customer.get("address", ""),
+                "address_line1": customer.get("address_line1", ""),
+                "address_line2": customer.get("address_line2", ""),
+                "suburb": customer.get("suburb", ""),
+                "state": customer.get("state", ""),
+                "postcode": customer.get("postcode", ""),
                 "abn": customer.get("abn", ""),
                 "email": customer.get("email", ""),
             },

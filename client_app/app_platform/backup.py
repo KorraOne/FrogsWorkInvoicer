@@ -24,6 +24,22 @@ def build_backup_zip(exe_dir):
             path = os.path.join(data_path, name)
             if os.path.isfile(path):
                 zf.write(path, name)
+        logos_dir = os.path.join(data_path, "logos")
+        if os.path.isdir(logos_dir):
+            for name in os.listdir(logos_dir):
+                path = os.path.join(logos_dir, name)
+                if os.path.isfile(path):
+                    zf.write(path, f"logos/{name}")
+        attachments_root = os.path.join(data_path, "attachments")
+        if os.path.isdir(attachments_root):
+            for inv_key in os.listdir(attachments_root):
+                inv_dir = os.path.join(attachments_root, inv_key)
+                if not os.path.isdir(inv_dir):
+                    continue
+                for name in os.listdir(inv_dir):
+                    path = os.path.join(inv_dir, name)
+                    if os.path.isfile(path):
+                        zf.write(path, f"attachments/{inv_key}/{name}")
         if os.path.isdir(pdf_dir):
             for name in os.listdir(pdf_dir):
                 if name.lower().endswith(".pdf"):

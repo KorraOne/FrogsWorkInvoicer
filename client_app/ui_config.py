@@ -13,12 +13,18 @@ IDLE_TIMEOUT_SECONDS = int(os.environ.get("FROGWORK_IDLE_TIMEOUT", "90"))
 PLACEHOLDERS = {
     # Customer
     "customer_name": "e.g. Acme Pty Ltd",
-    "customer_address": "Street address, suburb, state, postcode",
+    "customer_address_line1": "Street address or PO Box",
+    "customer_address_line2": "Unit, level, suite (optional)",
+    "customer_suburb": "Suburb",
+    "customer_postcode": "Postcode",
     "customer_abn": "XX XXX XXX XXX",
     "customer_email": "customer@example.com",
     # Your business (settings / onboarding)
     "business_name": "e.g. Jane Smith Trading",
-    "business_address": "PO Box or street, suburb, state, postcode",
+    "business_address_line1": "Street address or PO Box",
+    "business_address_line2": "Unit, level, suite (optional)",
+    "business_suburb": "Suburb",
+    "business_postcode": "Postcode",
     "business_abn": "XX XXX XXX XXX",
     "bank_bsb": "XXX-XXX",
     "bank_account_name": "Name on the bank account",

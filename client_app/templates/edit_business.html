@@ -9,7 +9,7 @@
 <div class="error">{{ error }}</div>
 {% endif %}
 
-<form method="POST" class="settings-details-form">
+<form method="POST" class="settings-details-form" enctype="multipart/form-data">
     <section class="settings-details-section">
         <h2 class="settings-section-heading">Business</h2>
         <div class="form-group">
@@ -20,10 +20,9 @@
             <input type="text" id="name" value="{{ form.name }}" disabled>
             {% endif %}
         </div>
-        <div class="form-group">
-            <label for="business_address">Business address</label>
-            <textarea name="business_address" id="business_address" placeholder="{{ ph.business_address }}">{{ form.business_address }}</textarea>
-        </div>
+        {% with prefix='business_', kind='business', form=form %}
+        {% include "_address_fields.html" %}
+        {% endwith %}
         {% set gst_registered = form.gst_registered|default(false) %}
         {% include "_gst_registration_fields.html" %}
         <div class="form-group">
@@ -49,6 +48,32 @@
             <input type="text" name="account_name" id="account_name" value="{{ form.account_name }}" placeholder="{{ ph.bank_account_name }}">
         </div>
     </section>
+
+    {% if not is_add %}
+    <section class="settings-details-section">
+        <h2 class="settings-section-heading">Logo</h2>
+        <div class="form-group">
+            <label>
+                <input type="checkbox" name="logo_enabled" {% if form.logo_enabled %}checked{% endif %}>
+                Show logo on invoices
+            </label>
+        </div>
+        {% if form.logo_url %}
+        <div class="form-group">
+            <img src="{{ form.logo_url }}" alt="Business logo preview" style="max-width: 220px; height: auto;">
+        </div>
+        {% endif %}
+        <div class="form-group">
+            <label for="logo_file">Upload logo (PNG/JPG)</label>
+            <input type="file" name="logo_file" id="logo_file" accept="image/png,image/jpeg">
+        </div>
+        {% if form.logo_filename %}
+        <div class="form-group">
+            <button type="submit" name="remove_logo" value="1" class="btn btn-secondary">Remove logo</button>
+        </div>
+        {% endif %}
+    </section>
+    {% endif %}
 
     <button type="submit" class="btn btn-primary">Save</button>
 </form>

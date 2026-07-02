@@ -38,7 +38,7 @@ def test_migrate_legacy_settings_to_businesses(tmp_path, monkeypatch):
     loaded = storage.load_businesses()
 
     assert "Hire & Sale Pty Ltd" in loaded
-    assert loaded["Hire & Sale Pty Ltd"]["address"] == "1 Main St"
+    assert loaded["Hire & Sale Pty Ltd"]["address_line1"] == "1 Main St"
     assert loaded["Hire & Sale Pty Ltd"]["invoice_counter"] == 12
 
     migrated_settings = storage.load_settings()
@@ -51,8 +51,8 @@ def test_per_business_invoice_numbering(tmp_path, monkeypatch):
     data_dir = _setup_data_dir(tmp_path, monkeypatch)
     storage.save_businesses(
         {
-            "Trust": {"address": "", "abn": "", "gst_registered": False, "invoice_counter": 3},
-            "Trading": {"address": "", "abn": "", "gst_registered": True, "invoice_counter": 1},
+            "Trust": {"address_line1": "", "abn": "", "gst_registered": False, "invoice_counter": 3},
+            "Trading": {"address_line1": "", "abn": "", "gst_registered": True, "invoice_counter": 1},
         }
     )
     storage.save_settings({"default_business": "Trust"})
@@ -80,7 +80,7 @@ def test_per_business_invoice_numbering(tmp_path, monkeypatch):
 def test_persist_invoice_counter_updates_business_profile(tmp_path, monkeypatch):
     data_dir = _setup_data_dir(tmp_path, monkeypatch)
     storage.save_businesses(
-        {"Trust": {"address": "", "abn": "", "gst_registered": False, "invoice_counter": 1}}
+        {"Trust": {"address_line1": "", "abn": "", "gst_registered": False, "invoice_counter": 1}}
     )
 
     persist_invoice_counter("Trust", 7)
@@ -91,7 +91,7 @@ def test_persist_invoice_counter_updates_business_profile(tmp_path, monkeypatch)
 
 def test_invoice_business_name_falls_back_to_default(tmp_path, monkeypatch):
     data_dir = _setup_data_dir(tmp_path, monkeypatch)
-    storage.save_businesses({"Trust": {"address": "", "abn": "", "gst_registered": False}})
+    storage.save_businesses({"Trust": {"address_line1": "", "abn": "", "gst_registered": False}})
     storage.save_settings({"default_business": "Trust"})
 
     assert storage.invoice_business_name({}) == "Trust"
@@ -102,8 +102,8 @@ def test_build_usage_snapshot_includes_business_count(tmp_path, monkeypatch):
     data_dir = _setup_data_dir(tmp_path, monkeypatch)
     storage.save_businesses(
         {
-            "A": {"address": "", "abn": "", "gst_registered": False},
-            "B": {"address": "", "abn": "", "gst_registered": True},
+            "A": {"address_line1": "", "abn": "", "gst_registered": False},
+            "B": {"address_line1": "", "abn": "", "gst_registered": True},
         }
     )
     storage.save_settings({"default_business": "A"})

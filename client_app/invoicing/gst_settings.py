@@ -2,6 +2,8 @@
 
 from decimal import Decimal
 
+from invoicing.validators import normalize_abn
+
 ATO_GST_REGISTER_URL = (
     "https://www.ato.gov.au/businesses-and-organisations/"
     "gst-excise-and-indirect-taxes/gst/registering-for-gst"
@@ -21,7 +23,11 @@ def apply_gst_registered_to_settings(settings, form):
 
 
 def validate_business_gst_settings(profile):
-    abn = (profile.get("business_abn") or profile.get("abn") or "").strip()
+    raw_abn = (profile.get("business_abn") or profile.get("abn") or "").strip()
+    try:
+        abn = normalize_abn(raw_abn)
+    except ValueError as exc:
+        return str(exc)
     if is_gst_registered(profile) and not abn:
         return "ABN required when registered for GST."
     return None

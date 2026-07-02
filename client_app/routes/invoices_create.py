@@ -1,12 +1,16 @@
 """Invoice create, preview, and generate routes."""
 
 import os
+import re
+import shutil
+import uuid
 from datetime import date
 
-from flask import flash, redirect, render_template, request, url_for
+from flask import abort, flash, redirect, render_template, request, send_file, session, url_for
 
 import storage
 from account import entitlement_guard
+from invoicing.address import format_address_multiline, normalize_au_address
 from invoicing.due_dates import due_rule_from_form_data, merge_due_rule_into_form, save_last_due_prefs
 from invoicing.format import format_invoice_number, parse_invoice_number_input, persist_invoice_counter
 from invoicing.form import (
@@ -22,6 +26,80 @@ from invoicing.form import (
     save_invoice_draft,
 )
 from invoicing.gst_settings import is_gst_registered, validate_business_gst_settings
+from invoicing.validators import normalize_abn
+
+
+def _staging_photos_dir(token):
+    base = os.path.join(storage.get_data_path(), "staging", "invoice_attachments", token)
+    os.makedirs(base, exist_ok=True)
+    return base
+
+
+def _safe_photo_filename(index, ext):
+    ext = (ext or "").lower().strip(".")
+    if ext not in ("jpg", "jpeg", "png"):
+        ext = "jpg"
+    return f"photo_{index:02d}.{ext if ext != 'jpeg' else 'jpg'}"
+
+
+def _save_uploaded_work_photos(form, files):
+    files = list(files or [])
+    if not files:
+        return
+
+    token = (form.get("work_photos_token") or "").strip()
+    if not token:
+        token = uuid.uuid4().hex
+        form["work_photos_token"] = token
+
+    existing = list(form.get("work_photos") or [])
+    if len(existing) >= 6:
+        raise ValueError("You can attach up to 6 photos.")
+
+    from PIL import Image
+
+    out_dir = _staging_photos_dir(token)
+    for f in files:
+        if len(existing) >= 6:
+            break
+        if not f or not getattr(f, "filename", ""):
+            continue
+        ext = os.path.splitext(f.filename)[1].lower().strip(".")
+        out_name = _safe_photo_filename(len(existing) + 1, ext)
+        out_path = os.path.join(out_dir, out_name)
+
+        try:
+            img = Image.open(f.stream)
+            if img.mode in ("RGBA", "LA"):
+                bg = Image.new("RGB", img.size, (255, 255, 255))
+                bg.paste(img, mask=img.split()[-1])
+                img = bg
+            else:
+                img = img.convert("RGB")
+            max_w = 1600
+            max_h = 1600
+            if img.width > max_w or img.height > max_h:
+                img.thumbnail((max_w, max_h))
+            img.save(out_path, format="JPEG", quality=85, optimize=True)
+        except Exception:
+            continue
+
+        existing.append(out_name)
+
+    form["work_photos"] = existing
+
+
+def _delete_staged_photo(token, filename):
+    if not re.fullmatch(r"[a-f0-9]{32}", token or ""):
+        return
+    if not filename or ".." in filename or "/" in filename or "\\" in filename:
+        return
+    path = os.path.join(_staging_photos_dir(token), filename)
+    if os.path.isfile(path):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
 
 
 def register_invoice_create_routes(app):
@@ -67,7 +145,11 @@ def register_invoice_create_routes(app):
         save_invoice_draft(form)
 
         name = request.form.get("new_customer_name", "").strip()
-        address = request.form.get("new_customer_address", "").strip()
+        address_line1 = request.form.get("new_customer_address_line1", "").strip()
+        address_line2 = request.form.get("new_customer_address_line2", "").strip()
+        suburb = request.form.get("new_customer_suburb", "").strip()
+        state = request.form.get("new_customer_state", "").strip()
+        postcode = request.form.get("new_customer_postcode", "").strip()
         abn = request.form.get("new_customer_abn", "").strip()
         email = request.form.get("new_customer_email", "").strip()
 
@@ -77,8 +159,20 @@ def register_invoice_create_routes(app):
         if storage.customer_name_exists(name):
             return redirect(url_for("create_invoice", error="A customer with this name already exists."))
 
+        try:
+            addr = normalize_au_address(
+                line1=address_line1,
+                line2=address_line2,
+                suburb=suburb,
+                state=state,
+                postcode=postcode,
+            )
+            abn = normalize_abn(abn)
+        except ValueError as exc:
+            return redirect(url_for("create_invoice", error=str(exc)))
+
         customers = storage.load_customers()
-        customers[name] = {"address": address, "abn": abn, "email": email}
+        customers[name] = {**addr, "abn": abn, "email": email}
         storage.save_customers(customers)
         from account import telemetry
 
@@ -91,6 +185,11 @@ def register_invoice_create_routes(app):
     @app.route("/preview", methods=["POST"])
     def preview_invoice():
         form = create_form_from_request(request)
+        try:
+            _save_uploaded_work_photos(form, request.files.getlist("work_photos"))
+        except ValueError as exc:
+            save_invoice_draft(form)
+            return redirect(url_for("create_invoice", error=str(exc)))
         return render_preview_from_form(form)
 
     @app.route("/preview/resume", methods=["GET"])
@@ -99,6 +198,30 @@ def register_invoice_create_routes(app):
         if not draft:
             return redirect(url_for("create_invoice"))
         return render_preview_from_form(draft)
+
+    @app.route("/preview/photo/<token>/<filename>")
+    def preview_photo(token, filename):
+        if not re.fullmatch(r"[a-f0-9]{32}", token or ""):
+            abort(404)
+        if not filename or ".." in filename or "/" in filename or "\\" in filename:
+            abort(404)
+        path = os.path.join(_staging_photos_dir(token), filename)
+        if not os.path.isfile(path):
+            abort(404)
+        return send_file(path)
+
+    @app.route("/preview/remove-photo", methods=["POST"])
+    def preview_remove_photo():
+        draft = get_invoice_draft() or {}
+        token = (draft.get("work_photos_token") or "").strip()
+        filename = (request.form.get("filename") or "").strip()
+        photos = list(draft.get("work_photos") or [])
+        if filename in photos:
+            photos = [p for p in photos if p != filename]
+            draft["work_photos"] = photos
+            save_invoice_draft(draft)
+            _delete_staged_photo(token, filename)
+        return redirect(url_for("resume_preview"))
 
     @app.route("/generate", methods=["POST"])
     def generate():
@@ -172,7 +295,7 @@ def register_invoice_create_routes(app):
             "due_date_fmt": due["due_date_fmt"],
             "due_rule_label": due["due_rule_label"],
             "customer_name": customer_name,
-            "customer_address": customer.get("address", ""),
+            "customer_address": format_address_multiline(customer) or customer.get("address", ""),
             "customer_abn": customer.get("abn", ""),
             "line_items": items,
             "amount_ex_gst": subtotal,
@@ -183,6 +306,32 @@ def register_invoice_create_routes(app):
             "comment": comment,
             "gst_registered": gst_registered,
         }
+
+        draft = get_invoice_draft() or {}
+        token = (draft.get("work_photos_token") or "").strip()
+        staged_files = list(draft.get("work_photos") or [])
+        attachments = []
+        work_photo_paths = []
+        if token and staged_files:
+            dest_dir = storage.invoice_attachments_dir(invoice_number)
+            staging_dir = _staging_photos_dir(token)
+            for name in staged_files:
+                if not name or ".." in name or "/" in name or "\\" in name:
+                    continue
+                src = os.path.join(staging_dir, name)
+                if not os.path.isfile(src):
+                    continue
+                dest = os.path.join(dest_dir, name)
+                shutil.copyfile(src, dest)
+                attachments.append(name)
+                work_photo_paths.append(dest)
+            try:
+                shutil.rmtree(staging_dir, ignore_errors=True)
+            except Exception:
+                pass
+
+        if work_photo_paths:
+            invoice_data["work_photos"] = work_photo_paths
 
         filepath = pdf_generator.generate_invoice(storage.get_pdf_dir(), invoice_data)
         filename = os.path.basename(filepath)
@@ -208,6 +357,7 @@ def register_invoice_create_routes(app):
                 "due_rule_type": due["due_rule_type"],
                 "due_net_days": due["due_net_days"],
                 "due_fixed_date": due.get("due_fixed_date"),
+                "attachments": attachments,
             }
         )
 

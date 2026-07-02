@@ -67,6 +67,13 @@ def format_abn(abn):
     return abn
 
 
+def format_bsb(bsb):
+    digits = re.sub(r"\D", "", str(bsb))
+    if len(digits) == 6:
+        return f"{digits[0:3]}-{digits[3:6]}"
+    return bsb
+
+
 def format_account(acc):
     digits = re.sub(r"\D", "", str(acc))
     if len(digits) == 6:

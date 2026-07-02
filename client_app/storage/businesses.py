@@ -2,18 +2,25 @@
 
 import json
 import os
+import re
 
 from storage._json_cache import cached_read, invalidate
 from storage.bootstrap import get_data_path
 
 DEFAULT_BUSINESS_PROFILE = {
-    "address": "",
+    "address_line1": "",
+    "address_line2": "",
+    "suburb": "",
+    "state": "",
+    "postcode": "",
     "abn": "",
     "gst_registered": False,
     "account_name": "",
     "bsb": "",
     "acc": "",
     "invoice_counter": 1,
+    "logo_enabled": False,
+    "logo_filename": "",
 }
 
 _LEGACY_SETTINGS_KEYS = (
@@ -46,8 +53,11 @@ def _profile_from_legacy_settings(settings):
         return None, None
 
     profile_name = name or "My business"
+    from invoicing.address import migrate_legacy_address
+
+    addr = migrate_legacy_address(address)
     profile = {
-        "address": address,
+        **addr,
         "abn": abn,
         "gst_registered": gst_registered,
         "account_name": account_name,
@@ -56,6 +66,29 @@ def _profile_from_legacy_settings(settings):
         "invoice_counter": invoice_counter,
     }
     return profile_name, profile
+
+
+def _migrate_structured_addresses_if_needed(businesses):
+    from invoicing.address import migrate_legacy_address
+
+    changed = False
+    for name, profile in (businesses or {}).items():
+        if not isinstance(profile, dict):
+            continue
+        if any(k in profile for k in ("address_line1", "suburb", "state", "postcode")):
+            continue
+        legacy = (profile.get("address") or "").strip()
+        if not legacy:
+            profile.setdefault("address_line1", "")
+            profile.setdefault("address_line2", "")
+            profile.setdefault("suburb", "")
+            profile.setdefault("state", "")
+            profile.setdefault("postcode", "")
+            changed = True
+            continue
+        profile.update(migrate_legacy_address(legacy))
+        changed = True
+    return changed
 
 
 def _migrate_from_settings_if_needed():
@@ -97,6 +130,8 @@ def load_businesses():
         if not data:
             migrated = _migrate_from_settings_if_needed()
             return migrated if migrated else {}
+        if _migrate_structured_addresses_if_needed(data):
+            save_businesses(data)
         return data
 
     if not os.path.exists(path):
@@ -169,17 +204,26 @@ def invoice_business_name(inv):
 
 def business_invoice_fields(name, profile=None):
     """Map a business profile to invoice_data sender fields."""
+    from invoicing.address import format_address_multiline
+
     if profile is None:
         name, profile = resolve_business(name)
     profile = profile or {}
+    logo_path = None
+    if profile.get("logo_enabled") and profile.get("logo_filename"):
+        candidate = os.path.join(_logos_dir(), profile.get("logo_filename"))
+        if os.path.isfile(candidate):
+            logo_path = candidate
     return {
         "business_name": name,
-        "business_address": profile.get("address", ""),
+        "business_address": format_address_multiline(profile) or profile.get("address", ""),
         "business_abn": profile.get("abn", ""),
         "account_name": profile.get("account_name", ""),
         "bsb": profile.get("bsb", ""),
         "acc": profile.get("acc", ""),
         "gst_registered": bool(profile.get("gst_registered")),
+        "logo_enabled": bool(profile.get("logo_enabled")),
+        "logo_path": logo_path,
     }
 
 
@@ -187,11 +231,62 @@ def normalize_business_profile(form_data, existing=None):
     """Build a profile dict from form fields."""
     existing = existing or {}
     return {
-        "address": form_data.get("address", existing.get("address", "")).strip(),
+        "address_line1": form_data.get("address_line1", existing.get("address_line1", "")).strip(),
+        "address_line2": form_data.get("address_line2", existing.get("address_line2", "")).strip(),
+        "suburb": form_data.get("suburb", existing.get("suburb", "")).strip(),
+        "state": form_data.get("state", existing.get("state", "")).strip(),
+        "postcode": form_data.get("postcode", existing.get("postcode", "")).strip(),
         "abn": form_data.get("abn", existing.get("abn", "")).strip(),
         "gst_registered": form_data.get("gst_registered", existing.get("gst_registered", False)),
         "account_name": form_data.get("account_name", existing.get("account_name", "")).strip(),
         "bsb": form_data.get("bsb", existing.get("bsb", "")).strip(),
         "acc": form_data.get("acc", existing.get("acc", "")).strip(),
         "invoice_counter": int(existing.get("invoice_counter", 1) or 1),
+        "logo_enabled": bool(form_data.get("logo_enabled", existing.get("logo_enabled", False))),
+        "logo_filename": form_data.get("logo_filename", existing.get("logo_filename", "")).strip(),
     }
+
+
+def _logos_dir():
+    path = os.path.join(get_data_path(), "logos")
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def business_logo_filename(business_name):
+    base = re.sub(r"[^a-zA-Z0-9]+", "-", str(business_name or "").strip()).strip("-").lower()
+    if not base:
+        base = "business"
+    return f"{base}.png"
+
+
+def save_business_logo(business_name, file_storage):
+    """
+    Save an uploaded logo and return the stored filename (basename only).
+
+    Stored as PNG at {AppData}/logos/<safe-business>.png.
+    """
+    filename = business_logo_filename(business_name)
+    target = os.path.join(_logos_dir(), filename)
+
+    # Delay import to keep startup lightweight.
+    from PIL import Image
+
+    img = Image.open(file_storage.stream)
+    img = img.convert("RGBA")
+    max_px = 1200
+    if img.width > max_px or img.height > max_px:
+        img.thumbnail((max_px, max_px))
+    img.save(target, format="PNG", optimize=True)
+    return filename
+
+
+def remove_business_logo(business_name, filename=None):
+    if filename:
+        path = os.path.join(_logos_dir(), filename)
+        if os.path.isfile(path):
+            os.remove(path)
+        return
+    path = os.path.join(_logos_dir(), business_logo_filename(business_name))
+    if os.path.isfile(path):
+        os.remove(path)

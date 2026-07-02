@@ -12,10 +12,9 @@
         <label for="name">Customer name</label>
         <input type="text" name="name" id="name" value="{{ form.name|default('') }}" placeholder="{{ ph.customer_name }}">
     </div>
-    <div class="form-group">
-        <label for="address">Address</label>
-        <textarea name="address" id="address" placeholder="{{ ph.customer_address }}">{{ form.address|default('') }}</textarea>
-    </div>
+    {% with prefix='', kind='customer', form=form %}
+    {% include "_address_fields.html" %}
+    {% endwith %}
     <div class="form-group">
         <label for="abn">ABN (optional)</label>
         <input type="text" name="abn" id="abn" value="{{ form.abn|default('') }}" placeholder="{{ ph.customer_abn }}">

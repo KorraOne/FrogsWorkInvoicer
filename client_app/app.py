@@ -116,9 +116,12 @@ def handle_unexpected_error(exc):
 
 @app.context_processor
 def _inject_ui_defaults():
+    from invoicing.address import AU_STATES
+
     return {
         "ph": PLACEHOLDERS,
         "select_labels": SELECT_LABELS,
+        "au_states": AU_STATES,
     }
 
 

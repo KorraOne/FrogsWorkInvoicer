@@ -9,6 +9,8 @@ import storage
 from account import auth_store, checkout_handoff, client, messages, sync
 from account.client import AccountError, AccountOfflineError
 from invoicing.gst_settings import is_gst_registered, validate_business_gst_settings
+from invoicing.address import normalize_au_address
+from invoicing.validators import normalize_abn
 
 log = logging.getLogger(__name__)
 
@@ -118,19 +120,48 @@ def register_account_routes(app):
                             "gst_registered": profile.get("gst_registered", False),
                         },
                     )
+                try:
+                    addr = normalize_au_address(
+                        line1=profile.get("address_line1", ""),
+                        line2=profile.get("address_line2", ""),
+                        suburb=profile.get("suburb", ""),
+                        state=profile.get("state", ""),
+                        postcode=profile.get("postcode", ""),
+                    )
+                    profile.update(addr)
+                    profile["abn"] = normalize_abn(profile.get("abn", ""))
+                except ValueError as exc:
+                    return render_template(
+                        "account_onboard_business.html",
+                        error=str(exc),
+                        form={
+                            "business_name": business_name,
+                            "business_address_line1": profile.get("address_line1", ""),
+                            "business_address_line2": profile.get("address_line2", ""),
+                            "business_suburb": profile.get("suburb", ""),
+                            "business_state": profile.get("state", ""),
+                            "business_postcode": profile.get("postcode", ""),
+                            "business_abn": profile.get("abn", ""),
+                            "gst_registered": profile.get("gst_registered", False),
+                        },
+                    )
 
                 businesses[business_name] = profile
                 if not storage.get_default_business_name():
                     storage.set_default_business(business_name)
                 storage.save_businesses(businesses)
-            return redirect(url_for("settings_page"))
+            return redirect(url_for("home"))
 
         return render_template(
             "account_onboard_business.html",
             error=None,
             form={
                 "business_name": default_name,
-                "business_address": default_profile.get("address", ""),
+                "business_address_line1": default_profile.get("address_line1", ""),
+                "business_address_line2": default_profile.get("address_line2", ""),
+                "business_suburb": default_profile.get("suburb", ""),
+                "business_state": default_profile.get("state", ""),
+                "business_postcode": default_profile.get("postcode", ""),
                 "business_abn": default_profile.get("abn", ""),
                 "gst_registered": default_profile.get("gst_registered", False),
             },
@@ -140,7 +171,11 @@ def register_account_routes(app):
     def account_onboard_customer():
         if request.method == "POST":
             name = request.form.get("name", "").strip()
-            address = request.form.get("address", "").strip()
+            address_line1 = request.form.get("address_line1", "").strip()
+            address_line2 = request.form.get("address_line2", "").strip()
+            suburb = request.form.get("suburb", "").strip()
+            state = request.form.get("state", "").strip()
+            postcode = request.form.get("postcode", "").strip()
             abn = request.form.get("abn", "").strip()
             email = request.form.get("email", "").strip()
             if name:
@@ -148,16 +183,62 @@ def register_account_routes(app):
                     return render_template(
                         "account_onboard_customer.html",
                         error="A customer with this name already exists.",
-                        form={"name": name, "address": address, "abn": abn, "email": email},
+                        form={
+                            "name": name,
+                            "address_line1": address_line1,
+                            "address_line2": address_line2,
+                            "suburb": suburb,
+                            "state": state,
+                            "postcode": postcode,
+                            "abn": abn,
+                            "email": email,
+                        },
+                    )
+                try:
+                    addr = normalize_au_address(
+                        line1=address_line1,
+                        line2=address_line2,
+                        suburb=suburb,
+                        state=state,
+                        postcode=postcode,
+                    )
+                    abn = normalize_abn(abn)
+                except ValueError as exc:
+                    return render_template(
+                        "account_onboard_customer.html",
+                        error=str(exc),
+                        form={
+                            "name": name,
+                            "address_line1": address_line1,
+                            "address_line2": address_line2,
+                            "suburb": suburb,
+                            "state": state,
+                            "postcode": postcode,
+                            "abn": abn,
+                            "email": email,
+                        },
                     )
                 customers = storage.load_customers()
-                customers[name] = {"address": address, "abn": abn, "email": email}
+                customers[name] = {
+                    **addr,
+                    "abn": abn,
+                    "email": email,
+                }
                 storage.save_customers(customers)
             return redirect(url_for("customers_list"))
         return render_template(
             "account_onboard_customer.html",
             error=None,
-            form={"name": "", "address": "", "abn": "", "email": ""},
+            form={
+                "name": "",
+                "address_line1": "",
+                "address_line2": "",
+                "suburb": "",
+                "state": "",
+                "postcode": "",
+                "abn": "",
+                "email": "",
+            },
         )
 
     @app.route("/account/subscribe", methods=["GET", "POST"])

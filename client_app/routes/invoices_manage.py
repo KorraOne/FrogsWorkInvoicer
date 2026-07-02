@@ -168,6 +168,7 @@ def register_invoice_manage_routes(app):
             return redirect(url_for("home"))
 
         filename = inv.get("filename", "")
+        storage.remove_invoice_attachments(number)
         storage.hard_delete_invoice(number)
         _clear_invoice_send_session(number)
         _delete_invoice_files(filename)
@@ -189,6 +190,7 @@ def register_invoice_manage_routes(app):
             abort(404)
 
         storage.archive_invoice_pdf(filename)
+        storage.archive_invoice_attachments(number)
         _clear_invoice_send_session(number)
 
         flash("Invoice removed from your list.", "success")

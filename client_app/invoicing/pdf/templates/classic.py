@@ -8,9 +8,16 @@ from reportlab.lib.enums import TA_RIGHT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from invoicing.format import format_abn, format_account, format_invoice_number, format_money, format_qty
+from invoicing.format import (
+    format_abn,
+    format_account,
+    format_bsb,
+    format_invoice_number,
+    format_money,
+    format_qty,
+)
 from invoicing.gst_settings import invoice_uses_tax_invoice
 
 PAGE_WIDTH, PAGE_HEIGHT = A4
@@ -116,17 +123,6 @@ def render_classic_invoice(output_dir, invoice_data):
 
     story = []
 
-    business_block = []
-    business_name = invoice_data.get("business_name", "")
-    if business_name:
-        business_block.append(Paragraph(business_name, business_name_style))
-    business_block.extend(_address_paragraphs(invoice_data.get("business_address", ""), normal))
-    business_abn = invoice_data.get("business_abn", "")
-    if business_abn:
-        business_block.append(Paragraph(f"ABN: {format_abn(business_abn)}", normal))
-    if not business_block:
-        business_block.append(Paragraph("&nbsp;", normal))
-
     gst_registered = invoice_uses_tax_invoice(invoice_data)
     invoice_title = "Tax Invoice" if gst_registered else "Invoice"
 
@@ -156,8 +152,24 @@ def render_classic_invoice(output_dir, invoice_data):
         )
     )
 
+    logo_block = [Paragraph("&nbsp;", normal)]
+    if invoice_data.get("logo_enabled"):
+        logo_path = invoice_data.get("logo_path")
+        if logo_path and os.path.isfile(logo_path):
+            try:
+                img = Image(logo_path)
+                max_w = 45 * mm
+                max_h = 25 * mm
+                iw, ih = float(img.imageWidth), float(img.imageHeight)
+                scale = min(max_w / iw, max_h / ih, 1.0) if iw and ih else 1.0
+                img.drawWidth = iw * scale
+                img.drawHeight = ih * scale
+                logo_block = [img]
+            except Exception:
+                logo_block = [Paragraph("&nbsp;", normal)]
+
     header_table = Table(
-        [[business_block, meta_block]],
+        [[logo_block, meta_block]],
         colWidths=[CONTENT_WIDTH * 0.55, CONTENT_WIDTH * 0.45],
     )
     header_table.setStyle(
@@ -177,23 +189,40 @@ def render_classic_invoice(output_dir, invoice_data):
     story.append(divider)
     story.append(Spacer(1, 16))
 
-    bill_to_lines = [Paragraph("BILL TO", label_style)]
-    bill_to_lines.append(Paragraph(f"<b>{invoice_data['customer_name']}</b>", normal))
-    bill_to_lines.extend(_address_paragraphs(invoice_data.get("customer_address", ""), normal))
+    business_block = []
+    business_name = invoice_data.get("business_name", "")
+    if business_name:
+        business_block.append(Paragraph(business_name, business_name_style))
+    business_block.extend(_address_paragraphs(invoice_data.get("business_address", ""), normal))
+    business_abn = invoice_data.get("business_abn", "")
+    if business_abn:
+        business_block.append(Paragraph(f"ABN: {format_abn(business_abn)}", normal))
+    if not business_block:
+        business_block.append(Paragraph("&nbsp;", normal))
+
+    normal_right = ParagraphStyle("NormalRight", parent=normal, alignment=TA_RIGHT)
+    label_style_right = ParagraphStyle("LabelRight", parent=label_style, alignment=TA_RIGHT)
+    bill_to_lines = [Paragraph("BILL TO", label_style_right)]
+    bill_to_lines.append(Paragraph(f"<b>{invoice_data['customer_name']}</b>", normal_right))
+    bill_to_lines.extend(_address_paragraphs(invoice_data.get("customer_address", ""), normal_right))
     customer_abn = invoice_data.get("customer_abn", "")
     if customer_abn:
-        bill_to_lines.append(Paragraph(f"ABN: {format_abn(customer_abn)}", normal))
+        bill_to_lines.append(Paragraph(f"ABN: {format_abn(customer_abn)}", normal_right))
 
-    bill_to_table = Table([[bill_to_lines]], colWidths=[CONTENT_WIDTH])
-    bill_to_table.setStyle(
+    details_table = Table(
+        [[business_block, bill_to_lines]],
+        colWidths=[CONTENT_WIDTH * 0.55, CONTENT_WIDTH * 0.45],
+    )
+    details_table.setStyle(
         TableStyle(
             [
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
                 ("LEFTPADDING", (0, 0), (-1, -1), 0),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 0),
             ]
         )
     )
-    story.append(bill_to_table)
+    story.append(details_table)
     story.append(Spacer(1, 16))
 
     amount_ex_gst = invoice_data["amount_ex_gst"]
@@ -340,7 +369,7 @@ def render_classic_invoice(output_dir, invoice_data):
         if account_name:
             payment_lines.append(Paragraph(f"Account name: {account_name}", normal))
         if bsb:
-            payment_lines.append(Paragraph(f"BSB: {bsb}", normal))
+            payment_lines.append(Paragraph(f"BSB: {format_bsb(bsb)}", normal))
         if acc:
             payment_lines.append(Paragraph(f"Account: {format_account(acc)}", normal))
         if due_date_fmt:
@@ -370,6 +399,26 @@ def render_classic_invoice(output_dir, invoice_data):
         story.append(Spacer(1, 12))
         story.append(Paragraph("<b>Notes</b>", label_style))
         story.append(Paragraph(comment, normal))
+
+    work_photos = invoice_data.get("work_photos") or []
+    if work_photos:
+        story.append(Spacer(1, 16))
+        story.append(Paragraph("<b>Work completed</b>", label_style))
+        for photo_path in work_photos:
+            if not photo_path or not os.path.isfile(photo_path):
+                continue
+            try:
+                img = Image(photo_path)
+                max_w = CONTENT_WIDTH
+                max_h = 80 * mm
+                iw, ih = float(img.imageWidth), float(img.imageHeight)
+                scale = min(max_w / iw, max_h / ih, 1.0) if iw and ih else 1.0
+                img.drawWidth = iw * scale
+                img.drawHeight = ih * scale
+                story.append(Spacer(1, 8))
+                story.append(img)
+            except Exception:
+                continue
 
     doc.build(story)
     return filepath

@@ -1,10 +1,15 @@
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
+import os
+import re
+import shutil
+
 from flask import render_template, session
 
 from account import entitlement_guard
 import storage
+from invoicing.address import format_address_multiline
 from .due_dates import (
     due_rule_from_form_data,
     due_rule_template_context,
@@ -155,6 +160,12 @@ def get_invoice_draft():
 
 
 def clear_invoice_draft():
+    draft = session.get("invoice_draft") or {}
+    token = (draft.get("work_photos_token") or "").strip()
+    if re.fullmatch(r"[a-f0-9]{32}", token or ""):
+        staging_dir = os.path.join(storage.get_data_path(), "staging", "invoice_attachments", token)
+        if os.path.isdir(staging_dir):
+            shutil.rmtree(staging_dir, ignore_errors=True)
     session.pop("invoice_draft", None)
     session.modified = True
 
@@ -303,7 +314,7 @@ def render_preview_from_form(form):
         due_fixed_date=due.get("due_fixed_date") or "",
         customer_name=customer_name,
         selected_business=business_name,
-        customer_address=customer.get("address", ""),
+        customer_address=format_address_multiline(customer) or customer.get("address", ""),
         customer_abn=format_abn(customer.get("abn", "")),
         items=preview_items,
         comment=comment,
@@ -320,6 +331,8 @@ def render_preview_from_form(form):
         invoice_number_raw=invoice_number_int,
         invoice_date=invoice_date.strftime("%d %B %Y"),
         subtotal_raw=str(subtotal),
+        work_photos=list(form.get("work_photos") or []),
+        work_photos_token=(form.get("work_photos_token") or "").strip(),
         **entitlement_guard.preview_context(format_money),
     )
 

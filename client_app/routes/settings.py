@@ -12,6 +12,8 @@ from account import auth_store, client, entitlement_cache, sync
 from invoicing.due_dates import due_rule_from_form_data, due_rule_template_context
 from app_platform.folder_picker import FolderPickerError, pick_folder
 from invoicing.gst_settings import apply_gst_registered_to_settings, validate_business_gst_settings
+from invoicing.address import normalize_au_address
+from invoicing.validators import normalize_abn, normalize_account_number, normalize_bsb
 from routes.businesses import _edit_form_context, _profile_from_form
 
 
@@ -160,6 +162,20 @@ def register_settings_routes(app, request_shutdown):
             gst_err = validate_business_gst_settings(profile_data)
             if gst_err:
                 return _render_single(error=gst_err)
+            try:
+                addr = normalize_au_address(
+                    line1=profile_data.get("address_line1", ""),
+                    line2=profile_data.get("address_line2", ""),
+                    suburb=profile_data.get("suburb", ""),
+                    state=profile_data.get("state", ""),
+                    postcode=profile_data.get("postcode", ""),
+                )
+                profile_data.update(addr)
+                profile_data["abn"] = normalize_abn(profile_data.get("abn", ""))
+                profile_data["bsb"] = normalize_bsb(profile_data.get("bsb", ""))
+                profile_data["acc"] = normalize_account_number(profile_data.get("acc", ""))
+            except ValueError as exc:
+                return _render_single(error=str(exc))
 
             businesses = storage.load_businesses()
             if is_add:
@@ -167,6 +183,14 @@ def register_settings_routes(app, request_shutdown):
                 storage.save_businesses(businesses)
                 storage.set_default_business(name)
             else:
+                if request.form.get("remove_logo") == "1":
+                    storage.remove_business_logo(business_name, profile_data.get("logo_filename"))
+                    profile_data["logo_filename"] = ""
+                    profile_data["logo_enabled"] = False
+                else:
+                    file = request.files.get("logo_file")
+                    if file and file.filename:
+                        profile_data["logo_filename"] = storage.save_business_logo(business_name, file)
                 businesses[business_name] = profile_data
                 storage.save_businesses(businesses)
 
@@ -175,7 +199,7 @@ def register_settings_routes(app, request_shutdown):
             settings["due_net_days"] = rule["due_net_days"]
             storage.save_settings(settings)
             flash("Saved.", "success")
-            return redirect(url_for("settings_page"))
+            return redirect(url_for("home"))
 
         return _render_single()
 
