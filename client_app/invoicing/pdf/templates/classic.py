@@ -273,11 +273,11 @@ def render_classic_invoice(output_dir, invoice_data):
                 ]
             )
         line_col_widths = [
-            CONTENT_WIDTH * 0.38,
-            CONTENT_WIDTH * 0.08,
-            CONTENT_WIDTH * 0.18,
-            CONTENT_WIDTH * 0.08,
-            CONTENT_WIDTH * 0.18,
+            CONTENT_WIDTH * (38 / 90),
+            CONTENT_WIDTH * (8 / 90),
+            CONTENT_WIDTH * (18 / 90),
+            CONTENT_WIDTH * (8 / 90),
+            CONTENT_WIDTH * (18 / 90),
         ]
     else:
         line_data = [
