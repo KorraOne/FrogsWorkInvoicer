@@ -1,8 +1,4 @@
 (function () {
-    var configEl = document.getElementById("create-invoice-config");
-    var config = configEl ? JSON.parse(configEl.textContent || "{}") : {};
-    var gstRegistered = !!config.gstRegistered;
-
     var addBtn = document.getElementById("add-item-btn");
     var container = document.getElementById("items");
     var invoiceForm = document.getElementById("invoice-form");
@@ -62,21 +58,14 @@
     }
 
     function syncGstHidden(row) {
-        var cb = row.querySelector(".item-gst-free-input");
+        var cb = row.querySelector(".item-gst-applicable-input");
         var hidden = row.querySelector(".item-gst-free-hidden");
         var label = row.querySelector(".gst-mode-label");
-        var amountLabel = row.querySelector(".item-amount-label");
         if (cb && hidden) {
-            hidden.value = cb.checked ? "on" : "";
-            row.classList.toggle("line-item--gst-free", cb.checked);
-            var gstText = cb.checked ? "inc. GST" : "exc. GST";
+            hidden.value = cb.checked ? "" : "on";
+            row.classList.toggle("line-item--gst-applicable", cb.checked);
             if (label) {
-                label.textContent = gstText;
-            }
-            if (amountLabel) {
-                amountLabel.textContent = gstRegistered
-                    ? "Unit price (" + gstText + ")"
-                    : "Unit price";
+                label.textContent = cb.checked ? "GST applicable" : "GST-free";
             }
         }
     }
@@ -92,7 +81,7 @@
             gstControl.addEventListener("click", function (event) {
                 event.stopPropagation();
             });
-            var gstCheckbox = row.querySelector(".item-gst-free-input");
+            var gstCheckbox = row.querySelector(".item-gst-applicable-input");
             if (gstCheckbox) {
                 gstCheckbox.addEventListener("change", function () {
                     syncGstHidden(row);
@@ -112,13 +101,15 @@
                 input.value = "1";
             } else if (input.classList.contains("item-gst-free-hidden")) {
                 input.value = "";
+            } else if (input.classList.contains("item-gst-applicable-input")) {
+                input.checked = true;
             } else if (input.type === "checkbox") {
                 input.checked = false;
             } else {
                 input.value = "";
             }
         });
-        row.classList.remove("line-item--gst-free");
+        row.classList.add("line-item--gst-applicable");
         container.appendChild(row);
         bindLineItem(row);
         renumberLineItems();
