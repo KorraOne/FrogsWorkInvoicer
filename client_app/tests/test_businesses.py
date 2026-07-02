@@ -98,6 +98,22 @@ def test_invoice_business_name_falls_back_to_default(tmp_path, monkeypatch):
     assert storage.invoice_business_name({"business_name": "Trading"}) == "Trading"
 
 
+def test_rename_business_updates_default(tmp_path, monkeypatch):
+    _setup_data_dir(tmp_path, monkeypatch)
+    storage.save_businesses(
+        {"Old Name": {"address_line1": "1 St", "abn": "", "gst_registered": False}}
+    )
+    storage.save_settings({"default_business": "Old Name"})
+
+    profile = storage.load_businesses()["Old Name"]
+    storage.rename_business("Old Name", "New Name", profile)
+
+    businesses = storage.load_businesses()
+    assert "New Name" in businesses
+    assert "Old Name" not in businesses
+    assert storage.get_default_business_name() == "New Name"
+
+
 def test_build_usage_snapshot_includes_business_count(tmp_path, monkeypatch):
     data_dir = _setup_data_dir(tmp_path, monkeypatch)
     storage.save_businesses(

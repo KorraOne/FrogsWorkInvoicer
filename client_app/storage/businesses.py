@@ -156,6 +156,33 @@ def business_name_exists(name, exclude=None):
     return False
 
 
+def rename_business(old_name, new_name, profile):
+    """Move a business profile to a new display name key."""
+    old_name = (old_name or "").strip()
+    new_name = (new_name or "").strip()
+    if not old_name or not new_name:
+        raise ValueError("Enter a business name.")
+    if old_name == new_name:
+        businesses = load_businesses()
+        businesses[old_name] = profile
+        save_businesses(businesses)
+        return new_name
+    if business_name_exists(new_name, exclude=old_name):
+        raise ValueError("A business with this name already exists.")
+
+    businesses = load_businesses()
+    if old_name not in businesses:
+        raise ValueError("Business not found.")
+
+    del businesses[old_name]
+    businesses[new_name] = profile
+    save_businesses(businesses)
+
+    if get_default_business_name() == old_name:
+        set_default_business(new_name)
+    return new_name
+
+
 def get_default_business_name():
     from storage.settings import load_settings
 

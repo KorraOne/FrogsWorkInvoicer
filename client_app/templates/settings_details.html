@@ -11,14 +11,9 @@
 
 <form method="POST" class="settings-details-form" enctype="multipart/form-data">
     <section class="settings-details-section">
-        <h2 class="settings-section-heading">Business</h2>
         <div class="form-group">
             <label for="name">Business name</label>
-            {% if is_add %}
             <input type="text" name="name" id="name" value="{{ form.name }}" required placeholder="{{ ph.business_name }}">
-            {% else %}
-            <input type="text" id="name" value="{{ form.name }}" disabled>
-            {% endif %}
         </div>
         {% with prefix='business_', kind='business', form=form %}
         {% include "_address_fields.html" %}

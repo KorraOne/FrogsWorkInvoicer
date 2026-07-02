@@ -102,6 +102,24 @@ def _validate_and_normalize_profile_for_save(profile):
     return None
 
 
+def _save_business_profile(old_name, new_name, profile, *, is_add=False):
+    new_name = (new_name or "").strip()
+    if not new_name:
+        return "Enter a business name."
+    if is_add:
+        if storage.business_name_exists(new_name):
+            return "A business with this name already exists."
+        businesses = storage.load_businesses()
+        businesses[new_name] = profile
+        storage.save_businesses(businesses)
+        return None
+    try:
+        storage.rename_business(old_name, new_name, profile)
+    except ValueError as exc:
+        return str(exc)
+    return None
+
+
 def _edit_form_context(name, profile, *, is_add=False, error=None):
     from datetime import date, timedelta
 
@@ -233,6 +251,7 @@ def register_business_routes(app):
 
         if request.method == "POST":
             updated = _profile_from_form(request.form, profile)
+            new_name = request.form.get("name", "").strip() or name
             gst_err = validate_business_gst_settings(updated)
             if gst_err:
                 return render_template(
@@ -251,8 +270,12 @@ def register_business_routes(app):
                     "edit_business.html",
                     **_edit_form_context(name, updated, error=logo_err),
                 )
-            businesses[name] = updated
-            storage.save_businesses(businesses)
+            save_err = _save_business_profile(name, new_name, updated, is_add=False)
+            if save_err:
+                return render_template(
+                    "edit_business.html",
+                    **_edit_form_context(name, updated, error=save_err),
+                )
             return redirect(url_for("home"))
 
         return render_template(

@@ -14,7 +14,12 @@ from app_platform.folder_picker import FolderPickerError, pick_folder
 from invoicing.gst_settings import apply_gst_registered_to_settings, validate_business_gst_settings
 from invoicing.address import normalize_au_address
 from invoicing.validators import normalize_abn, normalize_account_number, normalize_bsb
-from routes.businesses import _edit_form_context, _profile_from_form, apply_logo_from_request
+from routes.businesses import (
+    _edit_form_context,
+    _profile_from_form,
+    _save_business_profile,
+    apply_logo_from_request,
+)
 
 
 def register_settings_routes(app, request_shutdown):
@@ -147,10 +152,11 @@ def register_settings_routes(app, request_shutdown):
 
         if request.method == "POST":
             settings = storage.load_settings()
-            name = request.form.get("name", "").strip() if is_add else business_name
+            form_name = request.form.get("name", "").strip()
+            name = form_name if is_add else form_name or business_name
             profile_data = _profile_from_form(request.form, profile if not is_add else None)
 
-            if is_add and not name:
+            if not name:
                 return _render_single(error="Enter a business name.")
 
             if is_add and storage.business_name_exists(name):
@@ -177,17 +183,18 @@ def register_settings_routes(app, request_shutdown):
             except ValueError as exc:
                 return _render_single(error=str(exc))
 
-            businesses = storage.load_businesses()
             if is_add:
-                businesses[name] = profile_data
-                storage.save_businesses(businesses)
+                save_err = _save_business_profile("", name, profile_data, is_add=True)
+                if save_err:
+                    return _render_single(error=save_err)
                 storage.set_default_business(name)
             else:
                 logo_err = apply_logo_from_request(business_name, profile_data)
                 if logo_err:
                     return _render_single(error=logo_err)
-                businesses[business_name] = profile_data
-                storage.save_businesses(businesses)
+                save_err = _save_business_profile(business_name, name, profile_data, is_add=False)
+                if save_err:
+                    return _render_single(error=save_err)
 
             rule = due_rule_from_form_data(request.form, settings)
             settings["due_rule_type"] = rule["due_rule_type"]

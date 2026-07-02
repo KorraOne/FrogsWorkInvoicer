@@ -1,10 +1,15 @@
 ﻿{
-    "version":  "2.2.6",
-    "setup_sha256":  "7882f911a81f207bb2f2b73f30c8eb855b1439be40123201f218fde6115831e1",
+    "version":  "2.2.7",
+    "setup_sha256":  "e4cb7b4ccc1295761e5fab94527722390d8f597ada5ebf59bb6407ea69c6790e",
     "published_at":  "2026-07-02",
-    "update_zip_path":  "https://downloads.frogswork.com/FrogsWork-2.2.6-win64.zip",
-    "notes":  "Fix subscribe and welcome wizard step counts (2 steps, not 3).",
+    "update_zip_path":  "https://downloads.frogswork.com/FrogsWork-2.2.7-win64.zip",
+    "notes":  "Fix business name editing on Your details and Edit business.",
     "history":  [
+                    {
+                        "published_at":  "2026-07-02",
+                        "version":  "2.2.7",
+                        "notes":  "Fix business name editing on Your details and Edit business."
+                    },
                     {
                         "published_at":  "2026-07-02",
                         "version":  "2.2.6",
@@ -66,6 +71,6 @@
                         "notes":  "Replaces usage-based billing with subscription. Free trial: 20 invoices or 20000 ex GST before subscribe."
                     }
                 ],
-    "download_path":  "https://downloads.frogswork.com/FrogsWork-2.2.6-setup.exe",
-    "sha256":  "51a434bdccc5bb0df86e4bb283378b8e6a3d3e2cb4535fd2a4dd20a6c9b36f64"
+    "download_path":  "https://downloads.frogswork.com/FrogsWork-2.2.7-setup.exe",
+    "sha256":  "d02a5532018fa9eee123295a9cf8940142c5906f726cd3ca0bad039fa154a4ff"
 }
