@@ -15,12 +15,7 @@
     {% with prefix='business_', kind='business', form=form %}
     {% include "_address_fields.html" %}
     {% endwith %}
-    {% set gst_registered = form.gst_registered|default(false) %}
-    {% include "_gst_registration_fields.html" %}
-    <div class="form-group">
-        <label for="business_abn" id="business_abn_label">Business ABN</label>
-        <input type="text" name="business_abn" id="business_abn" value="{{ form.business_abn|default('') }}" placeholder="{{ ph.business_abn }}">
-    </div>
+    {% include "_tax_fields_group.html" %}
     <div class="onboarding-actions">
         <button type="submit" class="btn btn-primary">Continue</button>
         <a href="{{ url_for('account_onboard_customer') }}" class="onboarding-skip">Skip for now</a>

@@ -23,55 +23,16 @@
         {% with prefix='business_', kind='business', form=form %}
         {% include "_address_fields.html" %}
         {% endwith %}
-        {% set gst_registered = form.gst_registered|default(false) %}
-        {% include "_gst_registration_fields.html" %}
-        <div class="form-group">
-            <label for="business_abn" id="business_abn_label">Business ABN</label>
-            <input type="text" name="business_abn" id="business_abn" value="{{ form.business_abn }}" placeholder="{{ ph.business_abn }}">
-        </div>
+        {% include "_tax_fields_group.html" %}
     </section>
 
     <section class="settings-details-section">
-        <h2 class="settings-section-heading">Bank details</h2>
-        <div class="settings-details-grid">
-            <div class="form-group">
-                <label for="bsb">BSB</label>
-                <input type="text" name="bsb" id="bsb" value="{{ form.bsb }}" placeholder="{{ ph.bank_bsb }}">
-            </div>
-            <div class="form-group">
-                <label for="acc">Account number</label>
-                <input type="text" name="acc" id="acc" value="{{ form.acc }}" placeholder="{{ ph.bank_account_number }}">
-            </div>
-        </div>
-        <div class="form-group">
-            <label for="account_name">Account name</label>
-            <input type="text" name="account_name" id="account_name" value="{{ form.account_name }}" placeholder="{{ ph.bank_account_name }}">
-        </div>
+        {% include "_bank_details_fields.html" %}
     </section>
 
     {% if not is_add %}
     <section class="settings-details-section">
-        <h2 class="settings-section-heading">Logo</h2>
-        <div class="form-group">
-            <label>
-                <input type="checkbox" name="logo_enabled" {% if form.logo_enabled %}checked{% endif %}>
-                Show logo on invoices
-            </label>
-        </div>
-        {% if form.logo_url %}
-        <div class="form-group">
-            <img src="{{ form.logo_url }}" alt="Business logo preview" style="max-width: 220px; height: auto;">
-        </div>
-        {% endif %}
-        <div class="form-group">
-            <label for="logo_file">Upload logo (PNG/JPG)</label>
-            <input type="file" name="logo_file" id="logo_file" accept="image/png,image/jpeg">
-        </div>
-        {% if form.logo_filename %}
-        <div class="form-group">
-            <button type="submit" name="remove_logo" value="1" class="btn btn-secondary">Remove logo</button>
-        </div>
-        {% endif %}
+        {% include "_logo_fields.html" %}
     </section>
     {% endif %}
 

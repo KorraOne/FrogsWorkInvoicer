@@ -14,7 +14,7 @@ from app_platform.folder_picker import FolderPickerError, pick_folder
 from invoicing.gst_settings import apply_gst_registered_to_settings, validate_business_gst_settings
 from invoicing.address import normalize_au_address
 from invoicing.validators import normalize_abn, normalize_account_number, normalize_bsb
-from routes.businesses import _edit_form_context, _profile_from_form
+from routes.businesses import _edit_form_context, _profile_from_form, apply_logo_from_request
 
 
 def register_settings_routes(app, request_shutdown):
@@ -183,14 +183,9 @@ def register_settings_routes(app, request_shutdown):
                 storage.save_businesses(businesses)
                 storage.set_default_business(name)
             else:
-                if request.form.get("remove_logo") == "1":
-                    storage.remove_business_logo(business_name, profile_data.get("logo_filename"))
-                    profile_data["logo_filename"] = ""
-                    profile_data["logo_enabled"] = False
-                else:
-                    file = request.files.get("logo_file")
-                    if file and file.filename:
-                        profile_data["logo_filename"] = storage.save_business_logo(business_name, file)
+                logo_err = apply_logo_from_request(business_name, profile_data)
+                if logo_err:
+                    return _render_single(error=logo_err)
                 businesses[business_name] = profile_data
                 storage.save_businesses(businesses)
 

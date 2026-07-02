@@ -100,7 +100,7 @@ def _merge_apply_result():
     if not os.path.isfile(path):
         return
     try:
-        with open(path, encoding="utf-8") as f:
+        with open(path, encoding="utf-8-sig") as f:
             result = json.load(f)
         os.remove(path)
     except (OSError, json.JSONDecodeError):
@@ -176,7 +176,7 @@ def fetch_latest_release():
 def refresh_release_cache(force=False):
     now = time.time()
     cache_fresh = _cache["at"] and (now - _cache["at"]) < _CACHE_SECONDS
-    if not force and cache_fresh and _cache["latest"] is not None:
+    if not force and cache_fresh:
         return _cache["latest"]
 
     latest = None
@@ -196,6 +196,17 @@ def refresh_release_cache(force=False):
         state["last_seen_version"] = latest["version"]
         save_state(state)
     return latest
+
+
+def _maybe_refresh_release_cache_async():
+    now = time.time()
+    if _cache["at"] and (now - _cache["at"]) < _CACHE_SECONDS:
+        return
+    threading.Thread(
+        target=lambda: refresh_release_cache(force=True),
+        daemon=True,
+        name="update-cache-refresh",
+    ).start()
 
 
 def get_apply_failure():
@@ -218,8 +229,8 @@ def get_pending_update(force_check=False):
         return None
     if force_check:
         refresh_release_cache(force=True)
-    elif _cache["latest"] is None or (time.time() - _cache["at"]) >= _CACHE_SECONDS:
-        refresh_release_cache(force=True)
+    else:
+        _maybe_refresh_release_cache_async()
 
     latest = _cache["latest"]
     if not latest or not version_less(APP_VERSION, latest["version"]):
@@ -362,9 +373,16 @@ $copyOk = $false
 $lastCode = 0
 for ($i = 1; $i -le {_ROBOCOPY_ATTEMPTS}; $i++) {{
     Write-UpdateLog "robocopy attempt $i"
-    & robocopy $staging $install /MIR /ZB /R:3 /W:2 /NFL /NDL /NJH /NJS /NP
+    # /Z is restartable mode. Avoid /B or /ZB because they require "Backup and Restore Files" rights.
+    $out = & robocopy $staging $install /MIR /Z /R:3 /W:2 /NFL /NDL /NJH /NJS /NP 2>&1
     $lastCode = $LASTEXITCODE
     Write-UpdateLog "robocopy exit $lastCode"
+    try {{
+        $tail = $out | Select-Object -Last 8
+        foreach ($line in $tail) {{
+            if ($line) {{ Write-UpdateLog "robocopy out: $line" }}
+        }}
+    }} catch {{}}
     if ($lastCode -lt 8) {{
         $copyOk = $true
         break
@@ -386,21 +404,22 @@ Write-UpdateLog "Update succeeded"
 """
 
 
+def _updater_vbs_path():
+    return os.path.join(_update_dir(), "launch-updater.vbs")
+
+
 def _launch_updater(script_path):
-    append_update_log(f"Launching updater via cmd start: {script_path}")
-    subprocess.Popen(
-        [
-            "cmd.exe",
-            "/c",
-            "start",
-            "",
-            "powershell.exe",
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            script_path,
-        ],
+    vbs_path = _updater_vbs_path()
+    ps_quoted = script_path.replace('"', '""')
+    vbs_content = (
+        'Set sh = CreateObject("Wscript.Shell")\r\n'
+        f'sh.Run "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{ps_quoted}""", 0, False\r\n'
+    )
+    with open(vbs_path, "w", encoding="utf-8") as f:
+        f.write(vbs_content)
+    append_update_log(f"Launching updater (hidden): {script_path}")
+    proc = subprocess.Popen(
+        ["wscript.exe", "//B", "//Nologo", vbs_path],
         cwd=_bootstrap_dir(),
         creationflags=_CREATE_NO_WINDOW,
         close_fds=False,
@@ -408,6 +427,7 @@ def _launch_updater(script_path):
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
+    append_update_log(f"Updater launcher pid {proc.pid}")
 
 
 def _prepare_update_package(release):

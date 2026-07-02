@@ -68,3 +68,38 @@ def test_mark_apply_started_clears_dismiss(tmp_path, monkeypatch):
     assert "dismissed_version" not in state
     assert state["last_apply_version"] == "2.2.1"
     assert "last_apply_started_at" in state
+
+
+def test_refresh_release_cache_honors_failed_lookup(tmp_path, monkeypatch):
+    monkeypatch.setattr(updates, "_cache", {"at": 0.0, "latest": None, "failed": False})
+    calls = {"n": 0}
+
+    def _fetch():
+        calls["n"] += 1
+        return None
+
+    monkeypatch.setattr(updates, "fetch_latest_release", _fetch)
+    updates.refresh_release_cache(force=True)
+    assert calls["n"] == 1
+    assert updates._cache["latest"] is None
+    assert updates._cache["at"] > 0
+
+    updates.refresh_release_cache(force=False)
+    assert calls["n"] == 1
+
+    updates._cache["at"] = 0
+    updates.refresh_release_cache(force=False)
+    assert calls["n"] == 2
+
+
+def test_get_pending_update_does_not_block_on_stale_failure(monkeypatch):
+    monkeypatch.setattr(updates, "is_packaged", lambda: True)
+    monkeypatch.setattr(updates, "APP_VERSION", "2.2.3")
+    monkeypatch.setattr(updates, "_cache", {"at": 9999999999.0, "latest": None, "failed": True})
+    monkeypatch.setattr(
+        updates,
+        "refresh_release_cache",
+        lambda force=False: (_ for _ in ()).throw(AssertionError("should not block")),
+    )
+    monkeypatch.setattr(updates, "load_state", lambda: {})
+    assert updates.get_pending_update() is None

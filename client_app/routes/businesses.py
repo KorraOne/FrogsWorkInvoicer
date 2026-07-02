@@ -8,7 +8,57 @@ from flask import flash, redirect, render_template, request, send_file, url_for
 import storage
 from invoicing.address import normalize_au_address
 from invoicing.gst_settings import apply_gst_registered_to_settings, validate_business_gst_settings
+from invoicing.logo import default_placement, editor_config, parse_placement
 from invoicing.validators import normalize_abn, normalize_account_number, normalize_bsb
+
+
+def _logo_fields_for_form(name, profile):
+    from datetime import date, timedelta
+
+    placement = profile.get("logo_placement") or default_placement()
+    has_baked = bool((profile.get("logo_filename") or "").strip())
+    has_source = bool((profile.get("logo_source_filename") or "").strip())
+    preview_date = date.today()
+    preview_due = preview_date + timedelta(days=14)
+    return {
+        "logo_enabled": bool(profile.get("logo_enabled")),
+        "logo_filename": profile.get("logo_filename", ""),
+        "logo_source_filename": profile.get("logo_source_filename", ""),
+        "logo_placement": placement,
+        "logo_url": url_for("business_logo", name=name) if has_baked else "",
+        "logo_source_url": url_for("business_logo_source", name=name) if has_source else "",
+        "logo_has_image": has_baked or has_source,
+        "logo_editor_config": editor_config(),
+        "logo_preview_date": preview_date.strftime("%d %B %Y"),
+        "logo_preview_due": preview_due.strftime("%d %B %Y"),
+    }
+
+
+def apply_logo_from_request(name, profile):
+    if request.form.get("remove_logo") == "1":
+        storage.remove_business_logo(name, profile)
+        profile["logo_filename"] = ""
+        profile["logo_source_filename"] = ""
+        profile["logo_placement"] = default_placement()
+        profile["logo_enabled"] = False
+        return None
+
+    profile["logo_enabled"] = request.form.get("logo_enabled") == "on"
+    file = request.files.get("logo_file")
+    has_existing = (profile.get("logo_source_filename") or profile.get("logo_filename"))
+    if not has_existing and not (file and file.filename):
+        return None
+
+    placement = parse_placement(form=request.form)
+    profile["logo_placement"] = placement
+    try:
+        if file and file.filename:
+            storage.apply_business_logo(name, file_storage=file, placement=placement, profile=profile)
+        elif (profile.get("logo_source_filename") or profile.get("logo_filename")):
+            storage.rebake_business_logo(name, placement, profile)
+    except ValueError as exc:
+        return str(exc)
+    return None
 
 
 def _profile_from_form(form, existing=None):
@@ -25,6 +75,8 @@ def _profile_from_form(form, existing=None):
             "acc": form.get("acc", ""),
             "logo_enabled": form.get("logo_enabled"),
             "logo_filename": (existing or {}).get("logo_filename", ""),
+            "logo_source_filename": (existing or {}).get("logo_source_filename", ""),
+            "logo_placement": (existing or {}).get("logo_placement"),
         },
         existing,
     )
@@ -51,6 +103,25 @@ def _validate_and_normalize_profile_for_save(profile):
 
 
 def _edit_form_context(name, profile, *, is_add=False, error=None):
+    from datetime import date, timedelta
+
+    preview_date = date.today()
+    preview_due = preview_date + timedelta(days=14)
+    preview_dates = {
+        "logo_preview_date": preview_date.strftime("%d %B %Y"),
+        "logo_preview_due": preview_due.strftime("%d %B %Y"),
+    }
+    logo_fields = _logo_fields_for_form(name, profile) if name and not is_add else {
+        "logo_enabled": bool(profile.get("logo_enabled")),
+        "logo_filename": profile.get("logo_filename", ""),
+        "logo_source_filename": profile.get("logo_source_filename", ""),
+        "logo_placement": profile.get("logo_placement") or default_placement(),
+        "logo_url": "",
+        "logo_source_url": "",
+        "logo_has_image": False,
+        "logo_editor_config": editor_config(),
+        **preview_dates,
+    }
     return {
         "business": name if not is_add else None,
         "form": {
@@ -65,9 +136,7 @@ def _edit_form_context(name, profile, *, is_add=False, error=None):
             "account_name": profile.get("account_name", ""),
             "bsb": profile.get("bsb", ""),
             "acc": profile.get("acc", ""),
-            "logo_enabled": bool(profile.get("logo_enabled")),
-            "logo_filename": profile.get("logo_filename", ""),
-            "logo_url": url_for("business_logo", name=name) if profile.get("logo_filename") else "",
+            **logo_fields,
         },
         "error": error,
         "is_add": is_add,
@@ -81,6 +150,18 @@ def register_business_routes(app):
         businesses = storage.load_businesses()
         profile = businesses.get(name) or {}
         filename = (profile.get("logo_filename") or "").strip()
+        if not filename:
+            return ("", 404)
+        path = os.path.join(storage.get_data_path(), "logos", filename)
+        if not os.path.isfile(path):
+            return ("", 404)
+        return send_file(path)
+
+    @app.route("/businesses/logo-source/<name>")
+    def business_logo_source(name):
+        name = unquote(name)
+        _, profile = storage.resolve_business(name)
+        filename = (profile.get("logo_source_filename") or "").strip()
         if not filename:
             return ("", 404)
         path = os.path.join(storage.get_data_path(), "logos", filename)
@@ -148,7 +229,7 @@ def register_business_routes(app):
         if name not in businesses:
             return redirect(url_for("settings_details"))
 
-        profile = businesses[name]
+        _, profile = storage.resolve_business(name)
 
         if request.method == "POST":
             updated = _profile_from_form(request.form, profile)
@@ -164,14 +245,12 @@ def register_business_routes(app):
                     "edit_business.html",
                     **_edit_form_context(name, updated, error=field_err),
                 )
-            if request.form.get("remove_logo") == "1":
-                storage.remove_business_logo(name, updated.get("logo_filename"))
-                updated["logo_filename"] = ""
-                updated["logo_enabled"] = False
-            else:
-                file = request.files.get("logo_file")
-                if file and file.filename:
-                    updated["logo_filename"] = storage.save_business_logo(name, file)
+            logo_err = apply_logo_from_request(name, updated)
+            if logo_err:
+                return render_template(
+                    "edit_business.html",
+                    **_edit_form_context(name, updated, error=logo_err),
+                )
             businesses[name] = updated
             storage.save_businesses(businesses)
             return redirect(url_for("home"))

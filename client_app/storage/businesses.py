@@ -21,6 +21,8 @@ DEFAULT_BUSINESS_PROFILE = {
     "invoice_counter": 1,
     "logo_enabled": False,
     "logo_filename": "",
+    "logo_source_filename": "",
+    "logo_placement": None,
 }
 
 _LEGACY_SETTINGS_KEYS = (
@@ -184,14 +186,14 @@ def resolve_business(name=None):
     if name:
         name = name.strip()
         if name in businesses:
-            return name, dict(businesses[name])
+            return name, _migrate_logo_profile(name, dict(businesses[name]))
 
     default_name = get_default_business_name()
     if default_name in businesses:
-        return default_name, dict(businesses[default_name])
+        return default_name, _migrate_logo_profile(default_name, dict(businesses[default_name]))
 
     first_name = next(iter(businesses))
-    return first_name, dict(businesses[first_name])
+    return first_name, _migrate_logo_profile(first_name, dict(businesses[first_name]))
 
 
 def invoice_business_name(inv):
@@ -244,6 +246,10 @@ def normalize_business_profile(form_data, existing=None):
         "invoice_counter": int(existing.get("invoice_counter", 1) or 1),
         "logo_enabled": bool(form_data.get("logo_enabled", existing.get("logo_enabled", False))),
         "logo_filename": form_data.get("logo_filename", existing.get("logo_filename", "")).strip(),
+        "logo_source_filename": form_data.get(
+            "logo_source_filename", existing.get("logo_source_filename", "")
+        ).strip(),
+        "logo_placement": form_data.get("logo_placement", existing.get("logo_placement")) or None,
     }
 
 
@@ -260,33 +266,156 @@ def business_logo_filename(business_name):
     return f"{base}.png"
 
 
-def save_business_logo(business_name, file_storage):
+def business_logo_source_filename(business_name):
+    base = re.sub(r"[^a-zA-Z0-9]+", "-", str(business_name or "").strip()).strip("-").lower()
+    if not base:
+        base = "business"
+    return f"{base}-source.png"
+
+
+def _logo_path(filename):
+    if not filename:
+        return ""
+    return os.path.join(_logos_dir(), filename)
+
+
+def _migrate_logo_profile(business_name, profile):
+    """Backfill placement/source fields for profiles saved before the editor."""
+    import shutil
+
+    from invoicing.logo import default_placement
+
+    if not isinstance(profile, dict):
+        return profile
+    profile.setdefault("logo_source_filename", "")
+    if not isinstance(profile.get("logo_placement"), dict):
+        profile["logo_placement"] = default_placement()
+    baked = (profile.get("logo_filename") or "").strip()
+    source = (profile.get("logo_source_filename") or "").strip()
+    if baked and not source:
+        source_name = business_logo_source_filename(business_name)
+        baked_path = _logo_path(baked)
+        source_path = _logo_path(source_name)
+        if os.path.isfile(baked_path) and not os.path.isfile(source_path):
+            shutil.copy2(baked_path, source_path)
+        if os.path.isfile(source_path):
+            profile["logo_source_filename"] = source_name
+    if _needs_logo_rebake(profile):
+        try:
+            rebake_business_logo(business_name, profile.get("logo_placement"), profile)
+        except (OSError, ValueError):
+            pass
+    return profile
+
+
+def _needs_logo_rebake(profile):
+    """True when baked logo is missing or still uses the legacy full canvas size."""
+    baked = (profile.get("logo_filename") or "").strip()
+    source = (profile.get("logo_source_filename") or "").strip()
+    if not baked or not source:
+        return False
+    if not os.path.isfile(_logo_path(source)):
+        return False
+    baked_path = _logo_path(baked)
+    if not os.path.isfile(baked_path):
+        return True
+    try:
+        from PIL import Image
+
+        from invoicing.logo import HEADER_CANVAS_HEIGHT, HEADER_CANVAS_WIDTH
+
+        with Image.open(baked_path) as img:
+            w, h = img.size
+        return w == HEADER_CANVAS_WIDTH and h == HEADER_CANVAS_HEIGHT
+    except OSError:
+        return True
+
+
+def apply_business_logo(business_name, *, file_storage=None, placement, profile):
     """
-    Save an uploaded logo and return the stored filename (basename only).
+    Save source (if uploaded), bake header slot PNG, update profile logo fields.
 
-    Stored as PNG at {AppData}/logos/<safe-business>.png.
+    Returns updated filenames dict.
     """
-    filename = business_logo_filename(business_name)
-    target = os.path.join(_logos_dir(), filename)
+    from invoicing.logo import bake_logo_to_header_slot, default_placement, open_logo_upload, parse_placement
 
-    # Delay import to keep startup lightweight.
-    from PIL import Image
+    placement = parse_placement(placement or profile.get("logo_placement") or default_placement())
+    baked_name = business_logo_filename(business_name)
+    source_name = business_logo_source_filename(business_name)
+    baked_path = _logo_path(baked_name)
+    source_path = _logo_path(source_name)
 
-    img = Image.open(file_storage.stream)
-    img = img.convert("RGBA")
-    max_px = 1200
-    if img.width > max_px or img.height > max_px:
-        img.thumbnail((max_px, max_px))
-    img.save(target, format="PNG", optimize=True)
-    return filename
+    if file_storage and file_storage.filename:
+        source_img = open_logo_upload(file_storage)
+        source_img.save(source_path, format="PNG", optimize=True)
+        profile["logo_source_filename"] = source_name
+    elif profile.get("logo_source_filename"):
+        source_path = _logo_path(profile["logo_source_filename"])
+        source_name = profile["logo_source_filename"]
+        if not os.path.isfile(source_path):
+            legacy = _logo_path(profile.get("logo_filename", ""))
+            if os.path.isfile(legacy):
+                import shutil
+
+                shutil.copy2(legacy, source_path)
+                profile["logo_source_filename"] = source_name
+            else:
+                raise ValueError("Logo source file is missing. Upload the logo again.")
+        from PIL import Image
+
+        source_img = Image.open(source_path)
+        source_img.load()
+    elif profile.get("logo_filename") and os.path.isfile(_logo_path(profile["logo_filename"])):
+        import shutil
+
+        source_path = _logo_path(source_name)
+        shutil.copy2(_logo_path(profile["logo_filename"]), source_path)
+        profile["logo_source_filename"] = source_name
+        from PIL import Image
+
+        source_img = Image.open(source_path)
+        source_img.load()
+    else:
+        raise ValueError("Upload a logo image first.")
+
+    baked = bake_logo_to_header_slot(source_img, placement)
+    baked.save(baked_path, format="PNG", optimize=True)
+    profile["logo_filename"] = baked_name
+    profile["logo_placement"] = placement
+    return {"logo_filename": baked_name, "logo_source_filename": profile.get("logo_source_filename", source_name)}
 
 
-def remove_business_logo(business_name, filename=None):
-    if filename:
-        path = os.path.join(_logos_dir(), filename)
+def rebake_business_logo(business_name, placement, profile):
+    """Re-bake using existing source and new placement."""
+    return apply_business_logo(business_name, placement=placement, profile=profile)
+
+
+def save_business_logo(business_name, file_storage, placement=None):
+    """Legacy entry point: save upload with default placement."""
+    from invoicing.logo import default_placement
+
+    profile = {"logo_placement": placement or default_placement()}
+    apply_business_logo(business_name, file_storage=file_storage, placement=placement, profile=profile)
+    return profile["logo_filename"]
+
+
+def remove_business_logo(business_name, profile=None):
+    filenames = []
+    if isinstance(profile, dict):
+        for key in ("logo_filename", "logo_source_filename"):
+            name = (profile.get(key) or "").strip()
+            if name:
+                filenames.append(name)
+    elif profile:
+        filenames.append(profile)
+    else:
+        filenames = [business_logo_filename(business_name), business_logo_source_filename(business_name)]
+
+    seen = set()
+    for name in filenames:
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        path = _logo_path(name)
         if os.path.isfile(path):
             os.remove(path)
-        return
-    path = os.path.join(_logos_dir(), business_logo_filename(business_name))
-    if os.path.isfile(path):
-        os.remove(path)

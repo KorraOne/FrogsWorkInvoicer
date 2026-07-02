@@ -3,43 +3,58 @@
 {% set lp = label_prefix|default('') %}
 {% set showLine2 = show_line2|default(true) %}
 
-<div class="form-group">
-    <label for="{{ p }}address_line1">{{ lp }}Address line 1</label>
-    <input type="text" name="{{ p }}address_line1" id="{{ p }}address_line1"
-           value="{{ form[p ~ 'address_line1']|default('') }}"
-           placeholder="{{ ph[(kind == 'business') and 'business_address_line1' or 'customer_address_line1'] }}">
-</div>
+<fieldset class="form-fields-group address-fields-group">
+    <legend class="form-fields-legend">{{ lp }}Address</legend>
+    <div class="address-fields-inner">
+        <div class="form-group address-fields-line">
+            <label for="{{ p }}address_line1">Street or PO Box</label>
+            <input type="text" name="{{ p }}address_line1" id="{{ p }}address_line1" class="address-line-input"
+                   value="{{ form[p ~ 'address_line1']|default('') }}"
+                   placeholder="{{ ph[(kind == 'business') and 'business_address_line1' or 'customer_address_line1'] }}"
+                   autocomplete="address-line1">
+        </div>
 
-{% if showLine2 %}
-<div class="form-group">
-    <label for="{{ p }}address_line2">{{ lp }}Address line 2 (optional)</label>
-    <input type="text" name="{{ p }}address_line2" id="{{ p }}address_line2"
-           value="{{ form[p ~ 'address_line2']|default('') }}"
-           placeholder="{{ ph[(kind == 'business') and 'business_address_line2' or 'customer_address_line2'] }}">
-</div>
-{% endif %}
+        {% if showLine2 %}
+        <div class="form-group address-fields-line">
+            <label for="{{ p }}address_line2">Unit, level, suite <span class="address-fields-optional">(optional)</span></label>
+            <input type="text" name="{{ p }}address_line2" id="{{ p }}address_line2" class="address-line-input"
+                   value="{{ form[p ~ 'address_line2']|default('') }}"
+                   placeholder="{{ ph[(kind == 'business') and 'business_address_line2' or 'customer_address_line2'] }}"
+                   autocomplete="address-line2">
+        </div>
+        {% endif %}
 
-<div class="settings-details-grid">
-    <div class="form-group">
-        <label for="{{ p }}suburb">{{ lp }}Suburb</label>
-        <input type="text" name="{{ p }}suburb" id="{{ p }}suburb"
-               value="{{ form[p ~ 'suburb']|default('') }}"
-               placeholder="{{ ph[(kind == 'business') and 'business_suburb' or 'customer_suburb'] }}">
+        <div class="address-fields-row">
+            <div class="form-group">
+                <label for="{{ p }}suburb">Suburb</label>
+                <input type="text" name="{{ p }}suburb" id="{{ p }}suburb" class="address-suburb-input"
+                       value="{{ form[p ~ 'suburb']|default('') }}"
+                       placeholder="{{ ph[(kind == 'business') and 'business_suburb' or 'customer_suburb'] }}"
+                       autocomplete="address-level2">
+            </div>
+            <div class="form-group">
+                <label for="{{ p }}state">State</label>
+                <select name="{{ p }}state" id="{{ p }}state" autocomplete="address-level1">
+                    <option value=""></option>
+                    {% for st in au_states %}
+                    <option value="{{ st }}" {% if (form[p ~ 'state']|default('')) == st %}selected{% endif %}>{{ st }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="{{ p }}postcode">Postcode</label>
+                <input type="text" name="{{ p }}postcode" id="{{ p }}postcode" class="address-postcode-input"
+                       value="{{ form[p ~ 'postcode']|default('') }}"
+                       placeholder="{{ ph[(kind == 'business') and 'business_postcode' or 'customer_postcode'] }}"
+                       inputmode="numeric" maxlength="4" pattern="[0-9]{4}" autocomplete="postal-code">
+            </div>
+        </div>
     </div>
-    <div class="form-group">
-        <label for="{{ p }}state">{{ lp }}State</label>
-        <select name="{{ p }}state" id="{{ p }}state">
-            <option value=""></option>
-            {% for st in au_states %}
-            <option value="{{ st }}" {% if (form[p ~ 'state']|default('')) == st %}selected{% endif %}>{{ st }}</option>
-            {% endfor %}
-        </select>
-    </div>
-    <div class="form-group">
-        <label for="{{ p }}postcode">{{ lp }}Postcode</label>
-        <input type="text" name="{{ p }}postcode" id="{{ p }}postcode"
-               value="{{ form[p ~ 'postcode']|default('') }}"
-               placeholder="{{ ph[(kind == 'business') and 'business_postcode' or 'customer_postcode'] }}">
-    </div>
-</div>
+</fieldset>
 
+<script src="{{ url_for('static', filename='address_fields_ui.js') }}"></script>
+<script>
+if (window.initAddressFieldsUi) {
+    initAddressFieldsUi();
+}
+</script>

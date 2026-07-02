@@ -1,42 +1,44 @@
-<div class="due-rule-compact">
+<fieldset class="form-fields-group due-rule-group">
     {% if legend %}
-    <h2 class="due-rule-heading">{{ legend }}</h2>
+    <legend class="form-fields-legend">{{ legend }}</legend>
     {% endif %}
-    {% if hint %}
-    <p class="due-rule-hint">{{ hint }}</p>
-    {% endif %}
+    <div class="form-fields-inner">
+        {% if hint %}
+        <p class="form-hint due-rule-hint">{{ hint }}</p>
+        {% endif %}
 
-    <div class="form-group due-rule-type-row">
-        <label for="due_rule_type">Due date rule</label>
-        <select name="due_rule_type" id="due_rule_type" class="due-rule-select">
-            <option value="net_days" {% if due_rule_type == "net_days" %}selected{% endif %}>Net days after invoice</option>
-            <option value="end_next_week" {% if due_rule_type == "end_next_week" %}selected{% endif %}>End of next week</option>
-            <option value="end_next_month" {% if due_rule_type == "end_next_month" %}selected{% endif %}>End of next month</option>
-            {% if show_fixed_date is not defined or show_fixed_date %}
-            <option value="fixed_date" {% if due_rule_type == "fixed_date" %}selected{% endif %}>Specific date</option>
-            {% endif %}
-        </select>
-    </div>
-
-    <div class="due-rule-panel" data-panel="net_days" {% if due_rule_type != "net_days" %}hidden{% endif %}>
-        <div class="form-group due-rule-panel-field">
-            <label for="due_net_days">Days after invoice date</label>
-            <input type="number" name="due_net_days" id="due_net_days" class="due-net-days-input"
-                   min="1" max="365" value="{{ due_net_days }}">
+        <div class="form-group due-rule-type-row">
+            <label for="due_rule_type">Due date rule</label>
+            <select name="due_rule_type" id="due_rule_type" class="due-rule-select">
+                <option value="net_days" {% if due_rule_type == "net_days" %}selected{% endif %}>Net days after invoice</option>
+                <option value="end_next_week" {% if due_rule_type == "end_next_week" %}selected{% endif %}>End of next week</option>
+                <option value="end_next_month" {% if due_rule_type == "end_next_month" %}selected{% endif %}>End of next month</option>
+                {% if show_fixed_date is not defined or show_fixed_date %}
+                <option value="fixed_date" {% if due_rule_type == "fixed_date" %}selected{% endif %}>Specific date</option>
+                {% endif %}
+            </select>
         </div>
-    </div>
 
-    {% if show_fixed_date is not defined or show_fixed_date %}
-    <div class="due-rule-panel" data-panel="fixed_date" {% if due_rule_type != "fixed_date" %}hidden{% endif %}>
-        <div class="form-group due-rule-panel-field">
-            <label for="due_fixed_date">Due date</label>
-            <input type="date" name="due_fixed_date" id="due_fixed_date" class="due-fixed-date-input"
-                   value="{{ due_fixed_date }}" min="{{ invoice_date_iso }}">
+        <div class="due-rule-panel" data-panel="net_days" {% if due_rule_type != "net_days" %}hidden{% endif %}>
+            <div class="form-group due-rule-panel-field">
+                <label for="due_net_days">Days after invoice date</label>
+                <input type="number" name="due_net_days" id="due_net_days" class="due-net-days-input"
+                       min="1" max="365" value="{{ due_net_days }}">
+            </div>
         </div>
-    </div>
-    {% endif %}
 
-    {% if show_due_preview %}
-    <p class="due-date-preview">Payment due: <strong id="due-date-preview">{{ due_date_preview }}</strong></p>
-    {% endif %}
-</div>
+        {% if show_fixed_date is not defined or show_fixed_date %}
+        <div class="due-rule-panel" data-panel="fixed_date" {% if due_rule_type != "fixed_date" %}hidden{% endif %}>
+            <div class="form-group due-rule-panel-field">
+                <label for="due_fixed_date">Due date</label>
+                <input type="date" name="due_fixed_date" id="due_fixed_date" class="due-fixed-date-input"
+                       value="{{ due_fixed_date }}" min="{{ invoice_date_iso }}">
+            </div>
+        </div>
+        {% endif %}
+
+        {% if show_due_preview %}
+        <p class="due-date-preview">Payment due: <strong id="due-date-preview">{{ due_date_preview }}</strong></p>
+        {% endif %}
+    </div>
+</fieldset>

@@ -1,0 +1,229 @@
+<fieldset class="form-fields-group logo-fields-group{% if form.logo_enabled %} is-enabled{% endif %}{% if form.logo_has_image %} has-logo{% endif %}">
+
+    <legend class="form-fields-legend">Logo</legend>
+
+    <div class="form-fields-inner">
+
+        <div class="logo-toggle-row">
+
+            <span class="logo-toggle-label">Show logo on invoices</span>
+
+            <label class="fw-switch logo-enabled-switch" title="Show logo on invoices">
+
+                <input type="checkbox" name="logo_enabled" value="on" class="logo-enabled-input"
+
+                       {% if form.logo_enabled %}checked{% endif %}
+
+                       {% if not form.logo_has_image %}disabled{% endif %}>
+
+                <span class="fw-switch-track" aria-hidden="true">
+
+                    <span class="fw-switch-thumb"></span>
+
+                </span>
+
+            </label>
+
+            <span class="fw-switch-status logo-enabled-status">{% if form.logo_enabled %}On{% else %}Off{% endif %}</span>
+
+        </div>
+
+
+
+        <details class="logo-editor-details"{% if form.logo_has_image %} open{% endif %}>
+
+            <summary class="logo-editor-summary">Placement &amp; preview</summary>
+
+            <div class="logo-editor-panel">
+
+                <p class="form-hint logo-fields-hint">Drag and resize your logo in the header sample below. The preview matches invoice layout and scale.</p>
+
+
+
+                <div class="logo-placement-editor"
+
+                     data-source-url="{{ form.logo_source_url|default('') }}"
+
+                     data-preview-url="{{ form.logo_url|default('') }}"
+
+                     data-has-image="{{ form.logo_has_image|tojson }}">
+
+                    <div class="logo-header-preview{% if form.logo_enabled and form.logo_has_image %} is-logo-visible{% else %} is-logo-hidden{% endif %}" aria-label="Invoice header preview">
+
+                        <div class="logo-header-top">
+
+                            <div class="logo-header-left">
+
+                                <div class="logo-header-slot" aria-label="Logo placement area">
+
+                                    <img class="logo-placement-image" alt="Logo preview" {% if not form.logo_has_image %}hidden{% endif %}
+
+                                         {% if form.logo_source_url %}src="{{ form.logo_source_url }}"{% elif form.logo_url %}src="{{ form.logo_url }}"{% endif %}>
+
+                                    <span class="logo-header-slot-hint" {% if form.logo_has_image %}hidden{% endif %}>Your logo here</span>
+
+                                </div>
+
+                            </div>
+
+                            <div class="logo-header-meta" aria-hidden="true">
+
+                                <p class="logo-header-title">{% if form.gst_registered|default(false) %}Tax Invoice{% else %}Invoice{% endif %}</p>
+
+                                <p class="logo-header-meta-line"><strong>Invoice #</strong> 00000001</p>
+
+                                <p class="logo-header-meta-line"><strong>Date</strong> {{ form.logo_preview_date|default('1 January 2026') }}</p>
+
+                                <p class="logo-header-meta-line"><strong>Due</strong> {{ form.logo_preview_due|default('15 January 2026') }}</p>
+
+                            </div>
+
+                        </div>
+
+                        <div class="logo-header-divider" aria-hidden="true"></div>
+
+                        <div class="logo-header-bottom" aria-hidden="true">
+
+                            <div class="logo-header-business">
+
+                                <p class="logo-header-business-name">{{ form.name or 'Your business name' }}</p>
+
+                                {% if form.business_address_line1 %}
+
+                                <p class="logo-header-detail-line">{{ form.business_address_line1 }}</p>
+
+                                {% if form.business_address_line2 %}
+
+                                <p class="logo-header-detail-line">{{ form.business_address_line2 }}</p>
+
+                                {% endif %}
+
+                                {% set city = [form.business_suburb|default(''), form.business_state|default(''), form.business_postcode|default('')] | select | join(' ') %}
+
+                                {% if city %}
+
+                                <p class="logo-header-detail-line">{{ city }}</p>
+
+                                {% endif %}
+
+                                {% else %}
+
+                                <p class="logo-header-detail-line logo-header-placeholder">Street address</p>
+
+                                <p class="logo-header-detail-line logo-header-placeholder">Suburb STATE 0000</p>
+
+                                {% endif %}
+
+                                {% if form.business_abn %}
+
+                                <p class="logo-header-detail-line">ABN: {{ form.business_abn }}</p>
+
+                                {% else %}
+
+                                <p class="logo-header-detail-line logo-header-placeholder">ABN: 00 000 000 000</p>
+
+                                {% endif %}
+
+                            </div>
+
+                            <div class="logo-header-bill-to">
+
+                                <p class="logo-header-bill-label">BILL TO</p>
+
+                                <p class="logo-header-detail-line"><strong>Sample customer</strong></p>
+
+                                <p class="logo-header-detail-line logo-header-placeholder">Customer address</p>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <div class="logo-placement-controls">
+
+                        <label class="logo-scale-label" for="logo_scale_slider">Size</label>
+
+                        <input type="range" id="logo_scale_slider" class="logo-scale-input"
+
+                               min="0.5" max="3" step="0.05"
+
+                               value="{{ form.logo_placement.scale|default(1.0) }}"
+
+                               {% if not form.logo_has_image %}disabled{% endif %}>
+
+                        <button type="button" class="btn btn-secondary btn-small logo-reset-btn"
+
+                                {% if not form.logo_has_image %}disabled{% endif %}>Reset</button>
+
+                    </div>
+
+                    <p class="logo-upload-error" hidden></p>
+
+                </div>
+
+
+
+                <input type="hidden" name="logo_placement_scale" id="logo_placement_scale"
+
+                       value="{{ form.logo_placement.scale|default(1.0) }}">
+
+                <input type="hidden" name="logo_placement_offset_x" id="logo_placement_offset_x"
+
+                       value="{{ form.logo_placement.offset_x|default(0.0) }}">
+
+                <input type="hidden" name="logo_placement_offset_y" id="logo_placement_offset_y"
+
+                       value="{{ form.logo_placement.offset_y|default(0.0) }}">
+
+
+
+                <div class="logo-upload-zone">
+
+                    <input type="file" name="logo_file" id="logo_file" class="logo-file-input" accept="image/*" hidden>
+
+                    <button type="button" class="btn btn-secondary logo-choose-btn">Choose image</button>
+
+                    <span class="logo-upload-filename"></span>
+
+                </div>
+
+
+
+                {% if form.logo_has_image %}
+
+                <div class="form-group logo-remove-wrap">
+
+                    <button type="submit" name="remove_logo" value="1" class="btn btn-secondary">Remove logo</button>
+
+                </div>
+
+                {% endif %}
+
+            </div>
+
+        </details>
+
+    </div>
+
+</fieldset>
+
+
+
+<script type="application/json" id="logo-editor-config">{{ form.logo_editor_config|tojson }}</script>
+
+<script src="{{ url_for('static', filename='logo_fields_ui.js') }}"></script>
+
+<script>
+
+if (window.initLogoFieldsUi) {
+
+    initLogoFieldsUi();
+
+}
+
+</script>
+
+

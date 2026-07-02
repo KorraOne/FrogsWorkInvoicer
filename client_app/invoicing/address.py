@@ -6,6 +6,26 @@ import re
 
 AU_STATES = ("ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA")
 
+_MULTI_SPACE = re.compile(r"\s+")
+
+
+def compact_address_line(raw: object) -> str:
+    """Trim and collapse internal whitespace for street / unit lines."""
+    return _MULTI_SPACE.sub(" ", str(raw or "").strip())
+
+
+def compact_suburb(raw: object) -> str:
+    """Trim, collapse whitespace, and title-case suburb names."""
+    text = _MULTI_SPACE.sub(" ", str(raw or "").strip())
+    if not text:
+        return ""
+    return text.title()
+
+
+def compact_postcode(raw: object) -> str:
+    """Keep up to four postcode digits."""
+    return re.sub(r"\D", "", str(raw or "").strip())[:4]
+
 
 def normalize_state(raw: object) -> str:
     state = str(raw or "").strip().upper()
@@ -26,9 +46,9 @@ def normalize_postcode(raw: object) -> str:
 
 
 def normalize_au_address(*, line1: object, line2: object, suburb: object, state: object, postcode: object) -> dict:
-    line1_s = str(line1 or "").strip()
-    line2_s = str(line2 or "").strip()
-    suburb_s = str(suburb or "").strip()
+    line1_s = compact_address_line(line1)
+    line2_s = compact_address_line(line2)
+    suburb_s = compact_suburb(suburb)
     state_s = normalize_state(state)
     postcode_s = normalize_postcode(postcode)
 

@@ -157,13 +157,14 @@ def render_classic_invoice(output_dir, invoice_data):
         logo_path = invoice_data.get("logo_path")
         if logo_path and os.path.isfile(logo_path):
             try:
+                from invoicing.logo import pdf_draw_dimensions_mm
+
                 img = Image(logo_path)
-                max_w = 45 * mm
-                max_h = 25 * mm
-                iw, ih = float(img.imageWidth), float(img.imageHeight)
-                scale = min(max_w / iw, max_h / ih, 1.0) if iw and ih else 1.0
-                img.drawWidth = iw * scale
-                img.drawHeight = ih * scale
+                pixel_w = int(getattr(img, "imageWidth", 0) or 0)
+                pixel_h = int(getattr(img, "imageHeight", 0) or 0)
+                draw_w_mm, draw_h_mm = pdf_draw_dimensions_mm(pixel_w, pixel_h)
+                img.drawWidth = draw_w_mm * mm
+                img.drawHeight = draw_h_mm * mm
                 logo_block = [img]
             except Exception:
                 logo_block = [Paragraph("&nbsp;", normal)]
