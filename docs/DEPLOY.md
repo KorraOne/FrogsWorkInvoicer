@@ -202,6 +202,66 @@ See also [`account_api/worker/README.md`](../account_api/worker/README.md).
 
 Binaries on R2, not in git.
 
+Unlisted remote user test: `https://frogswork.com/user-test.html` (not in nav).
+
+---
+
+## Remote user testing (optional R2 video uploads)
+
+Tester page: **`https://frogswork.com/user-test`** (unlisted). Submissions are stored in D1; **video is optional** and uploads to R2 prefix `user-tests/` when provided. Enable/disable intake and download submissions at **`https://api.frogswork.com/admin`** → User testing section.
+
+### One-time Cloudflare setup (operator)
+
+**Secrets are not committed.** Use `wrangler secret put` or the Worker dashboard — not `client_app/production.env`.
+
+1. **Bucket** — reuse **`frogswork-invoicer-releases`** (same as installer uploads). No new bucket unless you prefer one.
+
+2. **R2 API token** — Dashboard → R2 → **Manage R2 API Tokens** → Create (Object Read & Write). Then:
+
+```powershell
+cd account_api\worker
+npx wrangler secret put R2_ACCESS_KEY_ID
+npx wrangler secret put R2_SECRET_ACCESS_KEY
+npx wrangler secret put R2_ACCOUNT_ID
+npm run deploy
+```
+
+3. **R2 CORS** (only needed if testers upload video) — bucket → Settings → CORS policy:
+
+```json
+[
+  {
+    "AllowedOrigins": ["https://frogswork.com"],
+    "AllowedMethods": ["PUT", "HEAD"],
+    "AllowedHeaders": ["Content-Type", "Content-Length"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+4. **D1 migration** (once, after pulling user-test tables):
+
+```powershell
+cd account_api\worker
+npx wrangler d1 execute frogswork-account --remote --file=..\migrations\2026-07-02_user_test.sql
+```
+
+5. **Deploy** marketing + API:
+
+```powershell
+cd account_api\worker
+npm run deploy
+cd ..\..\marketing_site
+npx wrangler deploy
+```
+
+6. **Enable intake** — `https://api.frogswork.com/admin` → check **Accepting submissions**. Default is **OFF**.
+
+7. **Smoke test** — submit **answers only** (no video) and confirm in admin; optionally submit a small test video (needs R2 CORS); delete test rows.
+
+Share **`https://frogswork.com/user-test`** with testers only while intake is ON.
+
 ---
 
 ## Related docs

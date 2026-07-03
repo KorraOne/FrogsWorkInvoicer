@@ -19,6 +19,7 @@ Static site at **https://frogswork.com**. Deployed via Cloudflare Worker **`frog
 | `/support.html` | Support hub |
 | `/issues.html` | Frequent issues + troubleshooting |
 | `/contact.html` | Contact support |
+| `/user-test.html` | Remote user test (unlisted; `noindex`) |
 | `/privacy.html` | Privacy |
 | `/terms.html` | Terms |
 

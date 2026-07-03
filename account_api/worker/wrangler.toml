@@ -17,3 +17,8 @@ CLIENT_RELEASE_VERSION = "2.2.8"
 CLIENT_RELEASE_URL = "https://downloads.frogswork.com/FrogsWork-2.2.8-win64.zip"
 CLIENT_RELEASE_SHA256 = "2aace7939cf86aa93f03e5ea624a6baa46250b634395c3445d2319671234a873"
 CLIENT_RELEASE_NOTES = "GST line items: per-line GST applicable or GST-free toggle (default on); unit prices always ex GST. Fix GST tax invoice line table full width."
+R2_BUCKET_NAME = "frogswork-invoicer-releases"
+
+[[r2_buckets]]
+binding = "RELEASES"
+bucket_name = "frogswork-invoicer-releases"

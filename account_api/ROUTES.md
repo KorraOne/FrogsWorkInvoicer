@@ -32,6 +32,14 @@ Configure Payment Link redirects for local dev: `.\scripts\configure-payment-lin
 | POST | `/telemetry/event` | No | Idempotent funnel events (`first_invoice`, `uninstall`, …) |
 | GET | `/admin` | HTTP Basic (`ADMIN_PASSWORD`) | HTML analytics dashboard |
 | GET | `/admin/api/summary` | HTTP Basic | JSON funnel / churn / signup metrics |
+| POST | `/admin/api/user-test/enabled` | HTTP Basic | Body `{ enabled: bool }` — toggle remote user-test intake |
+| GET | `/admin/api/user-test/submissions` | HTTP Basic | List submissions + total video bytes |
+| GET | `/admin/api/user-test/submissions/:id` | HTTP Basic | Submission answers JSON |
+| GET | `/admin/api/user-test/submissions/:id/video` | HTTP Basic | Download recording from R2 |
+| DELETE | `/admin/api/user-test/submissions/:id` | HTTP Basic | Delete submission + R2 object |
+| GET | `/user-test/status` | No (CORS `frogswork.com`) | `{ enabled, maxBytes }` |
+| POST | `/user-test/submissions` | No (CORS) | Start submission; presigned PUT URL if video, else `{ uploadUrl: null }` |
+| POST | `/user-test/submissions/:id/complete` | No (CORS) | Save answers JSON (7 keys: `getting_started`, `invoice_workflow`, `confidence_trust`, `expectations_gaps`, `overall`, `pricing_trial`, `anything_else`; all required) |
 | GET | `/releases/latest` | No | In-app update metadata (see below) |
 | POST | `/webhooks/stripe` | Stripe signature | Ack only — entitlements are live-queried from Stripe |
 

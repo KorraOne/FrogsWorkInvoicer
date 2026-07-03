@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User test · FrogsWork</title>
+    <meta name="description" content="FrogsWork remote user test: install, invoice, and submit feedback.">
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="stylesheet" href="/css/site.css">
+</head>
+<body class="user-test-body">
+    <header class="site-header user-test-header">
+        <div class="site-header-inner">
+            <a class="site-brand" href="/">FrogsWork</a>
+        </div>
+    </header>
+
+    <main class="site-main user-test-main" id="user-test-app">
+        <div class="user-test-progress" aria-live="polite">
+            <p class="user-test-progress-label" id="ut-progress-label">Loading…</p>
+            <div class="user-test-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+                <div class="user-test-progress-fill" id="ut-progress-fill"></div>
+            </div>
+        </div>
+
+        <div id="ut-closed" class="user-test-banner user-test-banner--warn hidden" role="status">
+            <strong>Not accepting submissions right now.</strong> You can still read the steps, but you cannot submit until testing is open again.
+        </div>
+
+        <section class="user-test-step" data-step="intro">
+            <h1 class="section-heading">FrogsWork user test</h1>
+            <p class="section-lead">About <strong>45 to 60 minutes</strong> on your Windows PC. Thanks for helping me test this.</p>
+
+            <h2>What you need</h2>
+            <ul class="user-test-list">
+                <li>Windows 10 or 11, 64-bit</li>
+                <li>Made-up business names and amounts only</li>
+            </ul>
+
+            <h2>What you do not need</h2>
+            <ul class="user-test-list">
+                <li>An account or payment</li>
+                <li>Real customer details</li>
+                <li>A screen recording (optional, but helpful)</li>
+            </ul>
+
+            <h2>Recording (optional)</h2>
+            <p>If you want to record your screen, <kbd>Win</kbd> + <kbd>G</kbd> opens the Xbox Game Bar recorder. Screen only is fine; you do not need to use the microphone. Talking aloud can help if you record, but it is not required.</p>
+            <p>If Windows warns about an unknown publisher when you install: choose <strong>More info</strong>, then <strong>Run anyway</strong>. Do not close the window without trying that.</p>
+
+            <p class="user-test-privacy">Any recording is only used to improve FrogsWork. You can uninstall at the end of this brief.</p>
+
+            <div class="user-test-actions">
+                <button type="button" class="btn btn-primary" data-action="next">Begin</button>
+            </div>
+        </section>
+
+        <section class="user-test-step hidden" data-step="part1" aria-hidden="true">
+            <h2>Part 1: Explore (unguided, about 15 min)</h2>
+            <div class="user-test-callout">
+                <p>Imagine a friend recommended this invoicing app. You are on the website now. See if it looks like something you would use. If you want to try it, download and install it yourself.</p>
+            </div>
+            <ol class="user-test-list">
+                <li>Open <a href="/" target="_blank" rel="noopener">frogswork.com</a></li>
+                <li>Look around and decide if you would try it</li>
+                <li>If yes: <a href="/download.html" target="_blank" rel="noopener">download and install</a></li>
+                <li>Open FrogsWork and click around for a few minutes</li>
+            </ol>
+            <label class="user-test-check">
+                <input type="checkbox" id="ut-part1-confirm">
+                I installed and opened the app
+            </label>
+            <div class="user-test-actions">
+                <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+                <button type="button" class="btn btn-primary" data-action="part1-done">Continue to scenarios</button>
+            </div>
+        </section>
+
+        <section class="user-test-step hidden" data-step="scenario-a" aria-hidden="true">
+            <h2>Scenario A: New invoice</h2>
+            <p>You finished a gardening job for <strong>Greenfield Café</strong> at <strong>42 Main Street</strong>. They owe you <strong>$300 plus GST</strong>. Create and save an invoice, then open the PDF.</p>
+            <ol class="user-test-list">
+                <li>Home → <strong>Create sales invoice</strong></li>
+                <li>Enter Greenfield Café, the address, and a line item for <strong>$300 ex GST</strong> (total <strong>$330</strong> with GST)</li>
+                <li>Under <strong>Payment due</strong>, change <strong>Due date rule</strong> to something other than the default (for example <strong>End of next month</strong>). Check the due date preview updates.</li>
+                <li>Click <strong>Review invoice</strong>, save, and open the PDF. Confirm the due date looks right.</li>
+            </ol>
+            <p class="user-test-hint">Stuck on GST? Open <strong>Business details</strong> and choose <strong>Yes, registered for GST</strong>, then try again.</p>
+            <div class="user-test-actions">
+                <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+                <button type="button" class="btn btn-primary" data-action="next">Next</button>
+            </div>
+        </section>
+
+        <section class="user-test-step hidden" data-step="scenario-b" aria-hidden="true">
+            <h2>Scenario B: Send it</h2>
+            <p>Greenfield Café wants the invoice by email. Put the email together, attach the PDF, and send a test message so I can see how that went.</p>
+            <ol class="user-test-list">
+                <li>Open <strong>Prepare to send</strong> for your Greenfield Café invoice</li>
+                <li>Copy the email text and attach the PDF (<strong>Show PDF in folder</strong> or <strong>Copy file path</strong>)</li>
+                <li>Email <a href="mailto:crombie@korraone.com">crombie@korraone.com</a> with subject <strong>test -</strong> and then the subject line from the app (for example <strong>test - Invoice 001 from My Business</strong>)</li>
+                <li>Back in FrogsWork, click <strong>Mark as sent</strong></li>
+            </ol>
+            <div class="user-test-actions">
+                <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+                <button type="button" class="btn btn-primary" data-action="next">Next</button>
+            </div>
+        </section>
+
+        <section class="user-test-step hidden" data-step="scenario-c" aria-hidden="true">
+            <h2>Scenario C: Fix business details</h2>
+            <p>Update your address and ABN in <strong>Business details</strong> if they still show your setup values:</p>
+            <div class="user-test-callout">
+                <p><strong>Current details (example):</strong></p>
+                <ul class="user-test-list">
+                    <li>Address: <strong>1 Example Street, Perth WA 6000</strong></li>
+                    <li>ABN: blank or whatever you entered</li>
+                </ul>
+                <p><strong>Change to:</strong></p>
+                <ul class="user-test-list">
+                    <li>Address: <strong>15 Creek Road, Fremantle WA 6160</strong></li>
+                    <li>ABN: <strong>51 824 753 556</strong></li>
+                </ul>
+            </div>
+            <p class="user-test-hint">Invoices you already made keep their old PDF. New invoices use the updated details (you will check in Scenario D).</p>
+            <ol class="user-test-list">
+                <li>Home → <strong>Business details</strong></li>
+                <li>Update address and ABN, then save</li>
+            </ol>
+            <div class="user-test-actions">
+                <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+                <button type="button" class="btn btn-primary" data-action="next">Next</button>
+            </div>
+        </section>
+
+        <section class="user-test-step hidden" data-step="scenario-d" aria-hidden="true">
+            <h2>Scenario D: Add logo</h2>
+            <p>Add your business logo and confirm it shows on a new invoice.</p>
+            <p>
+                <a class="btn btn-secondary btn-small" href="/assets/user-test/greenfield-cafe-logo.png" download="greenfield-cafe-logo.png">Download sample logo</a>
+            </p>
+            <ol class="user-test-list">
+                <li>Home → <strong>Business details</strong></li>
+                <li>Upload the logo and turn on <strong>Show logo on invoices</strong>, then save</li>
+                <li>Home → <strong>Create sales invoice</strong> (any made-up job for Greenfield Café)</li>
+                <li>Save and <strong>view the PDF</strong> to check the logo appears</li>
+            </ol>
+            <div class="user-test-actions">
+                <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+                <button type="button" class="btn btn-primary" data-action="next">Next</button>
+            </div>
+        </section>
+
+        <section class="user-test-step hidden" data-step="scenario-e" aria-hidden="true">
+            <h2>Scenario E: Past invoices</h2>
+            <p>Greenfield Café paid you. Mark the invoice as paid in your records.</p>
+            <ol class="user-test-list">
+                <li>Home → <strong>Past invoices</strong></li>
+                <li>Find your Greenfield Café invoice (the $330 one)</li>
+                <li>Click <strong>Mark as paid</strong></li>
+            </ol>
+            <div class="user-test-actions">
+                <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+                <button type="button" class="btn btn-primary" data-action="next">Next</button>
+            </div>
+        </section>
+
+        <section class="user-test-step hidden" data-step="scenario-f" aria-hidden="true">
+            <h2>Scenario F: Dashboard</h2>
+            <p>Check that your totals look right after marking the invoice paid.</p>
+            <ol class="user-test-list">
+                <li>Home → <strong>Dashboard</strong></li>
+                <li>Check <strong>Outstanding</strong> and <strong>Paid</strong> totals</li>
+                <li>Note anything that looks wrong</li>
+            </ol>
+            <div class="user-test-actions">
+                <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+                <button type="button" class="btn btn-primary" data-action="next">Next</button>
+            </div>
+        </section>
+
+        <section class="user-test-step hidden" data-step="feedback-1" aria-hidden="true">
+            <h2>Feedback (part 1 of 2)</h2>
+            <p>Fill this in while you still remember the tasks. A few sentences per box is fine. Every box must have something in it before you can submit.</p>
+
+            <div class="user-test-field">
+                <label for="ut-getting-started">Getting started</label>
+                <p class="user-test-hint">Part 1 on frogswork.com: what was hardest? Anything confusing or unsafe when downloading or installing (including SmartScreen)? What did you expect when FrogsWork first opened?</p>
+                <textarea id="ut-getting-started" name="getting_started" rows="4" data-answer="getting_started"></textarea>
+            </div>
+            <div class="user-test-field">
+                <label for="ut-invoice-workflow">Invoices</label>
+                <p class="user-test-hint">Scenarios A to F: the Greenfield Café invoice ($300 plus GST, due date rule), finding the PDF, Prepare to send and the test email to crombie@korraone.com, fixing your address and ABN in business details, the logo, marking paid, or the dashboard. What felt slow or unclear? Was it obvious where to fix things?</p>
+                <textarea id="ut-invoice-workflow" name="invoice_workflow" rows="4" data-answer="invoice_workflow"></textarea>
+            </div>
+            <div class="user-test-field">
+                <label for="ut-confidence-trust">Confidence</label>
+                <p class="user-test-hint">Would you send the Greenfield Café PDF to a real customer? Did it look professional enough for your business? Anything that made you worry you would get amounts, GST, or customer details wrong?</p>
+                <textarea id="ut-confidence-trust" name="confidence_trust" rows="4" data-answer="confidence_trust"></textarea>
+            </div>
+            <p id="ut-feedback-1-error" class="user-test-error hidden" role="alert"></p>
+
+            <div class="user-test-actions">
+                <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+                <button type="button" class="btn btn-primary" data-action="next">Next</button>
+            </div>
+        </section>
+
+        <section class="user-test-step hidden" data-step="feedback-2" aria-hidden="true">
+            <h2>Feedback (part 2 of 2)</h2>
+            <p>Fill in every box. If something does not apply, write <strong>None</strong>.</p>
+
+            <div class="user-test-field">
+                <label for="ut-expectations-gaps">Expectations</label>
+                <p class="user-test-hint">Did FrogsWork work the way you expected? Anything you looked for and could not find? Do you know where invoice PDFs are saved on your PC?</p>
+                <textarea id="ut-expectations-gaps" name="expectations_gaps" rows="4" data-answer="expectations_gaps"></textarea>
+            </div>
+            <div class="user-test-field">
+                <label for="ut-overall">Overall</label>
+                <p class="user-test-hint">Would you use FrogsWork for real gardening jobs? What would you change first? Did you prefer exploring on your own (Part 1) or following scenarios A to F?</p>
+                <textarea id="ut-overall" name="overall" rows="4" data-answer="overall"></textarea>
+            </div>
+            <div class="user-test-field">
+                <label for="ut-pricing-trial">Pricing and trial</label>
+                <p class="user-test-hint">Did you notice pricing, subscriptions, or trial limits on the website or in the app? Anything surprising? If you did not think about it, write <strong>None</strong>.</p>
+                <textarea id="ut-pricing-trial" name="pricing_trial" rows="3" data-answer="pricing_trial"></textarea>
+            </div>
+            <div class="user-test-field">
+                <label for="ut-anything-else">Anything else</label>
+                <p class="user-test-hint">Anything else you want me to know. If nothing, write <strong>None</strong>.</p>
+                <textarea id="ut-anything-else" name="anything_else" rows="3" data-answer="anything_else"></textarea>
+            </div>
+            <input type="text" name="website" id="ut-website" class="user-test-honeypot" tabindex="-1" autocomplete="off" aria-hidden="true">
+            <p id="ut-feedback-2-error" class="user-test-error hidden" role="alert"></p>
+
+            <div class="user-test-actions">
+                <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+                <button type="button" class="btn btn-primary" data-action="next">Next</button>
+            </div>
+        </section>
+
+        <section class="user-test-step hidden" data-step="uninstall" aria-hidden="true">
+            <h2>Uninstall FrogsWork</h2>
+            <p>Close FrogsWork completely, then remove it so your PC stays clean.</p>
+            <ol class="user-test-list">
+                <li>Right-click <strong>FrogsWork</strong> in the Start menu → <strong>Uninstall</strong> (or <strong>Settings → Apps → Installed apps → FrogsWork → Uninstall</strong>)</li>
+                <li>Follow the prompts. FrogsWork saves your invoice PDFs to your <strong>Downloads</strong> folder so you do not lose them.</li>
+                <li>Check <strong>Downloads</strong> for a <strong>FrogsWork-Uninstall-...</strong> folder. Delete it if you want those test files gone.</li>
+                <li>Confirm FrogsWork is gone from the Start menu</li>
+            </ol>
+            <div class="user-test-actions user-test-actions--stack">
+                <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+                <button type="button" class="btn btn-primary" data-action="uninstall-ok">Uninstall completed</button>
+                <button type="button" class="btn btn-secondary" data-action="uninstall-fail">I could not uninstall</button>
+            </div>
+        </section>
+
+        <section class="user-test-step hidden" data-step="submit" aria-hidden="true">
+            <h2>Submit your results</h2>
+            <p>Send your answers. You can attach a screen recording if you made one.</p>
+
+            <div id="ut-cleanup" class="user-test-callout user-test-callout--warn hidden">
+                <p><strong>Could not uninstall?</strong> Try Start menu → right-click FrogsWork → Uninstall, or search “Add or remove programs”.</p>
+                <p>If still stuck, delete these folders after a reboot:</p>
+                <ul>
+                    <li><code>%LOCALAPPDATA%\Programs\FrogsWork</code></li>
+                    <li><code>%APPDATA%\FrogsWork</code></li>
+                </ul>
+                <p>Email <a href="mailto:crombie@korraone.com">crombie@korraone.com</a> if you need help.</p>
+            </div>
+
+            <div class="user-test-field">
+                <label for="ut-name">Your first name (optional)</label>
+                <input type="text" id="ut-name" name="tester_name" maxlength="120" autocomplete="name">
+            </div>
+            <div class="user-test-field">
+                <label for="ut-video">Screen recording (optional)</label>
+                <input type="file" id="ut-video" accept="video/*">
+                <p class="user-test-hint" id="ut-max-size-hint">Max size shown after load.</p>
+            </div>
+
+            <div id="ut-upload-progress" class="user-test-upload hidden" aria-live="polite">
+                <p id="ut-upload-status">Uploading…</p>
+                <div class="user-test-progress-bar">
+                    <div class="user-test-progress-fill" id="ut-upload-fill"></div>
+                </div>
+            </div>
+            <p id="ut-submit-error" class="user-test-error hidden" role="alert"></p>
+
+            <div class="user-test-actions user-test-actions--stack">
+                <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+                <button type="button" class="btn btn-primary" id="ut-submit-btn" data-action="submit">Submit</button>
+                <button type="button" class="btn btn-secondary" data-action="copy-answers">Copy answers (backup)</button>
+            </div>
+        </section>
+
+        <section class="user-test-step hidden" data-step="success" aria-hidden="true">
+            <h2>Thank you</h2>
+            <p id="ut-success-message">Your answers were submitted successfully. You can close this page.</p>
+
+            <div class="user-test-callout">
+                <h3 class="user-test-callout-title">Want to keep using FrogsWork?</h3>
+                <p>If you liked it and want to subscribe after your free trial, use promo code <strong>EARLY100</strong> at checkout in the app (<strong>Subscribe</strong> on the home screen) for <strong>100% off forever</strong>.</p>
+                <p class="user-test-hint">Only <strong>5</strong> uses of this code for now. First come, first served. I may add more later.</p>
+                <p><a class="btn btn-secondary btn-small" href="/download.html">Download FrogsWork</a></p>
+            </div>
+
+            <p><button type="button" class="btn btn-secondary" data-action="reset">Start over</button></p>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <div class="site-footer-inner">
+            <span>FrogsWork user test</span>
+            <div class="footer-links">
+                <a href="mailto:crombie@korraone.com">Contact</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/js/user-test.js"></script>
+</body>
+</html>

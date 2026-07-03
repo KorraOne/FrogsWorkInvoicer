@@ -194,11 +194,46 @@ function fmtNum(value) {
   return String(value);
 }
 
-export function renderAdminHtml(summary) {
+export function renderAdminHtml(summary, userTest = null) {
   const c = summary.counts;
   const r = summary.rates;
   const m = summary.medians_days;
   const s = summary.signup;
+
+  const ut = userTest || { enabled: false, submissions: [], totalVideoBytes: 0 };
+  const utEnabled = ut.enabled ? "checked" : "";
+  const utRows = (ut.submissions || [])
+    .map((row) => {
+      const name = row.tester_name || "—";
+      const hasVideo = Boolean(row.video_r2_key);
+      const size = hasVideo
+        ? row.video_bytes != null
+          ? row.video_bytes < 1024 * 1024
+            ? `${(row.video_bytes / 1024).toFixed(1)} KB`
+            : `${(row.video_bytes / (1024 * 1024)).toFixed(1)} MB`
+          : "—"
+        : "No video";
+      const answersLink = `/admin/api/user-test/submissions/${row.id}`;
+      const videoLink = `/admin/api/user-test/submissions/${row.id}/video`;
+      const videoCell = hasVideo
+        ? ` · <a href="${videoLink}">Video</a>`
+        : "";
+      return `<tr>
+        <td>${row.created_at || "—"}</td>
+        <td>${name}</td>
+        <td>${row.status || "—"}</td>
+        <td>${size}</td>
+        <td>
+          <a href="${answersLink}" target="_blank" rel="noopener">Answers</a>${videoCell}
+          · <button type="button" class="ut-delete" data-id="${row.id}">Delete</button>
+        </td>
+      </tr>`;
+    })
+    .join("");
+  const utTotal =
+    ut.totalVideoBytes < 1024 * 1024
+      ? `${(ut.totalVideoBytes / 1024).toFixed(1)} KB`
+      : `${(ut.totalVideoBytes / (1024 * 1024)).toFixed(1)} MB`;
 
   const trialGateHtml = (s.trial_gate || [])
     .map((row) => `<tr><td>${row.gate}</td><td>${row.count}</td></tr>`)
@@ -229,10 +264,28 @@ export function renderAdminHtml(summary) {
     th { background: #fafafa; font-size: 0.85rem; }
     .note { font-size: 0.85rem; color: #666; margin-top: 1rem; }
     a { color: #0b6; }
+    .user-test-panel { background: #fff; border-radius: 8px; padding: 1rem 1.25rem; margin: 1rem 0 2rem; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    .user-test-panel label { display: flex; align-items: center; gap: 0.5rem; font-weight: 600; }
+    .user-test-panel .meta { font-size: 0.85rem; color: #555; margin-top: 0.5rem; }
+    button.ut-delete { background: none; border: none; color: #c00; cursor: pointer; text-decoration: underline; font: inherit; padding: 0; }
   </style>
 </head>
 <body>
   <h1>FrogsWork analytics</h1>
+
+  <div class="user-test-panel">
+    <h2 style="margin-top:0">User testing</h2>
+    <label>
+      <input type="checkbox" id="ut-enabled" ${utEnabled}>
+      Accepting submissions on frogswork.com/user-test.html
+    </label>
+    <p class="meta">Completed video storage (tracked): ${utTotal} · <a href="/admin/api/user-test/submissions">JSON</a></p>
+    <table>
+      <tr><th>Created</th><th>Name</th><th>Status</th><th>Size</th><th>Actions</th></tr>
+      ${utRows || "<tr><td colspan=5>—</td></tr>"}
+    </table>
+  </div>
+
   <p class="note">R2 installer downloads: <a href="https://dash.cloudflare.com/" target="_blank" rel="noopener">Cloudflare dashboard</a> (not linked to install IDs).</p>
 
   <h2>Funnel</h2>
@@ -295,6 +348,37 @@ export function renderAdminHtml(summary) {
   <table><tr><th>Version</th><th>Installs</th></tr>${versionHtml || "<tr><td colspan=2>—</td></tr>"}</table>
 
   <p class="note"><a href="/admin/api/summary">JSON summary</a></p>
+  <script>
+    (function () {
+      var toggle = document.getElementById("ut-enabled");
+      if (toggle) {
+        toggle.addEventListener("change", function () {
+          fetch("/admin/api/user-test/enabled", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ enabled: toggle.checked }),
+            credentials: "same-origin",
+          }).catch(function () {
+            alert("Could not update user test setting.");
+            toggle.checked = !toggle.checked;
+          });
+        });
+      }
+      document.querySelectorAll(".ut-delete").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var id = btn.getAttribute("data-id");
+          if (!id || !confirm("Delete this submission and its video?")) return;
+          fetch("/admin/api/user-test/submissions/" + id, {
+            method: "DELETE",
+            credentials: "same-origin",
+          }).then(function (res) {
+            if (res.ok) location.reload();
+            else alert("Delete failed.");
+          });
+        });
+      });
+    })();
+  </script>
 </body>
 </html>`;
 }

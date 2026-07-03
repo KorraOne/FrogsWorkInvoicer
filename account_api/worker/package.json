@@ -9,6 +9,7 @@
     "db:migrate": "wrangler d1 execute frogswork-account --local --file=../schema.sql"
   },
   "dependencies": {
+    "aws4fetch": "^1.0.20",
     "bcryptjs": "^2.4.3",
     "jose": "^5.9.6",
     "stripe": "^17.4.0"

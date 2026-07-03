@@ -9,6 +9,15 @@ import {
   upsertHeartbeat,
 } from "./telemetry.js";
 import { buildAdminSummary, checkAdminAuth, renderAdminHtml } from "./admin.js";
+import {
+  deleteUserTestSubmission,
+  getUserTestSubmission,
+  getUserTestAdminContext,
+  handleUserTestComplete,
+  handleUserTestCreateSubmission,
+  handleUserTestStatus,
+  setUserTestEnabled,
+} from "./user_test.js";
 
 const ACCESS_TTL_SEC = 12 * 60 * 60;
 const REFRESH_TTL_SEC = 30 * 24 * 60 * 60;
@@ -398,6 +407,91 @@ export default {
       }
     }
 
+    if (path === "/user-test/status") {
+      return handleUserTestStatus(request, env);
+    }
+
+    if (path === "/user-test/submissions") {
+      return handleUserTestCreateSubmission(request, env);
+    }
+
+    const completeMatch = path.match(/^\/user-test\/submissions\/([^/]+)\/complete$/);
+    if (completeMatch) {
+      return handleUserTestComplete(request, env, completeMatch[1]);
+    }
+
+    if (path === "/admin/api/user-test/enabled" && request.method === "POST") {
+      const auth = checkAdminAuth(request, env.ADMIN_PASSWORD);
+      if (!auth.ok) return auth.response;
+      const body = await readJson(request);
+      const enabled = Boolean(body.enabled);
+      await setUserTestEnabled(env.DB, enabled);
+      return json({ ok: true, enabled });
+    }
+
+    if (path === "/admin/api/user-test/submissions" && request.method === "GET") {
+      const auth = checkAdminAuth(request, env.ADMIN_PASSWORD);
+      if (!auth.ok) return auth.response;
+      const ctx = await getUserTestAdminContext(env.DB);
+      return json(ctx);
+    }
+
+    const adminSubmissionMatch = path.match(/^\/admin\/api\/user-test\/submissions\/([^/]+)$/);
+    if (adminSubmissionMatch && request.method === "GET") {
+      const auth = checkAdminAuth(request, env.ADMIN_PASSWORD);
+      if (!auth.ok) return auth.response;
+      const row = await getUserTestSubmission(env.DB, adminSubmissionMatch[1]);
+      if (!row) return textError("Not found", 404);
+      let answers = null;
+      try {
+        answers = row.answers_json ? JSON.parse(row.answers_json) : null;
+      } catch {
+        answers = null;
+      }
+      return json({
+        id: row.id,
+        created_at: row.created_at,
+        completed_at: row.completed_at,
+        tester_name: row.tester_name,
+        status: row.status,
+        video_bytes: row.video_bytes,
+        video_content_type: row.video_content_type,
+        answers,
+      });
+    }
+
+    const adminVideoMatch = path.match(/^\/admin\/api\/user-test\/submissions\/([^/]+)\/video$/);
+    if (adminVideoMatch && request.method === "GET") {
+      const auth = checkAdminAuth(request, env.ADMIN_PASSWORD);
+      if (!auth.ok) return auth.response;
+      const row = await getUserTestSubmission(env.DB, adminVideoMatch[1]);
+      if (!row?.video_r2_key || !env.RELEASES) {
+        return textError("Video not found", 404);
+      }
+      const object = await env.RELEASES.get(row.video_r2_key);
+      if (!object) return textError("Video not found", 404);
+      const ext = row.video_r2_key.split(".").pop() || "bin";
+      const headers = new Headers();
+      if (object.httpMetadata?.contentType) {
+        headers.set("Content-Type", object.httpMetadata.contentType);
+      } else if (row.video_content_type) {
+        headers.set("Content-Type", row.video_content_type);
+      }
+      headers.set(
+        "Content-Disposition",
+        `attachment; filename="frogswork-user-test-${row.id}.${ext}"`
+      );
+      return new Response(object.body, { headers });
+    }
+
+    if (adminSubmissionMatch && request.method === "DELETE") {
+      const auth = checkAdminAuth(request, env.ADMIN_PASSWORD);
+      if (!auth.ok) return auth.response;
+      const deleted = await deleteUserTestSubmission(env, adminSubmissionMatch[1]);
+      if (!deleted) return textError("Not found", 404);
+      return json({ ok: true });
+    }
+
     if (path === "/admin/api/summary" && request.method === "GET") {
       const auth = checkAdminAuth(request, env.ADMIN_PASSWORD);
       if (!auth.ok) return auth.response;
@@ -414,7 +508,8 @@ export default {
       if (!auth.ok) return auth.response;
       try {
         const summary = await buildAdminSummary(env.DB);
-        return new Response(renderAdminHtml(summary), {
+        const userTest = await getUserTestAdminContext(env.DB);
+        return new Response(renderAdminHtml(summary, userTest), {
           headers: { "Content-Type": "text/html; charset=utf-8" },
         });
       } catch (exc) {

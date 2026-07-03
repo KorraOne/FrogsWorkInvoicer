@@ -53,3 +53,31 @@ CREATE TABLE IF NOT EXISTS installs (
 CREATE INDEX IF NOT EXISTS idx_installs_user_id ON installs(user_id);
 CREATE INDEX IF NOT EXISTS idx_installs_last_seen ON installs(last_seen_at);
 CREATE INDEX IF NOT EXISTS idx_users_install_id ON users(install_id);
+
+CREATE TABLE IF NOT EXISTS user_test_settings (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  enabled INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL
+);
+
+INSERT OR IGNORE INTO user_test_settings (id, enabled, updated_at)
+  VALUES (1, 0, datetime('now'));
+
+CREATE TABLE IF NOT EXISTS user_test_submissions (
+  id TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL,
+  completed_at TEXT,
+  tester_name TEXT,
+  answers_json TEXT,
+  video_r2_key TEXT,
+  video_bytes INTEGER,
+  video_content_type TEXT,
+  client_ip_hash TEXT,
+  status TEXT NOT NULL DEFAULT 'pending_upload'
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_test_submissions_created
+  ON user_test_submissions(created_at);
+
+CREATE INDEX IF NOT EXISTS idx_user_test_submissions_ip_created
+  ON user_test_submissions(client_ip_hash, created_at);
