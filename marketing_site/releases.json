@@ -1,10 +1,15 @@
 ﻿{
-    "version":  "2.2.8",
-    "setup_sha256":  "080cb45f96757ec78b4e54a6e9f6003c45dbde64fb680e2c8ec93ea1d78dadec",
-    "published_at":  "2026-07-02",
-    "update_zip_path":  "https://downloads.frogswork.com/FrogsWork-2.2.8-win64.zip",
-    "notes":  "GST line items: per-line GST applicable or GST-free toggle (default on); unit prices always ex GST. Fix GST tax invoice line table full width.",
+    "version":  "2.2.9",
+    "setup_sha256":  "d60fc346a5992204e9efd18a23f40f562fd8d5701224c449fb22a017b0b3db28",
+    "published_at":  "2026-07-05",
+    "update_zip_path":  "https://downloads.frogswork.com/FrogsWork-2.2.9-win64.zip",
+    "notes":  "Logo size on PDFs matches the placement preview. Dashboard shows this-month and outstanding/paid totals with GST clearly labelled. Warn before leaving unsaved business or customer details. User-test guide: Greenfield Cafe is your business; Riverside Office is the customer.",
     "history":  [
+                    {
+                        "published_at":  "2026-07-05",
+                        "version":  "2.2.9",
+                        "notes":  "Logo size on PDFs matches the placement preview. Dashboard shows this-month and outstanding/paid totals with GST clearly labelled. Warn before leaving unsaved business or customer details. User-test guide: Greenfield Cafe is your business; Riverside Office is the customer."
+                    },
                     {
                         "published_at":  "2026-07-02",
                         "version":  "2.2.8",
@@ -76,6 +81,6 @@
                         "notes":  "Replaces usage-based billing with subscription. Free trial: 20 invoices or 20000 ex GST before subscribe."
                     }
                 ],
-    "download_path":  "https://downloads.frogswork.com/FrogsWork-2.2.8-setup.exe",
-    "sha256":  "2aace7939cf86aa93f03e5ea624a6baa46250b634395c3445d2319671234a873"
+    "download_path":  "https://downloads.frogswork.com/FrogsWork-2.2.9-setup.exe",
+    "sha256":  "8837a66c18b834792d7b06bcea743e1cc2f588394b2f96d0745ab3aef6820c9d"
 }

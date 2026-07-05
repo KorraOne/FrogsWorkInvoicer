@@ -13,10 +13,10 @@ database_name = "frogswork-account"
 database_id = "2d4c5469-d281-492b-b067-4ffd72e926d8"
 
 [vars]
-CLIENT_RELEASE_VERSION = "2.2.8"
-CLIENT_RELEASE_URL = "https://downloads.frogswork.com/FrogsWork-2.2.8-win64.zip"
-CLIENT_RELEASE_SHA256 = "2aace7939cf86aa93f03e5ea624a6baa46250b634395c3445d2319671234a873"
-CLIENT_RELEASE_NOTES = "GST line items: per-line GST applicable or GST-free toggle (default on); unit prices always ex GST. Fix GST tax invoice line table full width."
+CLIENT_RELEASE_VERSION = "2.2.9"
+CLIENT_RELEASE_URL = "https://downloads.frogswork.com/FrogsWork-2.2.9-win64.zip"
+CLIENT_RELEASE_SHA256 = "8837a66c18b834792d7b06bcea743e1cc2f588394b2f96d0745ab3aef6820c9d"
+CLIENT_RELEASE_NOTES = "Logo size on PDFs matches the placement preview. Dashboard shows this-month and outstanding/paid totals with GST clearly labelled. Warn before leaving unsaved business or customer details. User-test guide: Greenfield Cafe is your business; Riverside Office is the customer."
 R2_BUCKET_NAME = "frogswork-invoicer-releases"
 
 [[r2_buckets]]
