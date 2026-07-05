@@ -16,7 +16,7 @@ database_id = "2d4c5469-d281-492b-b067-4ffd72e926d8"
 CLIENT_RELEASE_VERSION = "2.2.10"
 CLIENT_RELEASE_URL = "https://downloads.frogswork.com/FrogsWork-2.2.10-win64.zip"
 CLIENT_RELEASE_SHA256 = "0d83192a71f4352c83dfef5905af27dd518d060859b2f2a531e11bea67786b37"
-CLIENT_RELEASE_NOTES = "Remove stale usage text from invoice delete confirm. Dashboard shows amount due with ex GST in brackets. User-test guide: no checkbox gates, clearer button labels."
+CLIENT_RELEASE_NOTES = "Remove stale usage text from invoice delete confirm. Dashboard shows amount only with ex GST in brackets."
 R2_BUCKET_NAME = "frogswork-invoicer-releases"
 
 [[r2_buckets]]

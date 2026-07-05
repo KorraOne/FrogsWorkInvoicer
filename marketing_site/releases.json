@@ -3,12 +3,12 @@
     "setup_sha256":  "9c4be739f87dbf0ee95afe501f9f1db1bf760934ab12a9cad4f12f2dc617ddf3",
     "published_at":  "2026-07-05",
     "update_zip_path":  "https://downloads.frogswork.com/FrogsWork-2.2.10-win64.zip",
-    "notes":  "Remove stale usage text from invoice delete confirm. Dashboard shows amount due with ex GST in brackets. User-test guide: no checkbox gates, clearer button labels.",
+    "notes":  "Remove stale usage text from invoice delete confirm. Dashboard shows amount only with ex GST in brackets.",
     "history":  [
                     {
                         "published_at":  "2026-07-05",
                         "version":  "2.2.10",
-                        "notes":  "Remove stale usage text from invoice delete confirm. Dashboard shows amount due with ex GST in brackets. User-test guide: no checkbox gates, clearer button labels."
+                        "notes":  "Remove stale usage text from invoice delete confirm. Dashboard shows amount only with ex GST in brackets."
                     },
                     {
                         "published_at":  "2026-07-05",
