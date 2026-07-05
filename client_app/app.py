@@ -27,7 +27,7 @@ from invoicing.format import (
     format_iso_datetime,
     format_money,
 )
-from invoicing.form import has_invoice_draft, invoices_by_status
+from invoicing.form import dashboard_totals, has_invoice_draft, invoices_by_status
 from app_platform import exe_dir, resource_path
 from routes.account import register_account_routes
 from routes.backup import register_backup_routes
@@ -235,6 +235,7 @@ def _register_all_routes():
         "format_invoice_number": format_invoice_number,
         "exe_dir": exe_dir,
         "invoices_by_status": invoices_by_status,
+        "dashboard_totals": dashboard_totals,
         "unquote": unquote,
     }
     register_system_routes(app)

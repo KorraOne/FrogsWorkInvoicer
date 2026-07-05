@@ -7,9 +7,12 @@ from typing import Any
 
 HEADER_CANVAS_WIDTH = 900
 HEADER_CANVAS_HEIGHT = 500
-PDF_HEADER_WIDTH_MM = 45
-PDF_HEADER_HEIGHT_MM = 25
-PDF_HEADER_MAX_HEIGHT_MM = 40
+# Matches preview .logo-header-left and PDF logo column (55% of content width).
+PDF_HEADER_SLOT_FRACTION = 0.55
+# A4 page width 210mm minus 20mm margins each side (same as classic PDF template).
+PDF_CONTENT_WIDTH_MM = 170.0
+PDF_HEADER_SLOT_WIDTH_MM = PDF_CONTENT_WIDTH_MM * PDF_HEADER_SLOT_FRACTION
+PDF_HEADER_MAX_HEIGHT_MM = 50
 
 MAX_UPLOAD_BYTES = 8 * 1024 * 1024
 MIN_DIMENSION_PX = 32
@@ -115,11 +118,18 @@ def crop_to_content_bounds(img: "Image.Image") -> "Image.Image":
 
 
 def pdf_draw_dimensions_mm(pixel_width: int, pixel_height: int) -> tuple[float, float]:
-    """Map cropped baked pixel dimensions to PDF draw size in mm."""
-    if pixel_width <= 0 or pixel_height <= 0:
-        return float(PDF_HEADER_WIDTH_MM), float(PDF_HEADER_HEIGHT_MM)
+    """Map cropped baked pixels to PDF size using the header slot (preview-aligned).
 
-    draw_w = float(PDF_HEADER_WIDTH_MM)
+    Cropped width/height are fractions of the bake canvas; the slot is the same
+    55% content column used by the placement preview and PDF header table.
+    """
+    if pixel_width <= 0 or pixel_height <= 0:
+        return float(PDF_HEADER_SLOT_WIDTH_MM), float(PDF_HEADER_SLOT_WIDTH_MM) * (
+            HEADER_CANVAS_HEIGHT / HEADER_CANVAS_WIDTH
+        )
+
+    slot_w = float(PDF_HEADER_SLOT_WIDTH_MM)
+    draw_w = (pixel_width / HEADER_CANVAS_WIDTH) * slot_w
     draw_h = draw_w * (pixel_height / pixel_width)
     max_h = float(PDF_HEADER_MAX_HEIGHT_MM)
     if draw_h > max_h:

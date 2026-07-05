@@ -276,7 +276,8 @@ def register_business_routes(app):
                     "edit_business.html",
                     **_edit_form_context(name, updated, error=save_err),
                 )
-            return redirect(url_for("home"))
+            flash("Saved.", "success")
+            return redirect(url_for("businesses_edit", name=new_name))
 
         return render_template(
             "edit_business.html",

@@ -360,3 +360,45 @@ def invoices_by_status(invoices):
         Decimal(inv.get("total_inc_gst", "0")) for inv in groups["sent"]
     )
     return groups, sent_total
+
+
+def _invoice_money(invoice, key):
+    try:
+        return Decimal(str(invoice.get(key, "0") or "0"))
+    except Exception:
+        return Decimal("0")
+
+
+def _invoice_in_month(invoice, year, month):
+    raw = str(invoice.get("invoice_date") or "")
+    if len(raw) < 7:
+        return False
+    try:
+        return int(raw[0:4]) == year and int(raw[5:7]) == month
+    except ValueError:
+        return False
+
+
+def dashboard_totals(invoices, *, today=None):
+    """Sales totals for the dashboard (inc GST primary, ex GST secondary)."""
+    if today is None:
+        today = date.today()
+    groups, _ = invoices_by_status(invoices)
+
+    def bucket_sums(items):
+        return {
+            "inc_gst": sum((_invoice_money(inv, "total_inc_gst") for inv in items), Decimal("0")),
+            "ex_gst": sum((_invoice_money(inv, "amount_ex_gst") for inv in items), Decimal("0")),
+            "count": len(items),
+        }
+
+    month_items = [
+        inv
+        for inv in invoices.values()
+        if not storage.is_invoice_deleted(inv) and _invoice_in_month(inv, today.year, today.month)
+    ]
+    return {
+        "month": bucket_sums(month_items),
+        "outstanding": bucket_sums(groups["sent"]),
+        "paid": bucket_sums(groups["paid"]),
+    }

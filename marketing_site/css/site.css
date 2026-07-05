@@ -492,6 +492,18 @@ img {
     max-width: 720px;
 }
 
+.user-test-return-bar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    padding: 0.75rem 1rem;
+    background: #ecfdf5;
+    border-bottom: 2px solid var(--fw-green-600);
+    color: var(--fw-green-900);
+    font-size: 0.95rem;
+    text-align: center;
+}
+
 .user-test-progress {
     margin-bottom: 1.5rem;
 }

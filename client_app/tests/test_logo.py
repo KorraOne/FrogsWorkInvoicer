@@ -82,16 +82,28 @@ def test_crop_to_content_bounds_trims_padding():
     assert cropped.size == (40, 60)
 
 
-def test_pdf_draw_dimensions_mm_wide_logo():
-    draw_w, draw_h = pdf_draw_dimensions_mm(300, 100)
-    assert draw_w == 45
-    assert draw_h == 15
+def test_pdf_draw_dimensions_mm_full_canvas_width():
+    from invoicing.logo import PDF_HEADER_SLOT_WIDTH_MM
+
+    draw_w, draw_h = pdf_draw_dimensions_mm(HEADER_CANVAS_WIDTH, 200)
+    assert draw_w == pytest.approx(PDF_HEADER_SLOT_WIDTH_MM)
+    assert draw_h == pytest.approx(PDF_HEADER_SLOT_WIDTH_MM * (200 / HEADER_CANVAS_WIDTH))
+
+
+def test_pdf_draw_dimensions_mm_half_canvas_width():
+    from invoicing.logo import PDF_HEADER_SLOT_WIDTH_MM
+
+    draw_w, draw_h = pdf_draw_dimensions_mm(HEADER_CANVAS_WIDTH // 2, 100)
+    assert draw_w == pytest.approx(PDF_HEADER_SLOT_WIDTH_MM / 2)
+    assert draw_h == pytest.approx(draw_w * (100 / (HEADER_CANVAS_WIDTH // 2)))
 
 
 def test_pdf_draw_dimensions_mm_caps_tall_logo():
+    from invoicing.logo import PDF_HEADER_MAX_HEIGHT_MM
+
     draw_w, draw_h = pdf_draw_dimensions_mm(100, 800)
-    assert draw_h == 40
-    assert draw_w < 45
+    assert draw_h == PDF_HEADER_MAX_HEIGHT_MM
+    assert draw_w == pytest.approx(PDF_HEADER_MAX_HEIGHT_MM * (100 / 800))
 
 
 def test_parse_placement_clamps_values():

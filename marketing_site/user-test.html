@@ -15,6 +15,10 @@
         </div>
     </header>
 
+    <div id="ut-return-bar" class="user-test-return-bar hidden" aria-live="polite">
+        <strong>Keep this tab open.</strong> When you finish in FrogsWork, come back here and click the button below.
+    </div>
+
     <main class="site-main user-test-main" id="user-test-app">
         <div class="user-test-progress" aria-live="polite">
             <p class="user-test-progress-label" id="ut-progress-label">Loading…</p>
@@ -44,6 +48,9 @@
                 <li>A screen recording (optional, but helpful)</li>
             </ul>
 
+            <h2>How this works</h2>
+            <p>This page is your guide. Leave it open in the browser. You will install and use FrogsWork in other windows, then <strong>come back here</strong> after each part to continue.</p>
+
             <h2>Recording (optional)</h2>
             <p>If you want to record your screen, <kbd>Win</kbd> + <kbd>G</kbd> opens the Xbox Game Bar recorder. Screen only is fine; you do not need to use the microphone. Talking aloud can help if you record, but it is not required.</p>
             <p>If Windows warns about an unknown publisher when you install: choose <strong>More info</strong>, then <strong>Run anyway</strong>. Do not close the window without trying that.</p>
@@ -59,64 +66,80 @@
             <h2>Part 1: Explore (unguided, about 15 min)</h2>
             <div class="user-test-callout">
                 <p>Imagine a friend recommended this invoicing app. You are on the website now. See if it looks like something you would use. If you want to try it, download and install it yourself.</p>
+                <p><strong>Spend about 15 minutes</strong> looking around. When you are done, <strong>return to this browser tab</strong> and continue.</p>
             </div>
             <ol class="user-test-list">
-                <li>Open <a href="/" target="_blank" rel="noopener">frogswork.com</a></li>
+                <li>Open <a href="/" target="_blank" rel="noopener">frogswork.com</a> (new tab is fine)</li>
                 <li>Look around and decide if you would try it</li>
                 <li>If yes: <a href="/download.html" target="_blank" rel="noopener">download and install</a></li>
                 <li>Open FrogsWork and click around for a few minutes</li>
+                <li>Come back to <strong>this</strong> tab when you are ready for the scenarios</li>
             </ol>
             <label class="user-test-check">
-                <input type="checkbox" id="ut-part1-confirm">
-                I installed and opened the app
+                <input type="checkbox" id="ut-part1-confirm" data-step-confirm>
+                I finished exploring in FrogsWork and came back to this page
             </label>
+            <p id="ut-part1-error" class="user-test-error hidden" role="alert"></p>
             <div class="user-test-actions">
                 <button type="button" class="btn btn-secondary" data-action="back">Back</button>
-                <button type="button" class="btn btn-primary" data-action="part1-done">Continue to scenarios</button>
+                <button type="button" class="btn btn-primary" data-action="part1-done">Done — continue to scenarios</button>
             </div>
         </section>
 
         <section class="user-test-step hidden" data-step="scenario-a" aria-hidden="true">
             <h2>Scenario A: New invoice</h2>
-            <p>You finished a gardening job for <strong>Greenfield Café</strong> at <strong>42 Main Street</strong>. They owe you <strong>$300 plus GST</strong>. Create and save an invoice, then open the PDF.</p>
+            <p>You run <strong>Greenfield Café</strong> (your business). You finished a gardening job for a customer, <strong>Riverside Office</strong>, at <strong>8 Harbour Street, Fremantle WA 6160</strong>. They owe you <strong>$300 plus GST</strong> ($330 total). Create and save an invoice, then open the PDF.</p>
+            <div class="user-test-callout">
+                <p><strong>Your business:</strong> Greenfield Café (GST registered)</p>
+                <p><strong>Customer:</strong> Riverside Office — 8 Harbour Street, Fremantle WA 6160</p>
+            </div>
             <ol class="user-test-list">
+                <li>In FrogsWork, set up or confirm your business as <strong>Greenfield Café</strong>, GST registered</li>
                 <li>Home → <strong>Create sales invoice</strong></li>
-                <li>Enter Greenfield Café, the address, and a line item for <strong>$300 ex GST</strong> (total <strong>$330</strong> with GST)</li>
+                <li>Add customer <strong>Riverside Office</strong> with the address above</li>
+                <li>Add a line item for <strong>$300 ex GST</strong> (total <strong>$330</strong> with GST)</li>
                 <li>Under <strong>Payment due</strong>, change <strong>Due date rule</strong> to something other than the default (for example <strong>End of next month</strong>). Check the due date preview updates.</li>
                 <li>Click <strong>Review invoice</strong>, save, and open the PDF. Confirm the due date looks right.</li>
+                <li>Return to <strong>this page</strong> when finished</li>
             </ol>
             <p class="user-test-hint">Stuck on GST? Open <strong>Business details</strong> and choose <strong>Yes, registered for GST</strong>, then try again.</p>
+            <label class="user-test-check">
+                <input type="checkbox" data-step-confirm>
+                I finished this in FrogsWork and came back to this page
+            </label>
+            <p class="user-test-error hidden" data-step-error role="alert"></p>
             <div class="user-test-actions">
                 <button type="button" class="btn btn-secondary" data-action="back">Back</button>
-                <button type="button" class="btn btn-primary" data-action="next">Next</button>
+                <button type="button" class="btn btn-primary" data-action="next">Done — next scenario</button>
             </div>
         </section>
 
         <section class="user-test-step hidden" data-step="scenario-b" aria-hidden="true">
             <h2>Scenario B: Send it</h2>
-            <p>Greenfield Café wants the invoice by email. Put the email together, attach the PDF, and send a test message so I can see how that went.</p>
+            <p>Riverside Office wants the invoice by email. FrogsWork helps you prepare the message; you send it from your own email app (this is intentional for the test).</p>
             <ol class="user-test-list">
-                <li>Open <strong>Prepare to send</strong> for your Greenfield Café invoice</li>
+                <li>Open <strong>Prepare to send</strong> for your Riverside Office invoice</li>
                 <li>Copy the email text and attach the PDF (<strong>Show PDF in folder</strong> or <strong>Copy file path</strong>)</li>
-                <li>Email <a href="mailto:crombie@korraone.com">crombie@korraone.com</a> with subject <strong>test -</strong> and then the subject line from the app (for example <strong>test - Invoice 001 from My Business</strong>)</li>
+                <li>In your email app, send to <a href="mailto:crombie@korraone.com">crombie@korraone.com</a> with subject <strong>test -</strong> and then the subject line from the app (for example <strong>test - Invoice 001 from Greenfield Café</strong>)</li>
                 <li>Back in FrogsWork, click <strong>Mark as sent</strong></li>
+                <li>Return to <strong>this page</strong> when finished</li>
             </ol>
+            <label class="user-test-check">
+                <input type="checkbox" data-step-confirm>
+                I finished this in FrogsWork and came back to this page
+            </label>
+            <p class="user-test-error hidden" data-step-error role="alert"></p>
             <div class="user-test-actions">
                 <button type="button" class="btn btn-secondary" data-action="back">Back</button>
-                <button type="button" class="btn btn-primary" data-action="next">Next</button>
+                <button type="button" class="btn btn-primary" data-action="next">Done — next scenario</button>
             </div>
         </section>
 
         <section class="user-test-step hidden" data-step="scenario-c" aria-hidden="true">
             <h2>Scenario C: Fix business details</h2>
-            <p>Update your address and ABN in <strong>Business details</strong> if they still show your setup values:</p>
+            <p>Update <strong>Greenfield Café</strong> address and ABN in <strong>Business details</strong> if they still show your setup values:</p>
             <div class="user-test-callout">
-                <p><strong>Current details (example):</strong></p>
-                <ul class="user-test-list">
-                    <li>Address: <strong>1 Example Street, Perth WA 6000</strong></li>
-                    <li>ABN: blank or whatever you entered</li>
-                </ul>
-                <p><strong>Change to:</strong></p>
+                <p><strong>Change your business details to:</strong></p>
                 <ul class="user-test-list">
                     <li>Address: <strong>15 Creek Road, Fremantle WA 6160</strong></li>
                     <li>ABN: <strong>51 824 753 556</strong></li>
@@ -126,42 +149,60 @@
             <ol class="user-test-list">
                 <li>Home → <strong>Business details</strong></li>
                 <li>Update address and ABN, then save</li>
+                <li>Return to <strong>this page</strong> when finished</li>
             </ol>
+            <label class="user-test-check">
+                <input type="checkbox" data-step-confirm>
+                I finished this in FrogsWork and came back to this page
+            </label>
+            <p class="user-test-error hidden" data-step-error role="alert"></p>
             <div class="user-test-actions">
                 <button type="button" class="btn btn-secondary" data-action="back">Back</button>
-                <button type="button" class="btn btn-primary" data-action="next">Next</button>
+                <button type="button" class="btn btn-primary" data-action="next">Done — next scenario</button>
             </div>
         </section>
 
         <section class="user-test-step hidden" data-step="scenario-d" aria-hidden="true">
             <h2>Scenario D: Add logo</h2>
-            <p>Add your business logo and confirm it shows on a new invoice.</p>
+            <p>Add the <strong>Greenfield Café</strong> logo (your business) and confirm it shows on a new invoice to Riverside Office.</p>
             <p>
-                <a class="btn btn-secondary btn-small" href="/assets/user-test/greenfield-cafe-logo.png" download="greenfield-cafe-logo.png">Download sample logo</a>
+                <a class="btn btn-secondary btn-small" href="/assets/user-test/greenfield-cafe-logo.png" download="greenfield-cafe-logo.png">Download Greenfield Café logo</a>
             </p>
             <ol class="user-test-list">
                 <li>Home → <strong>Business details</strong></li>
                 <li>Upload the logo and turn on <strong>Show logo on invoices</strong>, then save</li>
-                <li>Home → <strong>Create sales invoice</strong> (any made-up job for Greenfield Café)</li>
+                <li>Home → <strong>Create sales invoice</strong> (any made-up job for <strong>Riverside Office</strong>)</li>
                 <li>Save and <strong>view the PDF</strong> to check the logo appears</li>
+                <li>Return to <strong>this page</strong> when finished</li>
             </ol>
+            <label class="user-test-check">
+                <input type="checkbox" data-step-confirm>
+                I finished this in FrogsWork and came back to this page
+            </label>
+            <p class="user-test-error hidden" data-step-error role="alert"></p>
             <div class="user-test-actions">
                 <button type="button" class="btn btn-secondary" data-action="back">Back</button>
-                <button type="button" class="btn btn-primary" data-action="next">Next</button>
+                <button type="button" class="btn btn-primary" data-action="next">Done — next scenario</button>
             </div>
         </section>
 
         <section class="user-test-step hidden" data-step="scenario-e" aria-hidden="true">
             <h2>Scenario E: Past invoices</h2>
-            <p>Greenfield Café paid you. Mark the invoice as paid in your records.</p>
+            <p>Riverside Office paid you. Mark the invoice as paid in your records.</p>
             <ol class="user-test-list">
                 <li>Home → <strong>Past invoices</strong></li>
-                <li>Find your Greenfield Café invoice (the $330 one)</li>
+                <li>Find your Riverside Office invoice (the $330 one)</li>
                 <li>Click <strong>Mark as paid</strong></li>
+                <li>Return to <strong>this page</strong> when finished</li>
             </ol>
+            <label class="user-test-check">
+                <input type="checkbox" data-step-confirm>
+                I finished this in FrogsWork and came back to this page
+            </label>
+            <p class="user-test-error hidden" data-step-error role="alert"></p>
             <div class="user-test-actions">
                 <button type="button" class="btn btn-secondary" data-action="back">Back</button>
-                <button type="button" class="btn btn-primary" data-action="next">Next</button>
+                <button type="button" class="btn btn-primary" data-action="next">Done — next scenario</button>
             </div>
         </section>
 
@@ -170,12 +211,18 @@
             <p>Check that your totals look right after marking the invoice paid.</p>
             <ol class="user-test-list">
                 <li>Home → <strong>Dashboard</strong></li>
-                <li>Check <strong>Outstanding</strong> and <strong>Paid</strong> totals</li>
+                <li>Check <strong>Outstanding</strong> and <strong>Paid</strong> totals (amounts should include GST where you charged it)</li>
                 <li>Note anything that looks wrong</li>
+                <li>Return to <strong>this page</strong> when finished</li>
             </ol>
+            <label class="user-test-check">
+                <input type="checkbox" data-step-confirm>
+                I finished this in FrogsWork and came back to this page
+            </label>
+            <p class="user-test-error hidden" data-step-error role="alert"></p>
             <div class="user-test-actions">
                 <button type="button" class="btn btn-secondary" data-action="back">Back</button>
-                <button type="button" class="btn btn-primary" data-action="next">Next</button>
+                <button type="button" class="btn btn-primary" data-action="next">Done — continue to feedback</button>
             </div>
         </section>
 
@@ -190,12 +237,12 @@
             </div>
             <div class="user-test-field">
                 <label for="ut-invoice-workflow">Invoices</label>
-                <p class="user-test-hint">Scenarios A to F: the Greenfield Café invoice ($300 plus GST, due date rule), finding the PDF, Prepare to send and the test email to crombie@korraone.com, fixing your address and ABN in business details, the logo, marking paid, or the dashboard. What felt slow or unclear? Was it obvious where to fix things?</p>
+                <p class="user-test-hint">Scenarios A to F: Greenfield Café as your business, invoicing Riverside Office ($300 plus GST, due date rule), finding the PDF, Prepare to send and the test email to crombie@korraone.com, fixing business address and ABN, the logo, marking paid, or the dashboard. What felt slow or unclear? Was it obvious where to fix things?</p>
                 <textarea id="ut-invoice-workflow" name="invoice_workflow" rows="4" data-answer="invoice_workflow"></textarea>
             </div>
             <div class="user-test-field">
                 <label for="ut-confidence-trust">Confidence</label>
-                <p class="user-test-hint">Would you send the Greenfield Café PDF to a real customer? Did it look professional enough for your business? Anything that made you worry you would get amounts, GST, or customer details wrong?</p>
+                <p class="user-test-hint">Would you send the Riverside Office PDF to a real customer? Did it look professional enough for Greenfield Café? Anything that made you worry you would get amounts, GST, or customer details wrong?</p>
                 <textarea id="ut-confidence-trust" name="confidence_trust" rows="4" data-answer="confidence_trust"></textarea>
             </div>
             <p id="ut-feedback-1-error" class="user-test-error hidden" role="alert"></p>
@@ -217,7 +264,7 @@
             </div>
             <div class="user-test-field">
                 <label for="ut-overall">Overall</label>
-                <p class="user-test-hint">Would you use FrogsWork for real gardening jobs? What would you change first? Did you prefer exploring on your own (Part 1) or following scenarios A to F?</p>
+                <p class="user-test-hint">Would you use FrogsWork for real jobs? What would you change first? Did you prefer exploring on your own (Part 1) or following scenarios A to F?</p>
                 <textarea id="ut-overall" name="overall" rows="4" data-answer="overall"></textarea>
             </div>
             <div class="user-test-field">

@@ -2,7 +2,7 @@
 
 from urllib.parse import unquote
 
-from flask import redirect, render_template, request, url_for
+from flask import flash, redirect, render_template, request, url_for
 
 import storage
 from invoicing.address import normalize_au_address
@@ -161,7 +161,8 @@ def register_customer_routes(app):
                 )
             customers[name] = {**addr, "abn": abn, "email": email}
             storage.save_customers(customers)
-            return redirect(url_for("customers_list"))
+            flash("Saved.", "success")
+            return redirect(url_for("customers_edit", name=name))
 
         return render_template(
             "edit_customer.html",

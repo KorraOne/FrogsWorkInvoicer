@@ -1,7 +1,5 @@
 """Welcome flow, trial usage context, and dashboard."""
 
-from decimal import Decimal
-
 from flask import redirect, render_template, request, url_for
 
 import storage
@@ -11,6 +9,7 @@ from app_config import (
     SUBSCRIPTION_ANNUAL_SAVINGS,
     SUBSCRIPTION_MONTHLY_DISPLAY,
 )
+from invoicing.gst_settings import is_gst_registered
 
 WELCOME_EXEMPT_ENDPOINTS = {
     "welcome_start",
@@ -77,15 +76,31 @@ def register_welcome_routes(app, helpers):
     @app.route("/dashboard")
     def dashboard():
         invoices = storage.load_active_invoices()
-        groups, sent_total = helpers["invoices_by_status"](invoices)
-        paid_total = sum(Decimal(inv.get("total_inc_gst", "0")) for inv in groups["paid"])
+        totals = helpers["dashboard_totals"](invoices)
+        _, profile = storage.resolve_business()
+        gst_registered = is_gst_registered(profile)
         meter = trial_stats.meter_snapshot()
+
+        def amount_lines(bucket):
+            inc = format_money(bucket["inc_gst"])
+            if not gst_registered:
+                return inc, None
+            return f"{inc} inc GST", f"({format_money(bucket['ex_gst'])} ex GST)"
+
+        month_primary, month_secondary = amount_lines(totals["month"])
+        outstanding_primary, outstanding_secondary = amount_lines(totals["outstanding"])
+        paid_primary, paid_secondary = amount_lines(totals["paid"])
+
         return render_template(
             "dashboard.html",
-            month_invoiced_fmt=format_money(meter["lifetime_ex_gst_total"]),
-            sent_total_fmt=format_money(sent_total),
-            paid_total_fmt=format_money(paid_total),
-            outstanding_count=len(groups["sent"]),
+            month_primary=month_primary,
+            month_secondary=month_secondary,
+            outstanding_primary=outstanding_primary,
+            outstanding_secondary=outstanding_secondary,
+            paid_primary=paid_primary,
+            paid_secondary=paid_secondary,
+            outstanding_count=totals["outstanding"]["count"],
+            gst_registered=gst_registered,
             usage=meter,
             usage_fmt={
                 "lifetime_invoices": str(meter["lifetime_invoice_count"]),

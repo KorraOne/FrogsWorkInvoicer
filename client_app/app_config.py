@@ -16,7 +16,7 @@ STRIPE_CHECKOUT_RETURN_URL = (
     "?session_id={CHECKOUT_SESSION_ID}"
 )
 
-APP_VERSION = "2.2.8"
+APP_VERSION = "2.2.9"
 
 APP_BRAND_NAME = "FrogsWork"
 APP_BRAND_TAGLINE = "Sales invoicing for Australian sole traders"

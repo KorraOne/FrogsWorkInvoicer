@@ -18,24 +18,33 @@ No subscribe flow during family or LinkedIn tests (trial limits are high enough)
 
 ## Family session (about 60 to 75 min)
 
-**Before:** Clean PC (uninstall FrogsWork, delete `%APPDATA%\FrogsWork\`). Open `https://frogswork.com` only. Screen record with consent if they are comfortable.
+**Before:** Clean PC (uninstall FrogsWork, delete `%APPDATA%\FrogsWork\`). Open `https://frogswork.com/user-test` (or the marketing site home if you prefer unguided start). Screen record with consent if they are comfortable.
+
+**Facilitator:** Do **not** prompt them to return to the guide unless they are stuck for several minutes. The page has a sticky reminder and a checkbox (“I finished in FrogsWork and came back”) before each Continue / Next. Let the guide carry that instruction.
+
+### Roles (do not mix these up)
+
+| Role | Identity |
+|------|----------|
+| **Your business** | **Greenfield Café** — sample logo, GST registered |
+| **Customer** | **Riverside Office**, 8 Harbour Street, Fremantle WA 6160 |
 
 ### Part 1: Unguided (15 to 25 min, stay quiet)
 
 Say once:
 
-> Imagine you run a small business and a friend mentioned this invoicing app. You're on the website now. See if it looks like something you'd use, and if you want to try it, go ahead and get it working. Talk me through what you're thinking. I won't help unless you're stuck for a few minutes.
+> Imagine you run a small business and a friend mentioned this invoicing app. You're on the website now. See if it looks like something you'd use, and if you want to try it, go ahead and get it working. Talk me through what you're thinking. I won't help unless you're stuck for a few minutes. When you're done exploring, come back to the guide tab and continue.
 
 SmartScreen: **observe-fail** (help only after 3 to 5 minutes).
 
-### Part 2: Guided scenarios
+### Part 2: Guided scenarios (same as remote guide)
 
-- **A:** Greenfield Café, 42 Main Street, $300 plus GST ($330 total), change due date rule, invoice + PDF
-- **B:** Prepare to send, test email to crombie@korraone.com (`test -` + app subject), **Mark as sent**
-- **C:** Fix business address and ABN in business details
-- **D:** Sample logo, new invoice, check PDF
-- **E:** Past invoices, mark Greenfield Café paid ($330)
-- **F:** Dashboard totals
+- **A:** Business = Greenfield Café (GST). Customer = Riverside Office. $300 ex GST ($330 total), change due date rule, invoice + PDF
+- **B:** Prepare to send (manual email from their mail app), test email to crombie@korraone.com (`test -` + app subject), **Mark as sent**
+- **C:** Fix Greenfield Café address and ABN in business details (15 Creek Road, Fremantle WA 6160; ABN 51 824 753 556)
+- **D:** Greenfield Café logo, new invoice to Riverside Office, check PDF
+- **E:** Past invoices, mark Riverside Office paid ($330)
+- **F:** Dashboard totals (inc GST / ex GST labels)
 
 **Accountant:** Review PDF for AU sole trader.
 

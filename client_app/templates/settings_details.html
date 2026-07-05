@@ -9,7 +9,7 @@
 <div class="error">{{ error }}</div>
 {% endif %}
 
-<form method="POST" class="settings-details-form" enctype="multipart/form-data">
+<form method="POST" class="settings-details-form" enctype="multipart/form-data" data-unsaved-guard>
     <section class="settings-details-section">
         <div class="form-group">
             <label for="name">Business name</label>
@@ -51,6 +51,7 @@
 
 <script src="{{ url_for('static', filename='gst_registration_ui.js') }}"></script>
 <script src="{{ url_for('static', filename='due_rule_ui.js') }}"></script>
+<script src="{{ url_for('static', filename='unsaved_changes.js') }}"></script>
 <script>
 initDueRuleUi({ invoiceDateIso: {{ invoice_date_iso | tojson }} });
 </script>

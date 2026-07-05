@@ -6,9 +6,28 @@
 
 <h2 class="dashboard-section-heading">Sales invoice totals</h2>
 <div class="preview-section">
-    <div class="preview-row"><span class="preview-label">Sales invoiced this month</span>{{ month_invoiced_fmt }}</div>
-    <div class="preview-row"><span class="preview-label">Outstanding (sent, unpaid)</span>{{ sent_total_fmt }} ({{ outstanding_count }} invoice{% if outstanding_count != 1 %}s{% endif %})</div>
-    <div class="preview-row"><span class="preview-label">Paid (all time in list)</span>{{ paid_total_fmt }}</div>
+    <div class="preview-row">
+        <span class="preview-label">Sales invoiced this month</span>
+        <span class="dashboard-amount">
+            <span class="dashboard-amount-primary">{{ month_primary }}</span>
+            {% if month_secondary %}<span class="dashboard-amount-secondary">{{ month_secondary }}</span>{% endif %}
+        </span>
+    </div>
+    <div class="preview-row">
+        <span class="preview-label">Outstanding (sent, unpaid)</span>
+        <span class="dashboard-amount">
+            <span class="dashboard-amount-primary">{{ outstanding_primary }}</span>
+            {% if outstanding_secondary %}<span class="dashboard-amount-secondary">{{ outstanding_secondary }}</span>{% endif %}
+            <span class="dashboard-amount-meta">({{ outstanding_count }} invoice{% if outstanding_count != 1 %}s{% endif %})</span>
+        </span>
+    </div>
+    <div class="preview-row">
+        <span class="preview-label">Paid (all time in list)</span>
+        <span class="dashboard-amount">
+            <span class="dashboard-amount-primary">{{ paid_primary }}</span>
+            {% if paid_secondary %}<span class="dashboard-amount-secondary">{{ paid_secondary }}</span>{% endif %}
+        </span>
+    </div>
 </div>
 
 {% if show_trial_usage %}
