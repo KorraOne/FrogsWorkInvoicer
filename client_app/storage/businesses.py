@@ -336,7 +336,7 @@ def _migrate_logo_profile(business_name, profile):
 
 
 def _needs_logo_rebake(profile):
-    """True when baked logo is missing or still uses the legacy full canvas size."""
+    """True when baked logo is missing or still uses the legacy cropped bake."""
     baked = (profile.get("logo_filename") or "").strip()
     source = (profile.get("logo_source_filename") or "").strip()
     if not baked or not source:
@@ -353,7 +353,7 @@ def _needs_logo_rebake(profile):
 
         with Image.open(baked_path) as img:
             w, h = img.size
-        return w == HEADER_CANVAS_WIDTH and h == HEADER_CANVAS_HEIGHT
+        return w != HEADER_CANVAS_WIDTH or h != HEADER_CANVAS_HEIGHT
     except OSError:
         return True
 
@@ -364,7 +364,7 @@ def apply_business_logo(business_name, *, file_storage=None, placement, profile)
 
     Returns updated filenames dict.
     """
-    from invoicing.logo import bake_logo_to_header_slot, default_placement, open_logo_upload, parse_placement
+    from invoicing.logo import bake_logo_to_header_slot, crop_to_content_bounds, default_placement, open_logo_upload, parse_placement
 
     placement = parse_placement(placement or profile.get("logo_placement") or default_placement())
     baked_name = business_logo_filename(business_name)
@@ -392,6 +392,7 @@ def apply_business_logo(business_name, *, file_storage=None, placement, profile)
 
         source_img = Image.open(source_path)
         source_img.load()
+        source_img = crop_to_content_bounds(source_img.convert("RGBA"))
     elif profile.get("logo_filename") and os.path.isfile(_logo_path(profile["logo_filename"])):
         import shutil
 
@@ -402,6 +403,7 @@ def apply_business_logo(business_name, *, file_storage=None, placement, profile)
 
         source_img = Image.open(source_path)
         source_img.load()
+        source_img = crop_to_content_bounds(source_img.convert("RGBA"))
     else:
         raise ValueError("Upload a logo image first.")
 

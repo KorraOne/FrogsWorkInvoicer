@@ -2872,11 +2872,17 @@ button.onboarding-skip {
 }
 
 .logo-header-preview {
-    background: #fff;
+    background: #f8fafc;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
-    padding: 1rem 1rem 0.85rem;
+    padding: 0.65rem;
     box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.logo-header-content {
+    background: #fff;
+    padding: 0.65rem 9.524%;
+    border-radius: 4px;
 }
 
 .logo-header-top {
@@ -2886,9 +2892,9 @@ button.onboarding-skip {
 }
 
 .logo-header-left {
-    flex: 0 0 55%;
-    width: 55%;
-    max-width: 55%;
+    flex: 0 0 60%;
+    width: 60%;
+    max-width: 60%;
     min-width: 0;
 }
 
@@ -2901,6 +2907,7 @@ button.onboarding-skip {
     border-radius: 4px;
     background: rgba(236, 253, 245, 0.35);
     touch-action: none;
+    box-sizing: border-box;
 }
 
 .logo-header-preview.is-logo-hidden .logo-header-left {
@@ -2909,6 +2916,7 @@ button.onboarding-skip {
 
 .logo-header-preview.is-logo-hidden .logo-header-meta {
     flex: 1 1 100%;
+    width: 100%;
     max-width: 100%;
 }
 
@@ -2926,7 +2934,9 @@ button.onboarding-skip {
 }
 
 .logo-header-meta {
-    flex: 1 1 45%;
+    flex: 0 0 40%;
+    width: 40%;
+    max-width: 40%;
     min-width: 0;
     text-align: right;
     color: #2c3e50;
@@ -2951,7 +2961,7 @@ button.onboarding-skip {
 
 .logo-header-divider {
     height: 2px;
-    margin: 0.5rem 0 0.75rem;
+    margin: 0.2rem 0 0.65rem;
     background: #2c3e50;
     border-radius: 1px;
 }
@@ -2971,13 +2981,13 @@ button.onboarding-skip {
 }
 
 .logo-header-business {
-    flex-basis: 55%;
-    max-width: 55%;
+    flex-basis: 60%;
+    max-width: 60%;
 }
 
 .logo-header-bill-to {
-    flex-basis: 45%;
-    max-width: 45%;
+    flex-basis: 40%;
+    max-width: 40%;
     text-align: right;
 }
 
@@ -3015,6 +3025,7 @@ button.onboarding-skip {
     user-select: none;
     max-width: none;
     z-index: 2;
+    touch-action: none;
 }
 
 .logo-placement-image:active {

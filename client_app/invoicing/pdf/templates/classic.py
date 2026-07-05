@@ -21,7 +21,8 @@ from invoicing.format import (
 from invoicing.gst_settings import invoice_uses_tax_invoice
 
 PAGE_WIDTH, PAGE_HEIGHT = A4
-CONTENT_WIDTH = PAGE_WIDTH - 40 * mm
+PAGE_MARGIN = 20 * mm
+CONTENT_WIDTH = PAGE_WIDTH - 2 * PAGE_MARGIN
 
 ACCENT = colors.HexColor("#2c3e50")
 LIGHT_GREY = colors.HexColor("#f4f4f4")
@@ -123,6 +124,8 @@ def render_classic_invoice(output_dir, invoice_data):
 
     story = []
 
+    from invoicing.logo import PDF_HEADER_SLOT_FRACTION
+
     gst_registered = invoice_uses_tax_invoice(invoice_data)
     invoice_title = "Tax Invoice" if gst_registered else "Invoice"
 
@@ -137,7 +140,8 @@ def render_classic_invoice(output_dir, invoice_data):
     elif payment_terms:
         meta_rows.append([Paragraph(f"<b>Terms</b> {payment_terms}", meta_style)])
 
-    meta_block = Table(meta_rows, colWidths=[CONTENT_WIDTH * 0.45])
+    meta_col_width = CONTENT_WIDTH * (1 - PDF_HEADER_SLOT_FRACTION)
+    meta_block = Table(meta_rows, colWidths=[meta_col_width])
     meta_block.setStyle(
         TableStyle(
             [
@@ -152,27 +156,42 @@ def render_classic_invoice(output_dir, invoice_data):
         )
     )
 
+    logo_draw_height = None
     logo_block = [Paragraph("&nbsp;", normal)]
     if invoice_data.get("logo_enabled"):
         logo_path = invoice_data.get("logo_path")
         if logo_path and os.path.isfile(logo_path):
             try:
-                from invoicing.logo import pdf_draw_dimensions_mm
+                import io
 
-                img = Image(logo_path)
-                pixel_w = int(getattr(img, "imageWidth", 0) or 0)
-                pixel_h = int(getattr(img, "imageHeight", 0) or 0)
-                draw_w_mm, draw_h_mm = pdf_draw_dimensions_mm(pixel_w, pixel_h)
+                from invoicing.logo import logo_pdf_raster
+
+                cropped, draw_w_mm, draw_h_mm = logo_pdf_raster(logo_path)
+                buf = io.BytesIO()
+                cropped.save(buf, format="PNG")
+                buf.seek(0)
+                img = Image(buf)
                 img.drawWidth = draw_w_mm * mm
                 img.drawHeight = draw_h_mm * mm
+                logo_draw_height = img.drawHeight
                 logo_block = [img]
             except Exception:
                 logo_block = [Paragraph("&nbsp;", normal)]
 
-    header_table = Table(
-        [[logo_block, meta_block]],
-        colWidths=[CONTENT_WIDTH * 0.55, CONTENT_WIDTH * 0.45],
-    )
+    header_kw = {
+        "colWidths": [
+            CONTENT_WIDTH * PDF_HEADER_SLOT_FRACTION,
+            CONTENT_WIDTH * (1 - PDF_HEADER_SLOT_FRACTION),
+        ],
+    }
+    meta_col_width = CONTENT_WIDTH * (1 - PDF_HEADER_SLOT_FRACTION)
+    _, meta_block_height = meta_block.wrap(meta_col_width, PAGE_HEIGHT)
+    header_row_height = meta_block_height
+    if logo_draw_height is not None:
+        header_row_height = max(logo_draw_height, meta_block_height)
+    header_kw["rowHeights"] = [header_row_height]
+
+    header_table = Table([[logo_block, meta_block]], **header_kw)
     header_table.setStyle(
         TableStyle(
             [
@@ -212,7 +231,7 @@ def render_classic_invoice(output_dir, invoice_data):
 
     details_table = Table(
         [[business_block, bill_to_lines]],
-        colWidths=[CONTENT_WIDTH * 0.55, CONTENT_WIDTH * 0.45],
+        colWidths=[CONTENT_WIDTH * PDF_HEADER_SLOT_FRACTION, CONTENT_WIDTH * (1 - PDF_HEADER_SLOT_FRACTION)],
     )
     details_table.setStyle(
         TableStyle(

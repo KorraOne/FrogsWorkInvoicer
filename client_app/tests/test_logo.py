@@ -1,6 +1,7 @@
 """Tests for invoicing.logo and business logo baking."""
 
 import io
+import os
 
 import pytest
 from PIL import Image
@@ -45,25 +46,22 @@ def test_contain_fit_size_square_in_wide_box():
 def test_bake_output_dimensions():
     src = Image.new("RGBA", (200, 800), (0, 120, 200, 255))
     baked = bake_logo_to_header_slot(src, default_placement())
-    w, h = baked.size
-    assert 0 < w <= HEADER_CANVAS_WIDTH
-    assert 0 < h <= HEADER_CANVAS_HEIGHT
-    assert (w, h) != (HEADER_CANVAS_WIDTH, HEADER_CANVAS_HEIGHT)
+    assert baked.size == (HEADER_CANVAS_WIDTH, HEADER_CANVAS_HEIGHT)
 
 
-def test_bake_crops_transparent_padding():
+def test_bake_keeps_full_canvas():
     src = Image.new("RGBA", (100, 100), (0, 120, 200, 255))
     baked = bake_logo_to_header_slot(src, {"scale": 0.5, "offset_x": 0.0, "offset_y": 0.0})
-    w, h = baked.size
-    assert w < HEADER_CANVAS_WIDTH
-    assert h < HEADER_CANVAS_HEIGHT
+    assert baked.size == (HEADER_CANVAS_WIDTH, HEADER_CANVAS_HEIGHT)
 
 
-def test_bake_tall_logo_height_reflects_content():
-    src = Image.new("RGBA", (200, 800), (0, 120, 200, 255))
+def test_bake_top_aligns_at_default():
+    src = Image.new("RGBA", (200, 100), (0, 120, 200, 255))
     baked = bake_logo_to_header_slot(src, default_placement())
-    w, h = baked.size
-    assert h > w
+    alpha = baked.getchannel("A")
+    bbox = alpha.getbbox()
+    assert bbox is not None
+    assert bbox[1] == 0
 
 
 def test_bake_portrait_with_scale_not_tiny():
@@ -82,28 +80,25 @@ def test_crop_to_content_bounds_trims_padding():
     assert cropped.size == (40, 60)
 
 
-def test_pdf_draw_dimensions_mm_full_canvas_width():
+def test_pdf_draw_dimensions_mm_full_canvas():
     from invoicing.logo import PDF_HEADER_SLOT_WIDTH_MM
 
-    draw_w, draw_h = pdf_draw_dimensions_mm(HEADER_CANVAS_WIDTH, 200)
+    draw_w, draw_h = pdf_draw_dimensions_mm(HEADER_CANVAS_WIDTH, HEADER_CANVAS_HEIGHT)
     assert draw_w == pytest.approx(PDF_HEADER_SLOT_WIDTH_MM)
-    assert draw_h == pytest.approx(PDF_HEADER_SLOT_WIDTH_MM * (200 / HEADER_CANVAS_WIDTH))
+    assert draw_h == pytest.approx(PDF_HEADER_SLOT_WIDTH_MM * (HEADER_CANVAS_HEIGHT / HEADER_CANVAS_WIDTH))
 
 
-def test_pdf_draw_dimensions_mm_half_canvas_width():
+def test_pdf_draw_dimensions_mm_preserves_offset_canvas():
     from invoicing.logo import PDF_HEADER_SLOT_WIDTH_MM
 
-    draw_w, draw_h = pdf_draw_dimensions_mm(HEADER_CANVAS_WIDTH // 2, 100)
-    assert draw_w == pytest.approx(PDF_HEADER_SLOT_WIDTH_MM / 2)
-    assert draw_h == pytest.approx(draw_w * (100 / (HEADER_CANVAS_WIDTH // 2)))
+    draw_w, draw_h = pdf_draw_dimensions_mm(HEADER_CANVAS_WIDTH, HEADER_CANVAS_HEIGHT)
+    assert draw_w == pytest.approx(PDF_HEADER_SLOT_WIDTH_MM)
+    assert draw_h / draw_w == pytest.approx(HEADER_CANVAS_HEIGHT / HEADER_CANVAS_WIDTH)
 
 
-def test_pdf_draw_dimensions_mm_caps_tall_logo():
-    from invoicing.logo import PDF_HEADER_MAX_HEIGHT_MM
-
-    draw_w, draw_h = pdf_draw_dimensions_mm(100, 800)
-    assert draw_h == PDF_HEADER_MAX_HEIGHT_MM
-    assert draw_w == pytest.approx(PDF_HEADER_MAX_HEIGHT_MM * (100 / 800))
+def test_pdf_draw_dimensions_mm_scales_by_aspect():
+    draw_w, draw_h = pdf_draw_dimensions_mm(900, 450)
+    assert draw_h / draw_w == pytest.approx(0.5)
 
 
 def test_parse_placement_clamps_values():
@@ -121,6 +116,42 @@ def test_open_logo_upload_rejects_empty():
 def test_open_logo_upload_accepts_png():
     img = open_logo_upload(_FakeUpload(_png_bytes((120, 80)), "test.png"))
     assert img.size == (120, 80)
+
+
+def test_prepare_source_image_crops_transparent_padding():
+    canvas = Image.new("RGBA", (200, 200), (0, 0, 0, 0))
+    canvas.paste(Image.new("RGBA", (40, 60), (255, 0, 0, 255)), (80, 70))
+    out = prepare_source_image(canvas)
+    assert out.size == (40, 60)
+
+
+def test_editor_config_includes_pdf_constants():
+    from invoicing.logo import PDF_HEADER_MAX_HEIGHT_MM, PDF_HEADER_SLOT_WIDTH_MM, editor_config
+
+    cfg = editor_config()
+    assert cfg["pdfSlotWidthMm"] == PDF_HEADER_SLOT_WIDTH_MM
+    assert cfg["pdfMaxHeightMm"] == PDF_HEADER_MAX_HEIGHT_MM
+
+
+def test_preview_and_pdf_width_match_for_wide_logo():
+    from invoicing.logo import PDF_HEADER_SLOT_WIDTH_MM
+
+    path = os.path.join(
+        os.path.dirname(__file__),
+        "..",
+        "..",
+        "marketing_site",
+        "assets",
+        "user-test",
+        "greenfield-cafe-logo.png",
+    )
+    if not os.path.isfile(path):
+        pytest.skip("sample logo missing")
+    src = Image.open(path)
+    baked = bake_logo_to_header_slot(src, default_placement())
+    draw_w, draw_h = pdf_draw_dimensions_mm(*baked.size)
+    assert baked.size == (HEADER_CANVAS_WIDTH, HEADER_CANVAS_HEIGHT)
+    assert draw_w == pytest.approx(PDF_HEADER_SLOT_WIDTH_MM)
 
 
 def test_prepare_source_image_downscales_large():
@@ -162,20 +193,17 @@ def test_apply_business_logo_bakes_upload(tmp_path, monkeypatch):
     assert profile["logo_filename"] == "acme-co.png"
     assert profile["logo_source_filename"] == "acme-co-source.png"
     baked = Image.open(logos / "acme-co.png")
-    assert baked.size[0] <= HEADER_CANVAS_WIDTH
-    assert baked.size[1] <= HEADER_CANVAS_HEIGHT
+    assert baked.size == (HEADER_CANVAS_WIDTH, HEADER_CANVAS_HEIGHT)
 
 
-def test_needs_logo_rebake_legacy_full_canvas(tmp_path, monkeypatch):
+def test_needs_logo_rebake_legacy_cropped_bake(tmp_path, monkeypatch):
     import storage.businesses as businesses
 
     logos = tmp_path / "logos"
     logos.mkdir()
     monkeypatch.setattr(businesses, "_logos_dir", lambda: str(logos))
 
-    Image.new("RGBA", (HEADER_CANVAS_WIDTH, HEADER_CANVAS_HEIGHT), (255, 0, 0, 255)).save(
-        logos / "acme.png"
-    )
+    Image.new("RGBA", (120, 80), (255, 0, 0, 255)).save(logos / "acme.png")
     Image.new("RGBA", (100, 50), (255, 0, 0, 255)).save(logos / "acme-source.png")
 
     profile = {
@@ -186,14 +214,16 @@ def test_needs_logo_rebake_legacy_full_canvas(tmp_path, monkeypatch):
     assert businesses._needs_logo_rebake(profile) is True
 
 
-def test_needs_logo_rebake_skips_cropped_baked(tmp_path, monkeypatch):
+def test_needs_logo_rebake_skips_full_canvas_bake(tmp_path, monkeypatch):
     import storage.businesses as businesses
 
     logos = tmp_path / "logos"
     logos.mkdir()
     monkeypatch.setattr(businesses, "_logos_dir", lambda: str(logos))
 
-    Image.new("RGBA", (120, 80), (255, 0, 0, 255)).save(logos / "acme.png")
+    Image.new("RGBA", (HEADER_CANVAS_WIDTH, HEADER_CANVAS_HEIGHT), (255, 0, 0, 255)).save(
+        logos / "acme.png"
+    )
     Image.new("RGBA", (100, 50), (255, 0, 0, 255)).save(logos / "acme-source.png")
 
     profile = {

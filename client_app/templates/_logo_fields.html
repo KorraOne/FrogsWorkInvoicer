@@ -36,7 +36,7 @@
 
             <div class="logo-editor-panel">
 
-                <p class="form-hint logo-fields-hint">Drag and resize your logo in the header sample below. The preview matches invoice layout and scale.</p>
+                <p class="form-hint logo-fields-hint">Drag and resize your logo. The placement area hugs the logo and sits just above the line; side margins match the PDF.</p>
 
 
 
@@ -50,15 +50,15 @@
 
                     <div class="logo-header-preview{% if form.logo_enabled and form.logo_has_image %} is-logo-visible{% else %} is-logo-hidden{% endif %}" aria-label="Invoice header preview">
 
+                        <div class="logo-header-content">
+
                         <div class="logo-header-top">
 
                             <div class="logo-header-left">
 
                                 <div class="logo-header-slot" aria-label="Logo placement area">
 
-                                    <img class="logo-placement-image" alt="Logo preview" {% if not form.logo_has_image %}hidden{% endif %}
-
-                                         {% if form.logo_source_url %}src="{{ form.logo_source_url }}"{% elif form.logo_url %}src="{{ form.logo_url }}"{% endif %}>
+                                    <img class="logo-placement-image" alt="Logo preview" draggable="false" {% if not form.logo_has_image %}hidden{% endif %}>
 
                                     <span class="logo-header-slot-hint" {% if form.logo_has_image %}hidden{% endif %}>Your logo here</span>
 
@@ -135,6 +135,8 @@
                                 <p class="logo-header-detail-line logo-header-placeholder">Customer address</p>
 
                             </div>
+
+                        </div>
 
                         </div>
 

@@ -1,10 +1,30 @@
 ﻿{
-    "version":  "2.2.10",
-    "setup_sha256":  "9c4be739f87dbf0ee95afe501f9f1db1bf760934ab12a9cad4f12f2dc617ddf3",
+    "version":  "2.2.15",
+    "setup_sha256":  "86812bf15f686663f2503e75eae425c3942a68e61d72d64ad552c669da03f2c6",
     "published_at":  "2026-07-05",
-    "update_zip_path":  "https://downloads.frogswork.com/FrogsWork-2.2.10-win64.zip",
-    "notes":  "Remove stale usage text from invoice delete confirm. Dashboard shows amount only with ex GST in brackets.",
+    "update_zip_path":  "https://downloads.frogswork.com/FrogsWork-2.2.15-win64.zip",
+    "notes":  "Fix logo placement editor height: meta minimum, dynamic slot, top-aligned bake matching PDF crop.",
     "history":  [
+                    {
+                        "published_at":  "2026-07-05",
+                        "version":  "2.2.15",
+                        "notes":  "Fix logo placement editor height: meta minimum, dynamic slot, top-aligned bake matching PDF crop."
+                    },
+                    {
+                        "published_at":  "2026-07-05",
+                        "version":  "2.2.14",
+                        "notes":  "Logo editor: placement box hugs logo above divider; preview shows PDF side margins; header row height follows logo."
+                    },
+                    {
+                        "published_at":  "2026-07-05",
+                        "version":  "2.2.13",
+                        "notes":  "Logo editor: expandable placement area, wider header slot, PDF keeps logo position (full canvas bake)."
+                    },
+                    {
+                        "published_at":  "2026-07-05",
+                        "version":  "2.2.12",
+                        "notes":  "Fix logo placement editor drag and preview controls."
+                    },
                     {
                         "published_at":  "2026-07-05",
                         "version":  "2.2.10",
@@ -86,6 +106,6 @@
                         "notes":  "Replaces usage-based billing with subscription. Free trial: 20 invoices or 20000 ex GST before subscribe."
                     }
                 ],
-    "download_path":  "https://downloads.frogswork.com/FrogsWork-2.2.10-setup.exe",
-    "sha256":  "0d83192a71f4352c83dfef5905af27dd518d060859b2f2a531e11bea67786b37"
+    "download_path":  "https://downloads.frogswork.com/FrogsWork-2.2.15-setup.exe",
+    "sha256":  "6d309475aa8c5e6ce7bf6f8df227ee9ee41ca2d246d39666b62ab645d636c204"
 }

@@ -7,10 +7,12 @@ from typing import Any
 
 HEADER_CANVAS_WIDTH = 900
 HEADER_CANVAS_HEIGHT = 500
-# Matches preview .logo-header-left and PDF logo column (55% of content width).
-PDF_HEADER_SLOT_FRACTION = 0.55
-# A4 page width 210mm minus 20mm margins each side (same as classic PDF template).
-PDF_CONTENT_WIDTH_MM = 170.0
+# Matches preview .logo-header-left and PDF logo column (60% of content width).
+PDF_HEADER_SLOT_FRACTION = 0.60
+# A4 page width 210mm; left/right margins 20mm each (matches classic PDF template).
+PDF_PAGE_WIDTH_MM = 210.0
+PDF_PAGE_MARGIN_MM = 20.0
+PDF_CONTENT_WIDTH_MM = PDF_PAGE_WIDTH_MM - 2 * PDF_PAGE_MARGIN_MM
 PDF_HEADER_SLOT_WIDTH_MM = PDF_CONTENT_WIDTH_MM * PDF_HEADER_SLOT_FRACTION
 PDF_HEADER_MAX_HEIGHT_MM = 50
 
@@ -100,7 +102,7 @@ def prepare_source_image(img: "Image.Image") -> "Image.Image":
     longest = max(w, h)
     if longest > MAX_SOURCE_DIMENSION_PX:
         src.thumbnail((MAX_SOURCE_DIMENSION_PX, MAX_SOURCE_DIMENSION_PX), Image.Resampling.LANCZOS)
-    return src
+    return crop_to_content_bounds(src)
 
 
 def content_alpha_bbox(img: "Image.Image") -> tuple[int, int, int, int] | None:
@@ -118,23 +120,15 @@ def crop_to_content_bounds(img: "Image.Image") -> "Image.Image":
 
 
 def pdf_draw_dimensions_mm(pixel_width: int, pixel_height: int) -> tuple[float, float]:
-    """Map cropped baked pixels to PDF size using the header slot (preview-aligned).
-
-    Cropped width/height are fractions of the bake canvas; the slot is the same
-    55% content column used by the placement preview and PDF header table.
-    """
+    """Map baked header canvas pixels to PDF size (full canvas, preserves placement)."""
     if pixel_width <= 0 or pixel_height <= 0:
         return float(PDF_HEADER_SLOT_WIDTH_MM), float(PDF_HEADER_SLOT_WIDTH_MM) * (
             HEADER_CANVAS_HEIGHT / HEADER_CANVAS_WIDTH
         )
 
     slot_w = float(PDF_HEADER_SLOT_WIDTH_MM)
-    draw_w = (pixel_width / HEADER_CANVAS_WIDTH) * slot_w
-    draw_h = draw_w * (pixel_height / pixel_width)
-    max_h = float(PDF_HEADER_MAX_HEIGHT_MM)
-    if draw_h > max_h:
-        draw_h = max_h
-        draw_w = draw_h * (pixel_width / pixel_height)
+    draw_w = slot_w
+    draw_h = slot_w * (pixel_height / pixel_width)
     return draw_w, draw_h
 
 
@@ -154,11 +148,22 @@ def bake_logo_to_header_slot(source: "Image.Image", placement: dict[str, float] 
     resized = src.resize((new_w, new_h), Image.Resampling.LANCZOS)
 
     x = int(round((canvas_w - new_w) / 2 + placement["offset_x"] * canvas_w))
-    y = int(round((canvas_h - new_h) / 2 + placement["offset_y"] * canvas_h))
+    y = int(round(placement["offset_y"] * canvas_h))
 
     canvas = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
     canvas.paste(resized, (x, y), resized)
-    return crop_to_content_bounds(canvas)
+    return canvas
+
+
+def logo_pdf_raster(logo_path: str) -> tuple["Image.Image", float, float]:
+    """Load baked logo, crop to visible content, return image and PDF draw size (mm)."""
+    from PIL import Image as PILImage
+
+    with PILImage.open(logo_path) as baked:
+        baked.load()
+        cropped = crop_to_content_bounds(baked.convert("RGBA"))
+    draw_w, draw_h = pdf_draw_dimensions_mm(*cropped.size)
+    return cropped, draw_w, draw_h
 
 
 def editor_config() -> dict[str, int | float]:
@@ -170,4 +175,8 @@ def editor_config() -> dict[str, int | float]:
         "scaleMax": SCALE_MAX,
         "offsetMin": OFFSET_MIN,
         "offsetMax": OFFSET_MAX,
+        "pdfSlotWidthMm": PDF_HEADER_SLOT_WIDTH_MM,
+        "pdfMaxHeightMm": PDF_HEADER_MAX_HEIGHT_MM,
+        "headerSlotFraction": PDF_HEADER_SLOT_FRACTION,
+        "pageMarginFraction": PDF_PAGE_MARGIN_MM / PDF_PAGE_WIDTH_MM,
     }
