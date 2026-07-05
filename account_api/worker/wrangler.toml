@@ -13,10 +13,10 @@ database_name = "frogswork-account"
 database_id = "2d4c5469-d281-492b-b067-4ffd72e926d8"
 
 [vars]
-CLIENT_RELEASE_VERSION = "2.2.10"
-CLIENT_RELEASE_URL = "https://downloads.frogswork.com/FrogsWork-2.2.10-win64.zip"
-CLIENT_RELEASE_SHA256 = "0d83192a71f4352c83dfef5905af27dd518d060859b2f2a531e11bea67786b37"
-CLIENT_RELEASE_NOTES = "Remove stale usage text from invoice delete confirm. Dashboard shows amount only with ex GST in brackets."
+CLIENT_RELEASE_VERSION = "2.2.15"
+CLIENT_RELEASE_URL = "https://downloads.frogswork.com/FrogsWork-2.2.15-win64.zip"
+CLIENT_RELEASE_SHA256 = "6d309475aa8c5e6ce7bf6f8df227ee9ee41ca2d246d39666b62ab645d636c204"
+CLIENT_RELEASE_NOTES = "Fix logo placement editor height: meta minimum, dynamic slot, top-aligned bake matching PDF crop."
 R2_BUCKET_NAME = "frogswork-invoicer-releases"
 
 [[r2_buckets]]
