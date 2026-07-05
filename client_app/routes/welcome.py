@@ -85,7 +85,7 @@ def register_welcome_routes(app, helpers):
             inc = format_money(bucket["inc_gst"])
             if not gst_registered:
                 return inc, None
-            return f"{inc} inc GST", f"({format_money(bucket['ex_gst'])} ex GST)"
+            return inc, f"({format_money(bucket['ex_gst'])} ex GST)"
 
         month_primary, month_secondary = amount_lines(totals["month"])
         outstanding_primary, outstanding_secondary = amount_lines(totals["outstanding"])

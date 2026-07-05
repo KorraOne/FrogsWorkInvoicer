@@ -20,13 +20,13 @@ No subscribe flow during family or LinkedIn tests (trial limits are high enough)
 
 **Before:** Clean PC (uninstall FrogsWork, delete `%APPDATA%\FrogsWork\`). Open `https://frogswork.com/user-test` (or the marketing site home if you prefer unguided start). Screen record with consent if they are comfortable.
 
-**Facilitator:** Do **not** prompt them to return to the guide unless they are stuck for several minutes. The page has a sticky reminder and a checkbox (“I finished in FrogsWork and came back”) before each Continue / Next. Let the guide carry that instruction.
+**Facilitator:** Do **not** prompt them to return to the guide unless they are stuck for several minutes. The page has a sticky reminder at the top. Let the guide carry that instruction.
 
 ### Roles (do not mix these up)
 
 | Role | Identity |
 |------|----------|
-| **Your business** | **Greenfield Café** — sample logo, GST registered |
+| **Your business** | **Greenfield Café**, with sample logo, GST registered |
 | **Customer** | **Riverside Office**, 8 Harbour Street, Fremantle WA 6160 |
 
 ### Part 1: Unguided (15 to 25 min, stay quiet)
@@ -44,7 +44,7 @@ SmartScreen: **observe-fail** (help only after 3 to 5 minutes).
 - **C:** Fix Greenfield Café address and ABN in business details (15 Creek Road, Fremantle WA 6160; ABN 51 824 753 556)
 - **D:** Greenfield Café logo, new invoice to Riverside Office, check PDF
 - **E:** Past invoices, mark Riverside Office paid ($330)
-- **F:** Dashboard totals (inc GST / ex GST labels)
+- **F:** Dashboard totals (amount due with ex GST in brackets)
 
 **Accountant:** Review PDF for AU sole trader.
 

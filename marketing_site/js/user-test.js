@@ -230,45 +230,10 @@
         }
     }
 
-    function activeStepSection() {
-        var current = STEPS[state.stepIndex];
-        return document.querySelector('.user-test-step[data-step="' + current + '"]');
-    }
-
-    function requireStepConfirm() {
-        var section = activeStepSection();
-        if (!section) {
-            return true;
-        }
-        var checkbox = section.querySelector("[data-step-confirm]");
-        if (!checkbox) {
-            return true;
-        }
-        var errorEl =
-            section.querySelector("[data-step-error]") ||
-            document.getElementById("ut-part1-error");
-        if (!checkbox.checked) {
-            if (errorEl) {
-                errorEl.textContent =
-                    "Tick the box when you have finished in FrogsWork and come back to this page.";
-                errorEl.classList.remove("hidden");
-            }
-            return false;
-        }
-        if (errorEl) {
-            errorEl.textContent = "";
-            errorEl.classList.add("hidden");
-        }
-        return true;
-    }
-
     function tryNextStep() {
         var current = STEPS[state.stepIndex];
         var feedbackMsg =
             "Fill in every box. If something does not apply, write None.";
-        if (RETURN_BAR_STEPS[current] && !requireStepConfirm()) {
-            return;
-        }
         if (current === "feedback-1") {
             if (!validateAnswerKeys(FEEDBACK_1_KEYS)) {
                 showFeedbackError("feedback-1", feedbackMsg);
@@ -483,9 +448,7 @@
         var action = btn.getAttribute("data-action");
         if (action === "next") tryNextStep();
         if (action === "back") prevStep();
-        if (action === "part1-done") {
-            if (requireStepConfirm()) nextStep();
-        }
+        if (action === "part1-done") nextStep();
         if (action === "uninstall-ok") {
             state.uninstallFailed = false;
             nextStep();
