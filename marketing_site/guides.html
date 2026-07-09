@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contact support · FrogsWork</title>
+    <title>Video guides · FrogsWork</title>
+    <meta name="description" content="Short FrogsWork video guides: install, invoicing, GST, dashboard, subscription, and backup.">
     <link rel="icon" href="/assets/brand/favicon.ico" sizes="any">
     <link rel="icon" type="image/png" sizes="32x32" href="/assets/brand/favicon-32.png">
     <link rel="icon" type="image/png" sizes="48x48" href="/assets/brand/favicon-48.png">
@@ -21,24 +22,27 @@
                 <a href="/">Home</a>
                 <a href="/pricing.html">Pricing</a>
                 <a href="/download.html">Download</a>
-                <a href="/guides.html">Video guides</a>
+                <a href="/guides.html" aria-current="page">Video guides</a>
                 <a href="/support.html">Support</a>
             </nav>
         </div>
     </header>
 
-    <main class="site-main prose">
-        <p class="hero-eyebrow"><a href="/support.html">Support</a> · Using FrogsWork</p>
-        <h1>Contact support</h1>
-        <p>Email <a href="mailto:crombie@korraone.com">crombie@korraone.com</a> with a short description of the problem.</p>
-        <p>Include:</p>
-        <ul>
-            <li>FrogsWork version (<strong>Settings → App update</strong>)</li>
-            <li>Windows version (Settings → System → About)</li>
-            <li>Whether you're signed in</li>
-            <li>What you were doing when it failed</li>
-        </ul>
-        <p>Don't send customer names, invoice amounts, or PDFs unless we ask. Invoice data stays on your PC.</p>
+    <main class="site-main">
+        <p class="hero-eyebrow">Video guides</p>
+        <h1 class="section-heading">Learn FrogsWork step by step</h1>
+        <p class="section-lead">Short videos for each task. No accounting jargon.</p>
+
+        <section id="guides-walkthrough" class="section" aria-label="Main walkthrough"></section>
+
+        <nav id="guides-category-nav" class="guides-category-nav" aria-label="Guide categories"></nav>
+
+        <div id="guides-tutorials"></div>
+
+        <p class="section-cta">
+            <a class="btn btn-primary" href="/download.html">Download for Windows</a>
+            <a class="btn btn-secondary" href="/support.html">Support</a>
+        </p>
     </main>
 
     <footer class="site-footer">
@@ -52,5 +56,6 @@
         </div>
     </footer>
     <script src="/js/site.js"></script>
+    <script src="/js/guides.js"></script>
 </body>
 </html>

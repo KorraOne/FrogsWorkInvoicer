@@ -7,6 +7,8 @@ Static site at **https://frogswork.com**. Deployed via Cloudflare Worker **`frog
 - **`FrogsWork-x.y.z-setup.exe`** — linked from `/download.html` via `releases.json` → `download_path`
 - **`FrogsWork-x.y.z-win64.zip`** — in-app updates via account API `CLIENT_RELEASE_*` vars
 
+**Marketing videos** also live on R2 under `videos/` and are listed in [`videos.json`](videos.json). See [MARKETING-VIDEOS.md](../docs/MARKETING-VIDEOS.md).
+
 **Deploy:** [DEPLOY.md](../docs/DEPLOY.md)
 
 ## Pages
@@ -16,6 +18,7 @@ Static site at **https://frogswork.com**. Deployed via Cloudflare Worker **`frog
 | `/` | Home |
 | `/pricing.html` | Pricing (subscribe happens in the desktop app) |
 | `/download.html` | Latest release (`releases.json`) |
+| `/guides.html` | Video guides (walkthrough + tutorials) |
 | `/support.html` | Support hub |
 | `/issues.html` | Frequent issues + troubleshooting |
 | `/contact.html` | Contact support |
@@ -26,6 +29,8 @@ Static site at **https://frogswork.com**. Deployed via Cloudflare Worker **`frog
 ## Layout
 
 Public HTML lives at the **site root** (flat URLs — no build step). `downloads/` is local packaging only and excluded from deploy.
+
+Brand assets: [`assets/brand/`](assets/brand/) (logo, favicon). Video manifest: [`videos.json`](videos.json), rendered by [`js/guides.js`](js/guides.js).
 
 ## Publish a release (Windows)
 

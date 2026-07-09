@@ -264,6 +264,58 @@ Share **`https://frogswork.com/user-test`** with testers only while intake is ON
 
 ---
 
+## Marketing video guides (R2)
+
+Public page: **`https://frogswork.com/guides.html`**. Videos are hosted on the same R2 bucket as installers, under prefix **`videos/`**, and referenced from [`marketing_site/videos.json`](../marketing_site/videos.json).
+
+### R2 layout
+
+```
+videos/
+  walkthrough.mp4
+  install.mp4
+  setup-business.mp4
+  …
+  posters/
+    walkthrough.jpg
+    install.jpg
+    …
+```
+
+Public URLs: `https://downloads.frogswork.com/videos/<file>` (custom domain on the releases bucket).
+
+### Upload a video
+
+Set **`Content-Type: video/mp4`** on upload. Example with AWS CLI (S3-compatible endpoint for R2):
+
+```powershell
+aws s3 cp install.mp4 s3://frogswork-invoicer-releases/videos/install.mp4 --content-type video/mp4 --endpoint-url https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+aws s3 cp posters/install.jpg s3://frogswork-invoicer-releases/videos/posters/install.jpg --content-type image/jpeg --endpoint-url https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+```
+
+Poster JPGs: grab a frame at ~2s with ffmpeg, e.g. `ffmpeg -ss 2 -i install.mp4 -frames:v 1 posters/install.jpg`.
+
+### Publish on the site
+
+1. Upload MP4 and poster to R2.
+2. In `marketing_site/videos.json`, set `"published": true` for that entry (all required fields must be present; see [`docs/MARKETING-VIDEOS.md`](MARKETING-VIDEOS.md)).
+3. Deploy marketing: `cd marketing_site` then `npx wrangler deploy`.
+
+The site can ship before videos exist: unpublished entries show **Video coming soon** with step lists still visible.
+
+### Recording demo data
+
+Fictional AppData for screen recordings (no real customers or invoices):
+
+```powershell
+cd client_app
+python seed_marketing_demo.py --reset
+```
+
+See [`docs/MARKETING-VIDEOS.md`](MARKETING-VIDEOS.md) for the full shot list.
+
+---
+
 ## Related docs
 
 - [naming.md](naming.md) · [brand.md](brand.md)

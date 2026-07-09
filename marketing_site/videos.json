@@ -1,0 +1,209 @@
+{
+  "cdn_base": "https://downloads.frogswork.com/videos",
+  "walkthrough": {
+    "id": "walkthrough",
+    "title": "See FrogsWork in under 3 minutes",
+    "file": "walkthrough.mp4",
+    "poster": "posters/walkthrough.jpg",
+    "duration_seconds": 150,
+    "published": false,
+    "summary": [
+      "Dashboard with business, customers, and past invoices already set up",
+      "Create an invoice with line items and GST",
+      "Preview the tax invoice PDF",
+      "Mark the invoice sent and see it in Outstanding",
+      "Search and filter past invoices",
+      "Mark an invoice paid and watch the dashboard update",
+      "Review totals, overdue count, and paid vs outstanding"
+    ]
+  },
+  "tutorials": [
+    {
+      "id": "install",
+      "title": "Install FrogsWork",
+      "category": "getting-started",
+      "file": "install.mp4",
+      "poster": "posters/install.jpg",
+      "duration_seconds": 35,
+      "steps": [
+        "Open frogswork.com and click Download",
+        "Wait for the installer to finish downloading",
+        "Open Downloads and run the setup file",
+        "Follow the installer steps",
+        "Open FrogsWork from the Start menu",
+        "Complete the setup wizard"
+      ],
+      "related_issues": ["installer-will-not-run", "update-failed"],
+      "published": false
+    },
+    {
+      "id": "setup-business",
+      "title": "Set up business details",
+      "category": "getting-started",
+      "file": "setup-business.mp4",
+      "poster": "posters/setup-business.jpg",
+      "duration_seconds": 35,
+      "steps": [
+        "Open Business details",
+        "Enter ABN, address, email, and phone",
+        "Upload a logo if you have one",
+        "Save and check the invoice header preview"
+      ],
+      "published": false
+    },
+    {
+      "id": "setup-customer",
+      "title": "Add a customer",
+      "category": "getting-started",
+      "file": "setup-customer.mp4",
+      "poster": "posters/setup-customer.jpg",
+      "duration_seconds": 30,
+      "steps": [
+        "Open Customers",
+        "Add a new customer with name and address",
+        "Save and confirm they appear in the list"
+      ],
+      "published": false
+    },
+    {
+      "id": "add-customer-inline",
+      "title": "Add a customer while invoicing",
+      "category": "invoicing",
+      "file": "add-customer-inline.mp4",
+      "poster": "posters/add-customer-inline.jpg",
+      "duration_seconds": 30,
+      "steps": [
+        "Start creating an invoice",
+        "Click Add customer inline",
+        "Fill in the details and save",
+        "Confirm the new customer is selected"
+      ],
+      "published": false
+    },
+    {
+      "id": "creating-invoice",
+      "title": "Create an invoice",
+      "category": "invoicing",
+      "file": "creating-invoice.mp4",
+      "poster": "posters/creating-invoice.jpg",
+      "duration_seconds": 40,
+      "steps": [
+        "Select a customer",
+        "Add line items and set the due date",
+        "Toggle GST on or off per line if needed",
+        "Save and preview the PDF"
+      ],
+      "published": false
+    },
+    {
+      "id": "managing-gst",
+      "title": "Manage GST",
+      "category": "invoicing",
+      "file": "managing-gst.mp4",
+      "poster": "posters/managing-gst.jpg",
+      "duration_seconds": 35,
+      "steps": [
+        "Turn GST on in Business details if you are registered",
+        "Use the line-item GST toggle when creating an invoice",
+        "Check totals update on screen",
+        "Preview the PDF to confirm GST on the tax invoice"
+      ],
+      "published": false
+    },
+    {
+      "id": "managing-past-invoices",
+      "title": "Manage past invoices",
+      "category": "invoicing",
+      "file": "managing-past-invoices.mp4",
+      "poster": "posters/managing-past-invoices.jpg",
+      "duration_seconds": 40,
+      "steps": [
+        "Open Invoices",
+        "Search and filter the list",
+        "Open an older invoice",
+        "Change status between draft, sent, and paid"
+      ],
+      "published": false
+    },
+    {
+      "id": "dashboard",
+      "title": "Use the dashboard",
+      "category": "dashboard",
+      "file": "dashboard.mp4",
+      "poster": "posters/dashboard.jpg",
+      "duration_seconds": 35,
+      "steps": [
+        "Open the dashboard from Home",
+        "Review totals for this month",
+        "Check overdue count and paid vs outstanding",
+        "Scan recent activity"
+      ],
+      "published": false
+    },
+    {
+      "id": "subscribing",
+      "title": "Subscribe and manage billing",
+      "category": "subscription",
+      "file": "subscribing.mp4",
+      "poster": "posters/subscribing.jpg",
+      "duration_seconds": 40,
+      "steps": [
+        "Open the subscription page in the app",
+        "Create your FrogsWork account",
+        "Complete Stripe checkout",
+        "Return to the app and open Manage subscription",
+        "Review cancel subscription if needed"
+      ],
+      "related_issues": ["sign-in-problems"],
+      "published": false
+    },
+    {
+      "id": "backup-restore",
+      "title": "Back up and restore",
+      "category": "data",
+      "file": "backup-restore.mp4",
+      "poster": "posters/backup-restore.jpg",
+      "duration_seconds": 35,
+      "steps": [
+        "Open backup settings",
+        "Create a backup file and save it somewhere safe",
+        "Use Restore from backup to load it again",
+        "Confirm your data returns"
+      ],
+      "related_issues": ["backup-restore"],
+      "published": false
+    },
+    {
+      "id": "pdf-location",
+      "title": "Change your PDF folder",
+      "category": "data",
+      "file": "pdf-location.mp4",
+      "poster": "posters/pdf-location.jpg",
+      "duration_seconds": 30,
+      "steps": [
+        "Open Settings and Data storage",
+        "Choose a new PDF save folder",
+        "Save the setting",
+        "Create or open an invoice and confirm the PDF path"
+      ],
+      "related_issues": ["pdf-location"],
+      "published": false
+    },
+    {
+      "id": "uninstall",
+      "title": "Uninstall FrogsWork",
+      "category": "data",
+      "file": "uninstall.mp4",
+      "poster": "posters/uninstall.jpg",
+      "duration_seconds": 35,
+      "steps": [
+        "Open the Windows Start menu",
+        "Right-click FrogsWork and choose Uninstall",
+        "Follow the uninstaller",
+        "Check Downloads for exported PDFs if prompted",
+        "Confirm AppData was removed"
+      ],
+      "published": false
+    }
+  ]
+}
