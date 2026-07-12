@@ -14,6 +14,11 @@ def _customers_path():
 
 
 def load_customers():
+    from storage.context import active_provider
+
+    provider = active_provider()
+    if provider is not None:
+        return provider.load_customers()
     path = _customers_path()
 
     def _read():
@@ -32,6 +37,12 @@ def load_customers():
 
 
 def save_customers(customers):
+    from storage.context import active_provider
+
+    provider = active_provider()
+    if provider is not None:
+        provider.save_customers(customers)
+        return
     path = _customers_path()
     with open(path, "w", encoding="utf-8") as f:
         json.dump(customers, f, indent=2)

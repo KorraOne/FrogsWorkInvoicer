@@ -119,6 +119,11 @@ def _migrate_from_settings_if_needed():
 
 
 def load_businesses():
+    from storage.context import active_provider
+
+    provider = active_provider()
+    if provider is not None:
+        return provider.load_businesses()
     path = _businesses_path()
 
     def _read():
@@ -142,6 +147,12 @@ def load_businesses():
 
 
 def save_businesses(businesses):
+    from storage.context import active_provider
+
+    provider = active_provider()
+    if provider is not None:
+        provider.save_businesses(businesses)
+        return
     path = _businesses_path()
     with open(path, "w", encoding="utf-8") as f:
         json.dump(businesses, f, indent=2)

@@ -237,6 +237,14 @@ def register_settings_routes(app, request_shutdown):
                     verify_message = ("Couldn't reach the server. Check your connection.", "error")
                 except client.AccountError as exc:
                     verify_message = (client.map_http_auth_error(str(exc)), "error")
+            elif action == "resend_verification":
+                try:
+                    client.resend_verification()
+                    verify_message = ("Verification email sent. Check your inbox.", "success")
+                except client.AccountOfflineError:
+                    verify_message = ("Couldn't reach the server. Check your connection.", "error")
+                except client.AccountError as exc:
+                    verify_message = (client.map_http_auth_error(str(exc)), "error")
 
         cache = entitlement_cache.load_cache()
         return render_template(
@@ -309,3 +317,38 @@ def register_settings_routes(app, request_shutdown):
         except OSError as exc:
             flash(f"Couldn't move the PDF folder: {exc}", "error")
         return redirect(url_for("settings_page"))
+
+    @app.route("/settings/cloud-migrate", methods=["GET", "POST"])
+    def settings_cloud_migrate():
+        from app_platform.backup import export_backup_payload
+        from storage.context import cloud_entitled, get_storage_mode, reset_providers, set_storage_mode
+
+        if not cloud_entitled():
+            flash("Cloud subscription required to migrate data.", "error")
+            return redirect(url_for("settings_account"))
+
+        if request.method == "POST":
+            action = request.form.get("action", "")
+            if action == "upload":
+                try:
+                    payload = export_backup_payload()
+                    result = client.documents_migrate(payload)
+                    flash(
+                        f"Uploaded {result.get('counts', {})} records to cloud.",
+                        "success",
+                    )
+                except client.AccountOfflineError:
+                    flash("Couldn't reach the server. Check your connection.", "error")
+                except client.AccountError as exc:
+                    flash(str(exc), "error")
+                return redirect(url_for("settings_cloud_migrate"))
+            if action == "switch":
+                set_storage_mode("cloud")
+                reset_providers()
+                flash("Switched to cloud storage. Local AppData kept as backup.", "success")
+                return redirect(url_for("settings_account"))
+
+        return render_template(
+            "settings_cloud_migrate.html",
+            storage_mode=get_storage_mode(),
+        )

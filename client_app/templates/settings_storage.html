@@ -10,6 +10,8 @@
 <section class="settings-panel">
     <p class="settings-section-hint">FrogsWork moves your whole PDF folder when you change this. If it fails, close any Explorer windows on that folder and try again.</p>
 
+    <p class="settings-section-hint">Invoice records stay on this PC. This folder is for PDF files only. Not for syncing between computers — use Backup or Cloud.</p>
+
     <h2 class="settings-section-heading">PDF folder{% if using_default %} (default){% endif %}</h2>
 
     <form method="POST" action="{{ url_for('settings_storage_set') }}" class="folder-picker-row">

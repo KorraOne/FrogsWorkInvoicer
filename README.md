@@ -5,8 +5,11 @@ Monorepo for the **FrogsWork** desktop invoicing app, account API, and marketing
 | App | Folder | Purpose |
 |-----|--------|---------|
 | **FrogsWork** (desktop client) | [`client_app/`](client_app/) | Sales invoicing UI, Stripe subscription |
-| **Account API** | [`account_api/`](account_api/) | Auth, Stripe, entitlements (`dev/` Flask, `worker/` Cloudflare) |
+| **Account API** | [`account_api/`](account_api/) | Auth, Stripe, entitlements, cloud documents (`dev/` Flask, `worker/` Cloudflare) |
 | **Marketing site** | [`marketing_site/`](marketing_site/) | Static site (frogswork.com) + releases.json |
+| **Mobile PWA** | [`client_web/`](client_web/) | Cloud-tier mobile client (app.frogswork.com, planned) |
+
+**Platform overview:** [`docs/PLATFORM-ARCHITECTURE.md`](docs/PLATFORM-ARCHITECTURE.md)
 
 ## Quick links
 
@@ -26,6 +29,16 @@ Monorepo for the **FrogsWork** desktop invoicing app, account API, and marketing
 .\scripts\start-dev.ps1 -DevBrowser
 ```
 
+**PWA + cloud API** (mobile UI against Worker):
+
+```powershell
+.\scripts\start-pwa-dev.ps1
+# In browser console on http://127.0.0.1:8090:
+# localStorage.setItem('frogswork_api','http://127.0.0.1:8787')
+```
+
+Deploy PWA: `cd client_web && npx wrangler pages deploy . --project-name frogswork-app`
+
 Fresh dev environment (clear AppData + API db, then seed sample data):
 
 ```powershell
@@ -36,12 +49,13 @@ Fresh dev environment (clear AppData + API db, then seed sample data):
 
 ```
 client_app/               FrogsWork desktop client + installer build
+client_web/               Mobile PWA (Cloud tier, offline cache)
 account_api/
   dev/                    Local Flask API (port 8787)
   worker/                 Production Cloudflare Worker (api.frogswork.com)
 marketing_site/           Static site + wrangler.toml
 scripts/                  Dev orchestration and release packaging
-docs/                   Operator + deploy docs
+docs/                     Operator + architecture docs
 ```
 
 ## Data

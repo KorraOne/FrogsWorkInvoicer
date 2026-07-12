@@ -43,6 +43,18 @@
             </form>
         </div>
         <p class="settings-section-hint">Opens Stripe's billing portal to update payment, change plan, or cancel.</p>
+        {% if entitlement.email_verified is sameas false %}
+        <div class="settings-email-verify-banner">
+            <p>Please verify your email address. Check your inbox for the link from signup, or resend it below.</p>
+            <form method="POST" action="{{ url_for('settings_account') }}">
+                <input type="hidden" name="action" value="resend_verification">
+                <button type="submit" class="btn btn-secondary btn-small">Resend verification email</button>
+            </form>
+        </div>
+        {% endif %}
+        {% if entitlement.storage_tier %}
+        <p class="settings-section-hint">Storage plan: <strong>{{ entitlement.storage_tier | capitalize }}</strong>{% if entitlement.storage_tier == 'local' %} — <a href="{{ web_account_upgrade_cloud_url }}" target="_blank" rel="noopener noreferrer">Upgrade to Cloud</a>{% endif %}</p>
+        {% endif %}
         <p id="resubscribe-row" class="settings-account-resubscribe{% if entitlement.active %} hidden{% endif %}">
             <a href="{{ url_for('account_subscribe') }}" class="btn btn-secondary btn-small">Resubscribe</a>
         </p>

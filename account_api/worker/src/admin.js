@@ -19,6 +19,29 @@ function daysBetween(start, end) {
   return Math.round((b - a) / 86400000);
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/"/g, "&quot;");
+}
+
+export async function listAdminAccounts(db, limit = 200) {
+  const rows = await db
+    .prepare(
+      `SELECT u.id, u.email, u.stripe_customer_id, u.storage_tier, u.created_at,
+              i.subscription_state, i.plan_interval, i.subscribed_at, i.cancel_scheduled_at,
+              i.last_seen_at, i.app_version_last
+       FROM users u
+       LEFT JOIN installs i ON i.user_id = u.id
+       ORDER BY u.created_at DESC
+       LIMIT ?`
+    )
+    .bind(limit)
+    .all();
+  return rows.results || [];
+}
+
 async function scalar(db, sql) {
   const row = await db.prepare(sql).first();
   const key = Object.keys(row || {})[0];
@@ -135,6 +158,8 @@ export async function buildAdminSummary(db) {
     )
     .all();
 
+  const accountRows = await listAdminAccounts(db);
+
   return {
     counts: {
       installs,
@@ -176,10 +201,13 @@ export async function buildAdminSummary(db) {
       plan_interval: planRows.results || [],
     },
     versions: versionRows.results || [],
+    accounts: accountRows,
     notes: {
       uninstall_undercount:
         "Explicit uninstalls only fire when the user runs the Windows uninstaller. Deleting the app folder is not detected.",
       download_count: "See Cloudflare R2 / dashboard for installer downloads.",
+      accounts_subscription:
+        "Plan and state come from the linked install row (updated when the app calls /entitlements). Stripe Dashboard is billing source of truth.",
     },
   };
 }
@@ -194,11 +222,14 @@ function fmtNum(value) {
   return String(value);
 }
 
-export function renderAdminHtml(summary, userTest = null) {
+export function renderAdminHtml(summary, userTest = null, checkoutPromo = null) {
   const c = summary.counts;
   const r = summary.rates;
   const m = summary.medians_days;
   const s = summary.signup;
+
+  const promo = checkoutPromo || { default_beta80_enabled: false };
+  const beta80Checked = promo.default_beta80_enabled ? "checked" : "";
 
   const ut = userTest || { enabled: false, submissions: [], totalVideoBytes: 0 };
   const utEnabled = ut.enabled ? "checked" : "";
@@ -244,6 +275,33 @@ export function renderAdminHtml(summary, userTest = null) {
   const versionHtml = (summary.versions || [])
     .map((row) => `<tr><td>${row.version}</td><td>${row.count}</td></tr>`)
     .join("");
+  const accountsHtml = (summary.accounts || [])
+    .map((row) => {
+      const email = escapeHtml(row.email);
+      const plan = escapeHtml(row.plan_interval || "—");
+      const state = escapeHtml(row.subscription_state || "none");
+      const tier = escapeHtml(row.storage_tier || "local");
+      const created = escapeHtml((row.created_at || "—").slice(0, 10));
+      const subscribed = escapeHtml((row.subscribed_at || "—").slice(0, 10));
+      const lastSeen = escapeHtml((row.last_seen_at || "—").slice(0, 10));
+      const version = escapeHtml(row.app_version_last || "—");
+      const stripeId = row.stripe_customer_id || "";
+      const stripeCell = stripeId
+        ? `<a href="https://dashboard.stripe.com/customers/${escapeHtml(stripeId)}" target="_blank" rel="noopener">${escapeHtml(stripeId.slice(0, 18))}…</a>`
+        : "—";
+      return `<tr>
+        <td>${email}</td>
+        <td>${plan}</td>
+        <td>${state}</td>
+        <td>${tier}</td>
+        <td>${created}</td>
+        <td>${subscribed}</td>
+        <td>${lastSeen}</td>
+        <td>${version}</td>
+        <td>${stripeCell}</td>
+      </tr>`;
+    })
+    .join("");
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -268,10 +326,22 @@ export function renderAdminHtml(summary, userTest = null) {
     .user-test-panel label { display: flex; align-items: center; gap: 0.5rem; font-weight: 600; }
     .user-test-panel .meta { font-size: 0.85rem; color: #555; margin-top: 0.5rem; }
     button.ut-delete { background: none; border: none; color: #c00; cursor: pointer; text-decoration: underline; font: inherit; padding: 0; }
+    .accounts-table { font-size: 0.85rem; }
+    .accounts-table td, .accounts-table th { white-space: nowrap; }
+    .accounts-table td:first-child { white-space: normal; min-width: 12rem; }
   </style>
 </head>
 <body>
   <h1>FrogsWork analytics</h1>
+
+  <div class="user-test-panel">
+    <h2 style="margin-top:0">Checkout promotions</h2>
+    <label>
+      <input type="checkbox" id="beta80-enabled" ${beta80Checked}>
+      Auto-apply BETA80 at checkout (requires STRIPE_PROMO_BETA80 on Worker)
+    </label>
+    <p class="meta">When enabled, new Checkout Sessions include the BETA80 promotion code. Customers can still enter other codes on Stripe.</p>
+  </div>
 
   <div class="user-test-panel">
     <h2 style="margin-top:0">User testing</h2>
@@ -287,6 +357,16 @@ export function renderAdminHtml(summary, userTest = null) {
   </div>
 
   <p class="note">R2 installer downloads: <a href="https://dash.cloudflare.com/" target="_blank" rel="noopener">Cloudflare dashboard</a> (not linked to install IDs).</p>
+
+  <h2>Registered accounts</h2>
+  <p class="note">${summary.notes.accounts_subscription || ""}</p>
+  <table class="accounts-table">
+    <tr>
+      <th>Email</th><th>Plan</th><th>State</th><th>Tier</th><th>Created</th>
+      <th>Subscribed</th><th>Last seen</th><th>App version</th><th>Stripe</th>
+    </tr>
+    ${accountsHtml || "<tr><td colspan=9>No accounts yet.</td></tr>"}
+  </table>
 
   <h2>Funnel</h2>
   <div class="grid">
@@ -347,9 +427,23 @@ export function renderAdminHtml(summary, userTest = null) {
   <h2>App versions (last seen)</h2>
   <table><tr><th>Version</th><th>Installs</th></tr>${versionHtml || "<tr><td colspan=2>—</td></tr>"}</table>
 
-  <p class="note"><a href="/admin/api/summary">JSON summary</a></p>
+  <p class="note"><a href="/admin/api/summary">JSON summary</a> · <a href="/admin/api/accounts">Accounts JSON</a></p>
   <script>
     (function () {
+      var betaToggle = document.getElementById("beta80-enabled");
+      if (betaToggle) {
+        betaToggle.addEventListener("change", function () {
+          fetch("/admin/api/checkout/default-beta80", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ enabled: betaToggle.checked }),
+            credentials: "same-origin",
+          }).catch(function () {
+            alert("Could not update BETA80 setting.");
+            betaToggle.checked = !betaToggle.checked;
+          });
+        });
+      }
       var toggle = document.getElementById("ut-enabled");
       if (toggle) {
         toggle.addEventListener("change", function () {

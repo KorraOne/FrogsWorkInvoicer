@@ -68,6 +68,15 @@ def update_from_entitlements(payload):
     cache["canceling"] = bool(payload.get("canceling"))
     cache["portal_url"] = payload.get("portal_url")
     cache["plan_interval"] = payload.get("plan_interval")
+    tier = (payload.get("storage_tier") or "local").strip().lower()
+    cache["storage_tier"] = tier if tier in ("local", "cloud") else "local"
+    cache["email_verified"] = bool(payload.get("email_verified"))
+    cache["email"] = payload.get("email") or cache.get("email")
+    platforms = payload.get("platforms") or {}
+    cache["platforms"] = {
+        "desktop": bool(platforms.get("desktop", True)),
+        "mobile": bool(platforms.get("mobile", tier == "cloud")),
+    }
     save_cache(cache)
     return cache
 

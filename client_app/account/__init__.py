@@ -1,6 +1,6 @@
 """Account API client, auth, entitlements, and subscription messaging."""
 
-from . import auth_store, checkout_handoff, client, entitlement_cache, entitlement_guard, install_secret, messages, sync, trial_stats
+from . import auth_store, client, entitlement_cache, entitlement_guard, install_secret, messages, sync, trial_stats
 from .auth_store import clear_auth, get_server_url, is_authenticated, load_auth, save_auth, set_server_url
 from .client import (
     AccountError,
@@ -13,7 +13,6 @@ from .client import (
     login,
     logout,
     map_http_auth_error,
-    payment_link_for_plan,
     register,
 )
 from .sync import start_background_sync, sync_entitlements_from_server
@@ -24,7 +23,6 @@ __all__ = [
     "SubscriptionRequiredError",
     "attach_checkout_session",
     "auth_store",
-    "checkout_handoff",
     "clear_auth",
     "client",
     "check_server_available",
@@ -40,7 +38,6 @@ __all__ = [
     "logout",
     "map_http_auth_error",
     "messages",
-    "payment_link_for_plan",
     "register",
     "save_auth",
     "set_server_url",

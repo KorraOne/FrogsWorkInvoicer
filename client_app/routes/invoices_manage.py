@@ -206,6 +206,38 @@ def register_invoice_manage_routes(app):
         ctx = build_invoice_email_context(inv, customer, settings, pdf_path)
         return inv, ctx
 
+    @app.route("/invoices/<number>/send-integrated", methods=["POST"])
+    def invoice_send_integrated(number):
+        number = unquote(number)
+        inv = storage.get_invoice(number)
+        if not inv:
+            abort(404)
+        next_page = request.form.get("next", "invoices")
+        try:
+            from storage.context import use_cloud_provider, get_provider
+
+            if use_cloud_provider():
+                get_provider().enqueue_email_send(int(number))
+            else:
+                import base64
+
+                from account import client as account_client
+
+                pdf_path = resolve_pdf_path(inv.get("filename", ""))
+                pdf_b64 = None
+                if pdf_path and os.path.isfile(pdf_path):
+                    with open(pdf_path, "rb") as f:
+                        pdf_b64 = base64.b64encode(f.read()).decode("ascii")
+                account_client.enqueue_invoice_send(int(number), pdf_b64=pdf_b64)
+            storage.set_invoice_status(number, "send_queued")
+            flash("Sending automatically…", "success")
+        except Exception:
+            log.exception("Integrated send failed for invoice %s", number)
+            flash("Couldn't queue email send. Try again when online.", "error")
+        if next_page == "done":
+            return redirect(url_for("home"))
+        return redirect(url_for("invoices_list"))
+
     @app.route("/invoices/<number>/send")
     def invoice_send(number):
         number = unquote(number)

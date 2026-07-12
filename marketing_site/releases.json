@@ -1,10 +1,25 @@
 ﻿{
-    "version":  "2.2.15",
-    "setup_sha256":  "86812bf15f686663f2503e75eae425c3942a68e61d72d64ad552c669da03f2c6",
-    "published_at":  "2026-07-05",
-    "update_zip_path":  "https://downloads.frogswork.com/FrogsWork-2.2.15-win64.zip",
-    "notes":  "Fix logo placement editor height: meta minimum, dynamic slot, top-aligned bake matching PDF crop.",
+    "version":  "3.0.2",
+    "setup_sha256":  "58ffeaaba235736f86a8b048e72523f5f9b88572b9fdf3a9e60952de14ec2f73",
+    "published_at":  "2026-07-12",
+    "update_zip_path":  "https://downloads.frogswork.com/FrogsWork-3.0.2-win64.zip",
+    "notes":  "Cloud upgrade banner, web signup URLs, forgot password and email verification on frogswork.com, PWA polish.",
     "history":  [
+                    {
+                        "published_at":  "2026-07-12",
+                        "version":  "3.0.2",
+                        "notes":  "Cloud upgrade banner, web signup URLs, forgot password and email verification on frogswork.com, PWA polish."
+                    },
+                    {
+                        "published_at":  "2026-07-12",
+                        "version":  "3.0.1",
+                        "notes":  "Fix in-app update check when a local dev API URL was saved in account settings. Subscribe and sign-in open in your default browser."
+                    },
+                    {
+                        "published_at":  "2026-07-12",
+                        "version":  "3.0.0",
+                        "notes":  "Major: subscribe and account signup on frogswork.com. Desktop and PWA sign in via web with token handoff; payment links no longer embedded in the app."
+                    },
                     {
                         "published_at":  "2026-07-05",
                         "version":  "2.2.15",
@@ -106,6 +121,6 @@
                         "notes":  "Replaces usage-based billing with subscription. Free trial: 20 invoices or 20000 ex GST before subscribe."
                     }
                 ],
-    "download_path":  "https://downloads.frogswork.com/FrogsWork-2.2.15-setup.exe",
-    "sha256":  "6d309475aa8c5e6ce7bf6f8df227ee9ee41ca2d246d39666b62ab645d636c204"
+    "download_path":  "https://downloads.frogswork.com/FrogsWork-3.0.2-setup.exe",
+    "sha256":  "ce6185e7cd0001a8ef783c4fe5cd3c0d98dc9725c6c8e175f0247998b358d4fe"
 }

@@ -1,4 +1,4 @@
-"""Point Stripe Payment Links at the desktop app return URL (local dev)."""
+"""Point Stripe Payment Links at the marketing site return URL."""
 
 import os
 import sys
@@ -9,7 +9,7 @@ from dev_vars import load_dev_vars
 
 RETURN_URL = os.environ.get(
     "STRIPE_CHECKOUT_RETURN_URL",
-    "http://127.0.0.1:5000/account/stripe/return?session_id={CHECKOUT_SESSION_ID}",
+    "http://127.0.0.1:8080/account/return.html?session_id={CHECKOUT_SESSION_ID}",
 )
 
 

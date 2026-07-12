@@ -958,6 +958,264 @@ img {
     text-decoration: none;
 }
 
+/* Account pages (subscribe, login, create) */
+.account-main {
+    max-width: 52rem;
+}
+
+.account-main--narrow {
+    max-width: 28rem;
+}
+
+.account-stepper {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+    font-size: 0.9rem;
+    color: var(--fw-text-muted);
+}
+
+.account-step--active {
+    color: var(--fw-green-800);
+    font-weight: 600;
+}
+
+.account-step--done {
+    color: var(--fw-green-700);
+}
+
+.subscribe-plans {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    margin: 1.5rem 0;
+}
+
+.subscribe-plan {
+    display: flex;
+    flex-direction: column;
+    border: 2px solid var(--fw-green-200);
+    border-radius: 8px;
+    padding: 1.15rem 1.25rem;
+    background: #fff;
+}
+
+.subscribe-plan--featured {
+    border-color: var(--fw-green-600);
+    background: #f8fcf9;
+}
+
+.subscribe-plan-header {
+    flex: 1 1 auto;
+}
+
+.subscribe-plan-foot {
+    margin-top: auto;
+    padding-top: 0.85rem;
+}
+
+.subscribe-plan-badge {
+    margin: 0 0 0.35rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--fw-green-700);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.subscribe-plan-badge--placeholder {
+    visibility: hidden;
+}
+
+.subscribe-plan-title {
+    margin: 0 0 0.35rem;
+    font-size: 1.1rem;
+}
+
+.subscribe-plan-price {
+    margin: 0 0 0.35rem;
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: var(--fw-green-900);
+}
+
+.subscribe-plan-period {
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.subscribe-plan-savings {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--fw-green-700);
+    min-height: 1.25rem;
+}
+
+.subscribe-plan-savings--placeholder {
+    visibility: hidden;
+}
+
+.subscribe-plan-btn {
+    width: 100%;
+    margin-top: 0.75rem;
+}
+
+.account-terms {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+    font-size: 0.95rem;
+    line-height: 1.4;
+}
+
+.account-form .form-group {
+    margin-bottom: 1rem;
+}
+
+.account-form label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+}
+
+.account-form input[type="email"],
+.account-form input[type="password"] {
+    width: 100%;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid var(--fw-border);
+    border-radius: 6px;
+    font-size: 1rem;
+}
+
+.account-error {
+    color: #b91c1c;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    margin: 1rem 0;
+}
+
+.account-email {
+    margin: 1rem 0;
+}
+
+.account-actions,
+.account-success-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+}
+
+.form-footer {
+    margin-top: 1.5rem;
+    color: var(--fw-text-muted);
+}
+
+.billing-toggle {
+    display: inline-flex;
+    gap: 0.35rem;
+    padding: 0.25rem;
+    margin: 0 0 1.5rem;
+    border-radius: 999px;
+    background: var(--fw-surface-muted, #f3f4f6);
+}
+
+.billing-toggle-btn {
+    border: none;
+    background: transparent;
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    cursor: pointer;
+    font: inherit;
+    color: var(--fw-text-muted);
+}
+
+.billing-toggle-btn--active {
+    background: #fff;
+    color: var(--fw-text);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.billing-toggle-hint {
+    font-size: 0.75rem;
+    opacity: 0.85;
+}
+
+.tier-plans {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+    margin: 1rem 0 2rem;
+}
+
+.pricing-tier-plans {
+    margin-top: 2rem;
+}
+
+.pricing-trial-card {
+    max-width: 28rem;
+}
+
+.tier-plan {
+    border: 1px solid var(--fw-border, #e5e7eb);
+    border-radius: 12px;
+    padding: 1.25rem 1.25rem 1.5rem;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+}
+
+.tier-plan--featured {
+    border-color: var(--fw-primary, #16a34a);
+    box-shadow: 0 0 0 1px var(--fw-primary, #16a34a);
+}
+
+.tier-plan-badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--fw-primary, #16a34a);
+    margin: 0 0 0.5rem;
+}
+
+.tier-plan-title {
+    margin: 0 0 0.35rem;
+    font-size: 1.35rem;
+}
+
+.tier-plan-price {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0 0 1rem;
+}
+
+.tier-plan-features {
+    margin: 0 0 1.25rem;
+    padding-left: 1.1rem;
+    flex: 1;
+}
+
+.tier-plan-features li {
+    margin-bottom: 0.45rem;
+}
+
+.tier-plan-btn {
+    width: 100%;
+}
+
+@media (max-width: 640px) {
+    .subscribe-plans {
+        grid-template-columns: 1fr;
+    }
+
+    .tier-plans {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (max-width: 820px) {
     .hero {
         grid-template-columns: 1fr;

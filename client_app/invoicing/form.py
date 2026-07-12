@@ -343,7 +343,9 @@ def invoices_by_status(invoices):
         if storage.is_invoice_deleted(invoice):
             continue
         status = invoice.get("status", "not_sent")
-        if status in groups:
+        if status in ("send_queued", "send_failed"):
+            groups["not_sent"].append(invoice)
+        elif status in groups:
             groups[status].append(invoice)
 
     def sort_key(inv):

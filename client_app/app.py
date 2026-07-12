@@ -13,7 +13,7 @@ import time
 import urllib.request
 import webbrowser
 from decimal import Decimal
-from urllib.parse import unquote
+from urllib.parse import unquote, quote as urlquote
 
 from flask import Flask, g, render_template, request, url_for
 from werkzeug.exceptions import HTTPException
@@ -68,8 +68,6 @@ NAV_PARENTS = {
     "settings_logo_design": ("settings_page", "Settings"),
     "settings_updates": ("settings_page", "Settings"),
     "backup_import": ("settings_page", "Settings"),
-    "account_subscribe": ("home", "Home"),
-    "account_password": ("account_subscribe", "Subscribe"),
     "welcome_pricing": ("welcome_start", "Welcome"),
 }
 
@@ -138,7 +136,17 @@ def _inject_brand():
         APP_SUPPORT_URL,
         APP_TERMS_URL,
         SHOW_LOGO_DESIGN_SETTINGS,
+        WEB_ACCOUNT_LOGIN_URL,
+        WEB_ACCOUNT_SIGNUP_URL,
+        WEB_ACCOUNT_SUBSCRIBE_URL,
+        WEB_ACCOUNT_UPGRADE_CLOUD_URL,
     )
+    from account import telemetry
+
+    install_id = telemetry.install_id()
+    web_subscribe = WEB_ACCOUNT_SUBSCRIBE_URL
+    if install_id:
+        web_subscribe = f"{web_subscribe}?install_id={urlquote(install_id)}"
 
     return {
         "brand_name": APP_BRAND_NAME,
@@ -151,6 +159,10 @@ def _inject_brand():
         "brand_privacy_url": APP_PRIVACY_URL,
         "brand_terms_url": APP_TERMS_URL,
         "show_logo_design_settings": SHOW_LOGO_DESIGN_SETTINGS,
+        "web_account_subscribe_url": web_subscribe,
+        "web_account_signup_url": WEB_ACCOUNT_SIGNUP_URL,
+        "web_account_upgrade_cloud_url": WEB_ACCOUNT_UPGRADE_CLOUD_URL,
+        "web_account_login_url": WEB_ACCOUNT_LOGIN_URL,
     }
 
 
@@ -212,8 +224,6 @@ def inject_navigation():
         "account_login",
         "account_onboard_business",
         "account_onboard_customer",
-        "account_subscribe",
-        "account_password",
     ) and has_invoice_draft():
         back_url = url_for("resume_preview")
         back_label = "Back to invoice review"
@@ -226,6 +236,36 @@ def inject_navigation():
         "back_url": back_url,
         "back_label": back_label,
         "has_invoice_draft": has_invoice_draft(),
+    }
+
+
+@app.context_processor
+def inject_storage_tier_context():
+    from account import auth_store, entitlement_cache
+    from app_config import WEB_ACCOUNT_UPGRADE_CLOUD_URL
+    from storage.context import cloud_entitled, get_storage_tier, use_cloud_provider
+    from storage import sync_queue
+
+    cache = entitlement_cache.load_cache() or {}
+    local_tier_banner = None
+    show_cloud_upgrade_cta = False
+    show_cloud_migrate_cta = False
+    if auth_store.is_authenticated() and cache.get("active") and get_storage_tier() == "local":
+        local_tier_banner = (
+            "This computer has its own invoice data. Local plan doesn't sync. "
+            "Import a backup or upgrade to Cloud for the same records everywhere."
+        )
+        show_cloud_upgrade_cta = True
+        show_cloud_migrate_cta = cloud_entitled()
+    cloud_sync_pending = None
+    if use_cloud_provider() and sync_queue.has_pending():
+        cloud_sync_pending = f"{sync_queue.pending_count()} change(s) waiting to sync"
+    return {
+        "local_tier_banner": local_tier_banner,
+        "show_cloud_upgrade_cta": show_cloud_upgrade_cta,
+        "show_cloud_migrate_cta": show_cloud_migrate_cta,
+        "web_account_upgrade_cloud_url": WEB_ACCOUNT_UPGRADE_CLOUD_URL,
+        "cloud_sync_pending": cloud_sync_pending,
     }
 
 

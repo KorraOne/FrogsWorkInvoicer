@@ -12,9 +12,12 @@ Operator docs for deploy, naming, and brand.
 
 | Doc | Contents |
 |-----|----------|
+| **[PLATFORM-ARCHITECTURE.md](PLATFORM-ARCHITECTURE.md)** | Features, architecture, and coupling — marketing, API, desktop, PWA, R2 |
 | **[DEPLOY.md](DEPLOY.md)** | Production deploy — Worker, R2 releases, marketing site |
+| **[DOCUMENT-SCHEMA.md](DOCUMENT-SCHEMA.md)** | Shared entity and sync contract (local, cloud, PWA) |
 | [naming.md](naming.md) | Folder names, product vs exe/AppData, consistent wording |
 | [brand.md](brand.md) | Visual identity and color tokens |
+| [MACOS-DESKTOP.md](MACOS-DESKTOP.md) | Deferred macOS packaging notes |
 
 Component READMEs: [marketing site](../marketing_site/README.md) · [account API worker](../account_api/worker/README.md) · [installer](../client_app/installer/README.md)
 

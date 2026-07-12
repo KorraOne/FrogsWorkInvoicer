@@ -16,7 +16,12 @@ Static site at **https://frogswork.com**. Deployed via Cloudflare Worker **`frog
 | Path | Purpose |
 |------|---------|
 | `/` | Home |
-| `/pricing.html` | Pricing (subscribe happens in the desktop app) |
+| `/pricing.html` | Pricing + subscribe CTAs |
+| `/account/subscribe.html` | Stripe Payment Link checkout |
+| `/account/return.html` | Stripe redirect; polls API |
+| `/account/create.html` | Set password after payment |
+| `/account/login.html` | Sign in (`?next=pwa` or `?next=desktop`) |
+| `/account/success.html` | Post-register / post-login next steps |
 | `/download.html` | Latest release (`releases.json`) |
 | `/guides.html` | Video guides (walkthrough + tutorials) |
 | `/support.html` | Support hub |
@@ -25,6 +30,25 @@ Static site at **https://frogswork.com**. Deployed via Cloudflare Worker **`frog
 | `/user-test.html` | Remote user test (unlisted; `noindex`) |
 | `/privacy.html` | Privacy |
 | `/terms.html` | Terms |
+
+## Account pages (local dev)
+
+```powershell
+cd marketing_site
+python -m http.server 8080
+```
+
+1. Start API: `.\scripts\start-pwa-dev.ps1` (or account API on `:8787`)
+2. Set payment links in browser console (or run `.\scripts\sync-marketing-account-config.ps1` after filling `production.env`):
+
+   ```javascript
+   localStorage.setItem('stripe_link_monthly', 'https://buy.stripe.com/test_...');
+   localStorage.setItem('stripe_link_annual', 'https://buy.stripe.com/test_...');
+   ```
+
+3. Point Stripe Payment Link redirects to `http://127.0.0.1:8080/account/return.html?session_id={CHECKOUT_SESSION_ID}` (`configure_payment_links.py`).
+
+Config: [`js/account/config.js`](js/account/config.js) — `PAYMENT_LINKS` synced from `client_app/production.env` via [`scripts/sync-marketing-account-config.ps1`](../scripts/sync-marketing-account-config.ps1).
 
 ## Layout
 

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Upgrade to Cloud · {{ brand_name }}{% endblock %}
+
+{% block content %}
+<div class="settings-page">
+<h1>Move data to Cloud</h1>
+<p class="home-intro">Your invoice records will sync across desktop and mobile. Local AppData is kept as a backup on this PC.</p>
+
+{% if storage_mode == 'cloud' %}
+<p class="settings-section-hint">Cloud storage is active on this computer.</p>
+{% else %}
+<section class="settings-panel">
+    <h2 class="settings-section-heading">1. Upload</h2>
+    <p class="settings-section-hint">Export your local businesses, customers, and invoices to FrogsWork Cloud.</p>
+    <form method="POST">
+        <input type="hidden" name="action" value="upload">
+        <button type="submit" class="btn btn-primary">Upload to cloud</button>
+    </form>
+</section>
+
+<section class="settings-panel">
+    <h2 class="settings-section-heading">2. Switch</h2>
+    <p class="settings-section-hint">After upload, switch this desktop to cloud mode. You can still work offline; changes queue until online.</p>
+    <form method="POST">
+        <input type="hidden" name="action" value="switch">
+        <button type="submit" class="btn btn-secondary">Use cloud storage on this PC</button>
+    </form>
+</section>
+{% endif %}
+
+<p><a href="{{ url_for('settings_account') }}">Back to account</a></p>
+</div>
+{% endblock %}

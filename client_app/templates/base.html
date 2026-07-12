@@ -23,6 +23,7 @@
         {% endwith %}
         {% include "_update_banner.html" %}
         {% include "_subscription_sync_banner.html" %}
+        {% include "_storage_tier_banner.html" %}
         {% block content %}{% endblock %}
         {% if show_home|default(false) %}
         <a href="{{ url_for('home') }}" class="home-footer-link">Go to Home</a>

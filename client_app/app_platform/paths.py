@@ -30,8 +30,9 @@ def resolve_pdf_path(filename):
     from flask import abort
 
     import storage
+    from app_platform.path_safety import is_safe_basename
 
-    if ".." in filename or "/" in filename or "\\" in filename:
+    if not is_safe_basename(filename):
         abort(404)
     for inv in storage.load_invoices().values():
         if inv.get("filename") == filename and storage.is_invoice_deleted(inv):

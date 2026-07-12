@@ -1,5 +1,6 @@
 """Admin dashboard summary and HTML (mirrors worker/src/admin.js)."""
 
+import html
 from datetime import datetime
 
 
@@ -41,6 +42,20 @@ def _day_diffs(db, start_col, end_col):
             WHERE {start_col} IS NOT NULL AND {end_col} IS NOT NULL"""
     ).fetchall()
     return [_days_between(r["start_at"], r["end_at"]) for r in rows]
+
+
+def list_admin_accounts(db, limit=200):
+    rows = db.execute(
+        """SELECT u.id, u.email, u.stripe_customer_id, u.storage_tier, u.created_at,
+                  i.subscription_state, i.plan_interval, i.subscribed_at, i.cancel_scheduled_at,
+                  i.last_seen_at, i.app_version_last
+           FROM users u
+           LEFT JOIN installs i ON i.user_id = u.id
+           ORDER BY u.created_at DESC
+           LIMIT ?""",
+        (limit,),
+    ).fetchall()
+    return [dict(row) for row in rows]
 
 
 def build_admin_summary(db):
@@ -117,6 +132,8 @@ def build_admin_summary(db):
         ).fetchall()
     ]
 
+    account_rows = list_admin_accounts(db)
+
     return {
         "counts": {
             "installs": installs,
@@ -160,12 +177,17 @@ def build_admin_summary(db):
             "plan_interval": plan_rows,
         },
         "versions": version_rows,
+        "accounts": account_rows,
         "notes": {
             "uninstall_undercount": (
                 "Explicit uninstalls only fire when the user runs the Windows uninstaller. "
                 "Deleting the app folder is not detected."
             ),
             "download_count": "See Cloudflare R2 / dashboard for installer downloads.",
+            "accounts_subscription": (
+                "Plan and state come from the linked install row (updated when the app calls /entitlements). "
+                "Stripe Dashboard is billing source of truth."
+            ),
         },
     }
 
@@ -182,11 +204,51 @@ def _fmt_num(value):
     return str(value)
 
 
-def render_admin_html(summary):
+def _accounts_table_html(accounts, note):
+    rows = []
+    for row in accounts or []:
+        email = html.escape(row.get("email") or "—")
+        plan = html.escape(row.get("plan_interval") or "—")
+        state = html.escape(row.get("subscription_state") or "none")
+        tier = html.escape(row.get("storage_tier") or "local")
+        created = html.escape((row.get("created_at") or "—")[:10])
+        subscribed = html.escape((row.get("subscribed_at") or "—")[:10])
+        last_seen = html.escape((row.get("last_seen_at") or "—")[:10])
+        version = html.escape(row.get("app_version_last") or "—")
+        stripe_id = row.get("stripe_customer_id") or ""
+        if stripe_id:
+            stripe_cell = (
+                f'<a href="https://dashboard.stripe.com/customers/{html.escape(stripe_id)}" '
+                f'target="_blank" rel="noopener">{html.escape(stripe_id[:18])}…</a>'
+            )
+        else:
+            stripe_cell = "—"
+        rows.append(
+            f"<tr><td>{email}</td><td>{plan}</td><td>{state}</td><td>{tier}</td>"
+            f"<td>{created}</td><td>{subscribed}</td><td>{last_seen}</td>"
+            f"<td>{version}</td><td>{stripe_cell}</td></tr>"
+        )
+    body = "".join(rows) or "<tr><td colspan=9>No accounts yet.</td></tr>"
+    return f"""
+  <h2>Registered accounts</h2>
+  <p class="note">{html.escape(note or "")}</p>
+  <table class="accounts-table">
+    <tr>
+      <th>Email</th><th>Plan</th><th>State</th><th>Tier</th><th>Created</th>
+      <th>Subscribed</th><th>Last seen</th><th>App version</th><th>Stripe</th>
+    </tr>
+    {body}
+  </table>
+"""
+
+
+def render_admin_html(summary, promo_context=None):
     c = summary["counts"]
     r = summary["rates"]
     m = summary["medians_days"]
     s = summary["signup"]
+    promo = promo_context or {}
+    beta80_checked = "checked" if promo.get("default_beta80_enabled") else ""
 
     trial_gate_html = "".join(
         f"<tr><td>{row['gate']}</td><td>{row['count']}</td></tr>"
@@ -220,11 +282,20 @@ def render_admin_html(summary):
     th {{ background: #fafafa; font-size: 0.85rem; }}
     .note {{ font-size: 0.85rem; color: #666; margin-top: 1rem; }}
     a {{ color: #0b6; }}
+    .accounts-table {{ font-size: 0.85rem; }}
+    .accounts-table td, .accounts-table th {{ white-space: nowrap; }}
+    .accounts-table td:first-child {{ white-space: normal; min-width: 12rem; }}
   </style>
 </head>
 <body>
   <h1>FrogsWork analytics</h1>
+  <div class="card" style="margin-bottom:1rem">
+    <h2 style="margin-top:0;font-size:1.1rem">Checkout promotions</h2>
+    <label><input type="checkbox" id="beta80-enabled" {beta80_checked}> Auto-apply BETA80 at checkout</label>
+  </div>
   <p class="note">R2 installer downloads: <a href="https://dash.cloudflare.com/" target="_blank" rel="noopener">Cloudflare dashboard</a> (not linked to install IDs).</p>
+
+  {_accounts_table_html(summary.get("accounts"), summary["notes"].get("accounts_subscription"))}
 
   <h2>Funnel</h2>
   <div class="grid">
@@ -286,6 +357,24 @@ def render_admin_html(summary):
   <h2>App versions (last seen)</h2>
   <table><tr><th>Version</th><th>Installs</th></tr>{version_html}</table>
 
-  <p class="note"><a href="/admin/api/summary">JSON summary</a></p>
+  <p class="note"><a href="/admin/api/summary">JSON summary</a> · <a href="/admin/api/accounts">Accounts JSON</a></p>
+  <script>
+    (function () {{
+      var betaToggle = document.getElementById("beta80-enabled");
+      if (betaToggle) {{
+        betaToggle.addEventListener("change", function () {{
+          fetch("/admin/api/checkout/default-beta80", {{
+            method: "POST",
+            headers: {{ "Content-Type": "application/json" }},
+            body: JSON.stringify({{ enabled: betaToggle.checked }}),
+            credentials: "same-origin",
+          }}).catch(function () {{
+            alert("Could not update BETA80 setting.");
+            betaToggle.checked = !betaToggle.checked;
+          }});
+        }});
+      }}
+    }})();
+  </script>
 </body>
 </html>"""

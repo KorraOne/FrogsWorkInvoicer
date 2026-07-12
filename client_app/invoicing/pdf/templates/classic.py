@@ -45,9 +45,10 @@ def render_classic_invoice(output_dir, invoice_data):
     invoice_date = invoice_data["invoice_date"]
     filename = f"Invoice_{invoice_number_display}_{invoice_date.isoformat()}.pdf"
     filepath = os.path.join(output_dir, filename)
+    tmp_filepath = filepath + ".tmp"
 
     doc = SimpleDocTemplate(
-        filepath,
+        tmp_filepath,
         pagesize=A4,
         rightMargin=20 * mm,
         leftMargin=20 * mm,
@@ -441,4 +442,5 @@ def render_classic_invoice(output_dir, invoice_data):
                 continue
 
     doc.build(story)
+    os.replace(tmp_filepath, filepath)
     return filepath

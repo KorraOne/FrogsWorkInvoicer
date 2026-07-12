@@ -11,7 +11,25 @@ import jwt
 import stripe
 from flask import Flask, Response, g, jsonify, request
 
-from admin_summary import build_admin_summary, render_admin_html
+from auth_ops import (
+    check_rate_limit,
+    forgot_password,
+    is_default_beta80_enabled,
+    is_email_verified,
+    reset_password,
+    send_verification_email,
+    set_default_beta80_enabled,
+    verify_email,
+)
+from billing_ops import (
+    auth_signup,
+    checkout_session_info,
+    cleanup_pending_users,
+    create_checkout_session,
+    decode_signup_token,
+    activate_from_checkout,
+    resolve_storage_tier_dev,
+)
 from dev_vars import load_dev_vars
 from telemetry_ops import (
     is_valid_install_id,
@@ -74,6 +92,16 @@ def _migrate_db(db):
     cols = {row[1] for row in db.execute("PRAGMA table_info(users)").fetchall()}
     if "install_id" not in cols:
         db.execute("ALTER TABLE users ADD COLUMN install_id TEXT")
+    if "storage_tier" not in cols:
+        db.execute(
+            "ALTER TABLE users ADD COLUMN storage_tier TEXT NOT NULL DEFAULT 'local'"
+        )
+    if "account_status" not in cols:
+        db.execute(
+            "ALTER TABLE users ADD COLUMN account_status TEXT NOT NULL DEFAULT 'active'"
+        )
+    if "email_verified_at" not in cols:
+        db.execute("ALTER TABLE users ADD COLUMN email_verified_at TEXT")
 
 
 def _issue_tokens(user_id, email):
@@ -280,22 +308,78 @@ def _validated_checkout_session(session_id):
 
 
 @app.get("/checkout/session-info")
-def checkout_session_info():
+def checkout_session_info_route():
     session_id = (request.args.get("session_id") or "").strip()
     if not session_id.startswith("cs_"):
         return jsonify({"error": "Invalid checkout session."}), 400
     try:
-        email, _customer_id = _validated_checkout_session(session_id)
+        payload, status = checkout_session_info(
+            get_db(),
+            session_id,
+            _user_by_id,
+            _subscription_status,
+        )
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
-    return jsonify(
-        {
-            "email": email,
-            "paid": True,
-            "subscription_active": True,
-            "account_exists": _user_by_email(email) is not None,
-        }
+    return jsonify(payload), status
+
+
+@app.post("/auth/signup")
+def auth_signup_route():
+    ip = request.headers.get("X-Forwarded-For", request.remote_addr) or "unknown"
+    if not check_rate_limit(get_db(), f"auth_signup:{ip}"):
+        return jsonify({"error": "Too many requests. Try again later."}), 429
+    body = request.get_json(force=True, silent=True) or {}
+    payload, status = auth_signup(
+        get_db(),
+        body,
+        _hash_password,
+        _check_password,
+        _user_by_email,
+        JWT_SECRET,
     )
+    if status == 200 and not payload.get("resumed"):
+        user = _user_by_email(payload.get("email", ""))
+        if user:
+            send_verification_email(get_db(), dict(user))
+    return jsonify(payload), status
+
+
+def _auth_user_from_request():
+    header = request.headers.get("Authorization") or ""
+    if not header.startswith("Bearer "):
+        return None, None
+    token = header[7:]
+    try:
+        payload = decode_signup_token(token, JWT_SECRET)
+        user = _user_by_id(int(payload["sub"]))
+        if user and user["email"] == (payload.get("email") or "").strip().lower():
+            return user, "signup"
+    except jwt.PyJWTError:
+        pass
+    try:
+        payload = _decode_token(token, "access")
+        user = _user_by_id(int(payload["sub"]))
+        if user:
+            return user, "access"
+    except jwt.PyJWTError:
+        pass
+    return None, None
+
+
+@app.post("/checkout/create-session")
+def checkout_create_session():
+    user, _kind = _auth_user_from_request()
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    body = request.get_json(force=True, silent=True) or {}
+    try:
+        payload, status = create_checkout_session(
+            get_db(), user, body, JWT_SECRET, _decode_token
+        )
+    except stripe.error.StripeError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify(payload), status
 
 
 @app.post("/auth/register")
@@ -320,7 +404,7 @@ def auth_register():
 
     db = get_db()
     cur = db.execute(
-        "INSERT INTO users (email, password_hash, stripe_customer_id, created_at) VALUES (?, ?, ?, ?)",
+        "INSERT INTO users (email, password_hash, stripe_customer_id, account_status, created_at) VALUES (?, ?, ?, 'active', ?)",
         (
             email,
             _hash_password(password),
@@ -361,21 +445,33 @@ def auth_attach_checkout():
 
     db = get_db()
     db.execute(
-        "UPDATE users SET stripe_customer_id = ? WHERE id = ?",
+        "UPDATE users SET stripe_customer_id = ?, account_status = 'active' WHERE id = ?",
         (stripe_customer_id, user["id"]),
     )
     db.commit()
-    return jsonify({"ok": True})
+    tier = resolve_storage_tier_dev(
+        {**user, "stripe_customer_id": stripe_customer_id}
+    )
+    return jsonify({"ok": True, "storage_tier": tier})
 
 
 @app.post("/auth/login")
 def auth_login():
+    ip = request.headers.get("X-Forwarded-For", request.remote_addr) or "unknown"
+    if not check_rate_limit(get_db(), f"auth_login:{ip}"):
+        return jsonify({"error": "Too many requests. Try again later."}), 429
     body = request.get_json(force=True, silent=True) or {}
     email = (body.get("email") or "").strip().lower()
     password = body.get("password") or ""
     user = _user_by_email(email)
     if not user or not _check_password(password, user["password_hash"]):
         return jsonify({"error": "Invalid email or password."}), 401
+    if (user.get("account_status") or "active").strip() == "pending_payment":
+        return jsonify(
+            {
+                "error": "Your account is not active yet. Finish checkout on the subscribe page."
+            }
+        ), 403
     access, refresh = _issue_tokens(user["id"], user["email"])
     return jsonify({"access_token": access, "refresh_token": refresh})
 
@@ -395,12 +491,57 @@ def auth_refresh():
         return jsonify({"error": "Invalid refresh token."}), 401
 
 
+@app.post("/auth/forgot-password")
+def auth_forgot_password():
+    ip = request.headers.get("X-Forwarded-For", request.remote_addr) or "unknown"
+    if not check_rate_limit(get_db(), f"auth_forgot:{ip}"):
+        return jsonify({"error": "Too many requests. Try again later."}), 429
+    body = request.get_json(force=True, silent=True) or {}
+    email = (body.get("email") or "").strip().lower()
+    payload, status = forgot_password(get_db(), email, _user_by_email)
+    return jsonify(payload), status
+
+
+@app.post("/auth/reset-password")
+def auth_reset_password():
+    body = request.get_json(force=True, silent=True) or {}
+    payload, status = reset_password(
+        get_db(),
+        (body.get("token") or "").strip(),
+        body.get("password") or "",
+        _hash_password,
+    )
+    return jsonify(payload), status
+
+
+@app.post("/auth/verify-email")
+def auth_verify_email():
+    body = request.get_json(force=True, silent=True) or {}
+    payload, status = verify_email(get_db(), (body.get("token") or "").strip())
+    return jsonify(payload), status
+
+
+@app.post("/auth/resend-verification")
+@require_auth
+def auth_resend_verification():
+    user = g.current_user
+    if is_email_verified(user):
+        return jsonify({"ok": True, "already_verified": True})
+    send_verification_email(get_db(), dict(user))
+    return jsonify({"ok": True, "sent": True})
+
+
 @app.get("/entitlements")
 @require_auth
 def entitlements():
     user = g.current_user
     sub = _subscription_status(user["stripe_customer_id"])
     sub["portal_url"] = _portal_url(user["stripe_customer_id"])
+    tier = resolve_storage_tier_dev(user)
+    sub["storage_tier"] = tier
+    sub["platforms"] = {"desktop": True, "mobile": tier == "cloud"}
+    sub["email_verified"] = is_email_verified(user)
+    sub["email"] = user["email"]
     db = get_db()
     update_subscription_milestones(db, user, sub)
     db.commit()
@@ -429,16 +570,32 @@ def telemetry_event():
         return jsonify({"error": str(exc)}), 400
 
 
+@app.get("/admin/api/accounts")
+@require_admin
+def admin_api_accounts():
+    return jsonify({"accounts": list_admin_accounts(get_db())})
+
+
 @app.get("/admin/api/summary")
 @require_admin
 def admin_api_summary():
     return jsonify(build_admin_summary(get_db()))
 
 
+@app.post("/admin/api/checkout/default-beta80")
+@require_admin
+def admin_checkout_beta80():
+    body = request.get_json(force=True, silent=True) or {}
+    enabled = set_default_beta80_enabled(get_db(), bool(body.get("enabled")))
+    return jsonify({"ok": True, "enabled": enabled})
+
+
 @app.get("/admin")
 @require_admin
 def admin_dashboard():
-    html = render_admin_html(build_admin_summary(get_db()))
+    summary = build_admin_summary(get_db())
+    promo = {"default_beta80_enabled": is_default_beta80_enabled(get_db())}
+    html = render_admin_html(summary, promo_context=promo)
     return Response(html, mimetype="text/html; charset=utf-8")
 
 
@@ -457,17 +614,32 @@ def releases_latest():
     )
 
 
+@app.post("/admin/api/cleanup-pending")
+@require_admin
+def admin_cleanup_pending():
+    deleted = cleanup_pending_users(get_db())
+    return jsonify({"ok": True, "deleted": deleted})
+
+
 @app.post("/webhooks/stripe")
 def stripe_webhook():
-    """Verify Stripe signature and ack. Entitlements are live-queried from Stripe."""
     payload = request.get_data()
     sig = request.headers.get("Stripe-Signature", "")
     if not WEBHOOK_SECRET:
         return jsonify({"error": "Webhook secret not configured."}), 500
     try:
-        stripe.Webhook.construct_event(payload, sig, WEBHOOK_SECRET)
+        event = stripe.Webhook.construct_event(payload, sig, WEBHOOK_SECRET)
     except Exception as exc:
         return jsonify({"error": str(exc)}), 400
+    if event.type == "checkout.session.completed":
+        checkout = event.data.object
+        if checkout.mode == "subscription":
+            try:
+                activate_from_checkout(
+                    get_db(), checkout, _user_by_id, _subscription_status
+                )
+            except ValueError:
+                pass
     return jsonify({"received": True})
 
 

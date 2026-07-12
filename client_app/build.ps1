@@ -5,9 +5,7 @@ param(
     [switch]$Clean,
     [switch]$SkipVenv,
     [Alias("BillingUrl")]
-    [string]$AccountApiUrl = "",
-    [string]$PaymentLinkMonthly = "",
-    [string]$PaymentLinkAnnual = ""
+    [string]$AccountApiUrl = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -51,25 +49,15 @@ function Patch-AppConfigLine {
     return ($Content -replace $pattern, $replacement)
 }
 
-if ($AccountApiUrl -or $PaymentLinkMonthly -or $PaymentLinkAnnual) {
+if ($AccountApiUrl) {
     $configBackup = Get-Content $ConfigFile -Raw
     $updated = $configBackup
-    if ($AccountApiUrl) {
-        $escaped = [regex]::Escape("http://127.0.0.1:8787")
-        $updated = $updated -replace $escaped, $AccountApiUrl
-        if ($updated -eq $configBackup) {
-            throw "Could not patch app_config.py with AccountApiUrl. Check DEFAULT_ACCOUNT_API_URL default."
-        }
-        Write-Host "Using account API URL for this build: $AccountApiUrl"
+    $escaped = [regex]::Escape("http://127.0.0.1:8787")
+    $updated = $updated -replace $escaped, $AccountApiUrl
+    if ($updated -eq $configBackup) {
+        throw "Could not patch app_config.py with AccountApiUrl. Check DEFAULT_ACCOUNT_API_URL default."
     }
-    if ($PaymentLinkMonthly) {
-        $updated = Patch-AppConfigLine -Content $updated -Name "STRIPE_PAYMENT_LINK_MONTHLY" -Value $PaymentLinkMonthly
-        Write-Host "Baking monthly Payment Link into build."
-    }
-    if ($PaymentLinkAnnual) {
-        $updated = Patch-AppConfigLine -Content $updated -Name "STRIPE_PAYMENT_LINK_ANNUAL" -Value $PaymentLinkAnnual
-        Write-Host "Baking annual Payment Link into build."
-    }
+    Write-Host "Using account API URL for this build: $AccountApiUrl"
     Set-Content -Path $ConfigFile -Value $updated -NoNewline
     $needsRestore = $true
 }

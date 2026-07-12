@@ -15,6 +15,7 @@ DEFAULT_SETTINGS = {
     "last_due_net_days": 14,
     "last_due_fixed_date": "",
     "welcome_complete": False,
+    "storage_mode": "local",
 }
 
 
@@ -38,6 +39,11 @@ def _migrate_settings(settings):
 
 
 def load_settings():
+    from storage.context import active_provider
+
+    provider = active_provider()
+    if provider is not None:
+        return provider.load_settings()
     path = _settings_path()
 
     def _read():
@@ -53,6 +59,12 @@ def load_settings():
 
 
 def save_settings(settings):
+    from storage.context import active_provider
+
+    provider = active_provider()
+    if provider is not None:
+        provider.save_settings(settings)
+        return
     path = _settings_path()
     with open(path, "w", encoding="utf-8") as f:
         json.dump(settings, f, indent=2)

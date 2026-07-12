@@ -1,5 +1,9 @@
 <div class="invoice-send-actions{% if show_send_later|default(false) %} invoice-send-actions-pair{% else %} invoice-send-actions-inline{% endif %}">
-    <a href="{{ url_for('invoice_send', number=invoice_number, next=next_page|default('invoices')) }}" class="btn btn-primary btn-small">Prepare to send</a>
+    <form method="POST" action="{{ url_for('invoice_send_integrated', number=invoice_number) }}" class="invoice-send-actions-form">
+        <input type="hidden" name="next" value="{{ next_page|default('invoices') }}">
+        <button type="submit" class="btn btn-primary btn-small">Send invoice</button>
+    </form>
+    <a href="{{ url_for('invoice_send', number=invoice_number, next=next_page|default('invoices')) }}" class="btn btn-secondary btn-small">Copy email manually</a>
     {% if show_send_later|default(false) %}
     <a href="{{ url_for('invoice_send_later', number=invoice_number, next=next_page|default('invoices')) }}" class="btn btn-secondary btn-small">I'll send this later</a>
     {% endif %}

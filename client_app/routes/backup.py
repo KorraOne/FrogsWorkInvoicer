@@ -1,7 +1,6 @@
 """Backup export and import."""
 
 import os
-import shutil
 import sys
 import zipfile
 
@@ -48,33 +47,13 @@ def register_backup_routes(app, helpers):
                 return render_template("backup_import.html", error="Choose a backup ZIP file.")
             data_path = storage.get_data_path()
             pdf_dir = storage.get_pdf_dir()
-            os.makedirs(pdf_dir, exist_ok=True)
-            with zipfile.ZipFile(file) as zf:
-                for member in zf.namelist():
-                    if member.startswith("pdfs/"):
-                        target = os.path.join(pdf_dir, os.path.basename(member))
-                        with zf.open(member) as src, open(target, "wb") as dst:
-                            shutil.copyfileobj(src, dst)
-                    elif member.startswith("logos/") and not member.endswith("/"):
-                        logos_dir = os.path.join(data_path, "logos")
-                        os.makedirs(logos_dir, exist_ok=True)
-                        target = os.path.join(logos_dir, os.path.basename(member))
-                        with zf.open(member) as src, open(target, "wb") as dst:
-                            shutil.copyfileobj(src, dst)
-                    elif member.startswith("attachments/") and not member.endswith("/"):
-                        parts = member.split("/")
-                        if len(parts) >= 3:
-                            inv_key = parts[1]
-                            fname = parts[-1]
-                            target_dir = os.path.join(data_path, "attachments", inv_key)
-                            os.makedirs(target_dir, exist_ok=True)
-                            target = os.path.join(target_dir, fname)
-                            with zf.open(member) as src, open(target, "wb") as dst:
-                                shutil.copyfileobj(src, dst)
-                    elif not member.endswith("/"):
-                        target = os.path.join(data_path, os.path.basename(member))
-                        with zf.open(member) as src, open(target, "wb") as dst:
-                            shutil.copyfileobj(src, dst)
+            from app_platform.backup_extract import extract_backup_zip
+
+            try:
+                with zipfile.ZipFile(file) as zf:
+                    extract_backup_zip(zf, data_path=data_path, pdf_dir=pdf_dir)
+            except ValueError as exc:
+                return render_template("backup_import.html", error=str(exc))
             flash("Backup restored. Your data was replaced from the ZIP.", "success")
             from account import telemetry
 

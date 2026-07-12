@@ -90,7 +90,11 @@ if (-not $SkipPaymentLinkRedirects) {
     $env:STRIPE_PAYMENT_LINK_MONTHLY = $monthly
     $env:STRIPE_PAYMENT_LINK_ANNUAL = $annual
     $env:STRIPE_SECRET_KEY = $stripeKey
-    $env:STRIPE_CHECKOUT_RETURN_URL = "http://127.0.0.1:5000/account/stripe/return?session_id={CHECKOUT_SESSION_ID}"
+    $env:STRIPE_CHECKOUT_RETURN_URL = "https://frogswork.com/account/return.html?session_id={CHECKOUT_SESSION_ID}"
+    $syncConfig = Join-Path $Root "scripts\sync-marketing-account-config.ps1"
+    if (Test-Path $syncConfig) {
+        & $syncConfig
+    }
     $python = Ensure-FrogsWorkApiDeps
     Push-Location (Join-Path $Root "account_api\dev")
     try {
@@ -103,4 +107,5 @@ if (-not $SkipPaymentLinkRedirects) {
 
 Write-Host ""
 Write-Host "Stripe production setup complete."
-Write-Host "Next: run deploy-release-2.0.0.ps1 -Version 2.1.2 with your R2 bucket."
+Write-Host "Create tier prices: python account_api\dev\setup_stripe_prices.py --grandfather-existing"
+Write-Host "Add STRIPE_PRICE_* to production.env and wrangler.toml [vars], then redeploy worker."

@@ -392,6 +392,7 @@ def register_invoice_create_routes(app):
         marked_sent = request.args.get("sent") == "1"
         sent_date = None
         send_later = False
+        inv = None
 
         if invoice_number:
             inv = storage.get_invoice(invoice_number)
@@ -417,4 +418,5 @@ def register_invoice_create_routes(app):
             sent_date=sent_date,
             send_later=send_later,
             step2_complete=step2_complete,
+            inv=inv,
         )

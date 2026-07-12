@@ -145,51 +145,114 @@ Versions before **2.2.1** may need the manual installer once; **2.2.1+** include
 
 ---
 
-## Stripe (subscribe flow)
+## Stripe (Local / Cloud plans + email-first signup)
 
-The desktop app opens **Stripe Payment Links** baked in at build time. The account API validates checkout and subscriptions (needs Stripe secrets on the Worker).
+Account creation runs on **frogswork.com** (`/account/signup.html` → `/account/subscribe.html` → Stripe Checkout → `/account/return.html`). The API uses **Checkout Sessions** (`POST /checkout/create-session`) with four price IDs. CORS must allow `https://frogswork.com` (and `www`).
 
-### 1. Stripe Dashboard
+### 1. Stripe Dashboard / script
 
-1. **Products** — monthly `$12.99`, annual `$129.90` (test mode for beta).
-2. **Payment links** — create one monthly and one annual link.
-3. **Customer portal** — enable (used for manage billing).
+```powershell
+python account_api\dev\setup_stripe_prices.py --grandfather-existing
+```
+
+Creates Local ($9.99/mo, $99/yr) and Cloud ($14.99/mo, $149/yr) prices with `storage_tier` metadata. Tags legacy $12.99/$129.90 prices as `local` when using `--grandfather-existing`.
 
 ### 2. Local config (not committed)
 
 ```powershell
 copy client_app\production.env.example client_app\production.env
-# Edit production.env — paste Payment Link URLs + STRIPE_SECRET_KEY (sk_test_… for beta)
+# Paste STRIPE_SECRET_KEY + STRIPE_PRICE_LOCAL_MONTHLY|ANNUAL + STRIPE_PRICE_CLOUD_* from script output
 ```
 
-### 3. API Worker secrets + Payment Link redirects
+Copy the same `STRIPE_PRICE_*` values into `account_api/worker/wrangler.toml` `[vars]` (or Worker secrets).
+
+### 3. API Worker secrets
 
 ```powershell
 .\scripts\setup-stripe-production.ps1
 ```
 
-This sets `STRIPE_SECRET_KEY`, `JWT_SECRET`, `STRIPE_WEBHOOK_SECRET` on `frogswork-api` and points both Payment Links to:
+Sets `STRIPE_SECRET_KEY`, `JWT_SECRET`, `STRIPE_WEBHOOK_SECRET` on `frogswork-api`. Configure Stripe webhook → `https://api.frogswork.com/webhooks/stripe` for `checkout.session.completed`.
 
-`http://127.0.0.1:5000/account/stripe/return?session_id={CHECKOUT_SESSION_ID}`
+**Coupons / promo codes:** Checkout shows Stripe’s promotion code field. Scope coupons to FrogsWork products only — see [`STRIPE-COUPONS.md`](STRIPE-COUPONS.md). List product IDs: `python account_api\dev\setup_stripe_prices.py --list-catalog`.
 
-The packaged app runs a local server on port 5000 — Stripe redirects back to the running app after payment.
-
-### 4. Rebuild and deploy the desktop app
-
-Payment links are **baked into the installer** at build time (`production.env` required):
+### 4. Deploy marketing site
 
 ```powershell
-.\scripts\deploy-release-2.0.0.ps1 -Version "2.1.2" -R2Bucket "frogswork-invoicer-releases" -ReleaseNotes "Enable Stripe subscribe flow."
+.\scripts\sync-marketing-account-config.ps1
+cd marketing_site
+npx wrangler deploy
 ```
 
-### 5. Smoke test
+### 5. Verify
 
-- [ ] Subscribe page shows Pay monthly / Pay annually (not "Not configured yet")
-- [ ] Stripe checkout opens in browser; test card `4242 4242 4242 4242`
-- [ ] After payment, browser hits localhost return page; app continues to set password
-- [ ] Settings → Your account shows active subscription
+- [ ] `frogswork.com/account/signup.html` — email + password form
+- [ ] `frogswork.com/account/subscribe.html` — Local vs Cloud cards + monthly/annual toggle
+- [ ] `POST /auth/signup` returns `signup_token` for pending accounts
+
+### 6. Smoke test
+
+- [ ] Signup → choose Local or Cloud → Stripe checkout; test card `4242 4242 4242 4242`
+- [ ] After payment, return page → success (account active; no separate password step)
+- [ ] Desktop: Sign in opens web; returns to app via `127.0.0.1:5000/account/auth/callback`
+- [ ] PWA (Cloud): Sign in → token handoff at `app.frogswork.com/#auth/callback`
+- [ ] Local subscriber: Upgrade to Cloud opens web checkout; after pay, migrate wizard works
+- [ ] Settings → Your account shows active subscription and storage tier (desktop)
 
 See also [`account_api/worker/README.md`](../account_api/worker/README.md).
+
+---
+
+## Mobile PWA (`app.frogswork.com`)
+
+| Setting | Value |
+|---------|--------|
+| Source | [`client_web/`](../client_web/) |
+| Deploy | `cd client_web` then `npx wrangler pages deploy . --project-name frogswork-app` |
+| Custom domain | `app.frogswork.com` in Cloudflare Pages dashboard |
+
+Requires API CORS for `app.frogswork.com` (already in worker). Cloud-tier subscribers sign in via `frogswork.com/account/login.html?next=pwa`.
+
+---
+
+## D1 migrations (after schema changes)
+
+```powershell
+cd account_api\worker
+npx wrangler d1 execute frogswork-account --remote --file=..\migrations\006_checkout_promo_settings.sql
+npx wrangler d1 execute frogswork-account --remote --file=..\migrations\007_auth_extensions.sql
+npm run deploy
+```
+
+---
+
+## Email (password reset + verification)
+
+Set on the API worker:
+
+```powershell
+cd account_api\worker
+npx wrangler secret put RESEND_API_KEY
+npx wrangler secret put EMAIL_FROM   # e.g. noreply@frogswork.com (verified domain in Resend)
+```
+
+Without Resend, dev logs print reset/verify links to the Worker console.
+
+---
+
+## Stripe Customer Portal
+
+Enable in Stripe Dashboard → Settings → Customer portal. Allow customers to switch between all four FrogsWork prices (Local/Cloud × monthly/annual). Desktop and PWA open `portal_url` from `GET /entitlements`.
+
+---
+
+## BETA80 auto-apply (admin)
+
+1. Create `BETA80` promotion code in Stripe (see [`STRIPE-COUPONS.md`](STRIPE-COUPONS.md)).
+2. `python account_api\dev\setup_stripe_prices.py --lookup-promo-beta80` → set `STRIPE_PROMO_BETA80` in `wrangler.toml` or `wrangler secret put`.
+3. Toggle **Auto-apply BETA80 at checkout** at `https://api.frogswork.com/admin`.
+
+Optional URL promo: `subscribe.html?promo=BETA80` (used when admin default is off).
 
 ---
 

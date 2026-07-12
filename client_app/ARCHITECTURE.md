@@ -80,7 +80,6 @@ Server-rendered Flask UI — JS is used only where the browser must react withou
 | [`static/gst_registration_ui.js`](static/gst_registration_ui.js) | Toggle ABN required when GST radio changes |
 | [`static/due_rule_ui.js`](static/due_rule_ui.js) | Live due-date preview (must stay in sync with `invoicing/due_dates.py`) |
 | [`static/create_invoice_ui.js`](static/create_invoice_ui.js) | Line items, invoice number edit, draft customer |
-| [`static/account_subscribe_poll.js`](static/account_subscribe_poll.js) | Poll subscribe status after Stripe checkout |
 | [`static/settings_account_status.js`](static/settings_account_status.js) | Poll entitlement status on account settings |
 | Inline in [`base.html`](templates/base.html) | Ping keepalive + invoice action menus (needs `url_for`) |
 

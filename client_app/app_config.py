@@ -10,17 +10,26 @@ LOCAL_APP_HOST = "127.0.0.1"
 LOCAL_APP_PORT = 5000
 LOCAL_APP_URL = f"http://{LOCAL_APP_HOST}:{LOCAL_APP_PORT}/"
 
-# Configure Stripe Payment Link "After payment" redirect to this URL (literal braces for Stripe).
-STRIPE_CHECKOUT_RETURN_URL = (
-    f"http://{LOCAL_APP_HOST}:{LOCAL_APP_PORT}/account/stripe/return"
-    "?session_id={CHECKOUT_SESSION_ID}"
-)
-
-APP_VERSION = "2.2.15"
+APP_VERSION = "3.0.2"
 
 APP_BRAND_NAME = "FrogsWork"
 APP_BRAND_TAGLINE = "Sales invoicing for Australian sole traders"
 APP_BRAND_URL = "https://frogswork.com"
+
+
+def _web_marketing_base():
+    """Use local marketing server when the account API is local (dev)."""
+    api_url = (os.environ.get("FROGSWORK_ACCOUNT_API_URL") or DEFAULT_ACCOUNT_API_URL or "").strip()
+    if api_url.startswith(("http://127.0.0.1", "http://localhost")):
+        return os.environ.get("FROGSWORK_WEB_MARKETING_URL", "http://127.0.0.1:8080").rstrip("/")
+    return APP_BRAND_URL.rstrip("/")
+
+
+_WEB_MARKETING = _web_marketing_base()
+WEB_ACCOUNT_SIGNUP_URL = f"{_WEB_MARKETING}/account/signup.html"
+WEB_ACCOUNT_SUBSCRIBE_URL = f"{_WEB_MARKETING}/account/subscribe.html"
+WEB_ACCOUNT_UPGRADE_CLOUD_URL = f"{_WEB_MARKETING}/account/subscribe.html?upgrade=1&tier=cloud"
+WEB_ACCOUNT_LOGIN_URL = f"{_WEB_MARKETING}/account/login.html?next=desktop"
 APP_BRAND_DEVELOPER = "KorraOne"
 APP_BRAND_DEVELOPER_URL = "https://korraone.com"
 APP_SUPPORT_URL = "https://frogswork.com/support.html"
@@ -54,10 +63,6 @@ SUBSCRIPTION_OFFLINE_REMINDER_DAYS = 7
 SUBSCRIPTION_MONTHLY_DISPLAY = "$12.99/mo"
 SUBSCRIPTION_ANNUAL_DISPLAY = "$129.90/yr"
 SUBSCRIPTION_ANNUAL_SAVINGS = "2 months free"
-
-# Stripe Payment Links (Dashboard → Payment links). No API call needed for checkout.
-STRIPE_PAYMENT_LINK_MONTHLY = os.environ.get("STRIPE_PAYMENT_LINK_MONTHLY", "").strip()
-STRIPE_PAYMENT_LINK_ANNUAL = os.environ.get("STRIPE_PAYMENT_LINK_ANNUAL", "").strip()
 
 _ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets")
 APP_ICON_PATH = os.path.join(_ASSETS_DIR, "app.ico")

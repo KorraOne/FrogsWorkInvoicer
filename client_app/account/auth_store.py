@@ -94,6 +94,11 @@ def is_authenticated():
     return bool(auth.get("access_token"))
 
 
+def _is_local_api_url(url):
+    u = (url or "").strip().lower()
+    return u.startswith("http://127.0.0.1") or u.startswith("http://localhost")
+
+
 def get_server_url():
     env_url = (
         os.environ.get("FROGSWORK_ACCOUNT_API_URL", "").strip()
@@ -103,8 +108,12 @@ def get_server_url():
     if env_url:
         return env_url.rstrip("/")
     auth = load_auth()
-    url = auth.get("server_url") or DEFAULT_ACCOUNT_API_URL
-    return url.rstrip("/")
+    url = (auth.get("server_url") or DEFAULT_ACCOUNT_API_URL).rstrip("/")
+    default = (DEFAULT_ACCOUNT_API_URL or "").rstrip("/")
+    # Packaged builds ship with production API; ignore localhost left from dev sign-in.
+    if _is_local_api_url(url) and default and not _is_local_api_url(default):
+        return default
+    return url
 
 
 def set_server_url(url):

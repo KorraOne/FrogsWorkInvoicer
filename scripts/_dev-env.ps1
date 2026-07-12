@@ -55,8 +55,6 @@ function Get-DevVarsExportBlock {
     param([hashtable]$Vars)
     $lines = @()
     foreach ($key in @(
-        "STRIPE_PAYMENT_LINK_MONTHLY",
-        "STRIPE_PAYMENT_LINK_ANNUAL",
         "FROGSWORK_ACCOUNT_API_URL"
     )) {
         if ($Vars.ContainsKey($key) -and $Vars[$key]) {

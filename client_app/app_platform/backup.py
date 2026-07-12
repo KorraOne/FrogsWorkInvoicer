@@ -126,3 +126,24 @@ def export_backup_with_dialog(exe_dir):
         path += ".zip"
     save_backup_to_path(buf, path)
     return path
+
+
+def export_backup_payload():
+    """JSON payload for cloud migration API."""
+    import json
+
+    data_path = storage.get_data_path()
+
+    def _read_json(name, default):
+        path = os.path.join(data_path, name)
+        if not os.path.isfile(path):
+            return default
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+
+    return {
+        "businesses": _read_json("businesses.json", {}),
+        "customers": _read_json("customers.json", {}),
+        "invoices": _read_json("invoices.json", {}),
+        "settings": _read_json("settings.json", {}),
+    }

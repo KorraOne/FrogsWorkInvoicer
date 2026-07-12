@@ -4,34 +4,51 @@ Canonical route list for [`dev/server.py`](dev/server.py) (Flask) and [`worker/s
 
 Base URL: `http://127.0.0.1:8787` (dev) · `https://api.frogswork.com` (prod).
 
-## Subscribe flow (desktop app)
+## Subscribe flow (email-first)
 
-The app does **not** call the API to start checkout. It opens **Stripe Payment Links** configured in `account_api/dev/.dev.vars` (`STRIPE_PAYMENT_LINK_MONTHLY`, `STRIPE_PAYMENT_LINK_ANNUAL`) and loaded into the desktop app via `start-dev.ps1`.
+Account creation runs on **frogswork.com** (`marketing_site/account/`). Checkout uses the **Stripe Checkout Sessions API** (`POST /checkout/create-session`) with four price IDs (Local/Cloud × monthly/annual). Sync display prices via `.\scripts\sync-marketing-account-config.ps1`.
 
-1. User pays on Stripe Payment Link.
-2. Stripe redirects to the app (`http://127.0.0.1:5000/account/stripe/return?session_id=cs_…` in dev) or marketing site in prod.
-3. App calls `GET /checkout/session-info?session_id=cs_…`.
-4. New user: `POST /auth/register` with `checkout_session_id` + password (+ optional `install_id`, `signup_snapshot`).
-5. Existing user (signed in): `POST /auth/attach-checkout` with `checkout_session_id`.
-6. App calls `GET /entitlements` (live Stripe subscription query; updates subscription milestones on linked install).
+1. User creates account at `/account/signup.html` → `POST /auth/signup` → `signup_token` (pending until paid).
+2. User chooses Local or Cloud + interval at `/account/subscribe.html` → `POST /checkout/create-session` → Stripe Checkout (`customer_email` prefilled).
+3. Stripe redirects to `/account/return.html?session_id=cs_…`.
+4. Return page polls `GET /checkout/session-info` until `account_status` is `active`.
+5. Webhook `checkout.session.completed` also activates the account (idempotent).
+6. Desktop/PWA sign-in: web login with `?next=desktop` or `?next=pwa` → token handoff.
 
-Configure Payment Link redirects for local dev: `.\scripts\configure-payment-links.ps1`
+**Upgrade (logged in):** `/account/subscribe.html?upgrade=1` → sign in → `POST /checkout/create-session` with Bearer token (subscription swap when same interval).
+
+**Legacy payment-first:** `POST /auth/register` after Payment Link checkout (deprecated; kept for in-flight sessions).
+
+Create Stripe prices (metadata `storage_tier: local|cloud`):
+
+```powershell
+python account_api\dev\setup_stripe_prices.py --grandfather-existing
+```
+
+Add printed `STRIPE_PRICE_*` values to `client_app/production.env` and `account_api/worker/wrangler.toml` `[vars]`.
 
 ## Routes
 
 | Method | Path | Auth | Purpose |
 |--------|------|------|---------|
 | GET | `/health` | No | `{ ok, stripe }` connectivity check |
-| GET | `/checkout/session-info` | No | Query `session_id=cs_…` → `{ email, paid, subscription_active, account_exists }` |
-| POST | `/auth/register` | No | Body: `{ password, checkout_session_id, install_id?, signup_snapshot? }` → tokens + `email` |
+| GET | `/checkout/session-info` | No | Query `session_id=cs_…` → `{ email, paid, subscription_active, storage_tier, account_status }` |
+| POST | `/auth/signup` | No | Body: `{ email, password }` → `{ signup_token, email, account_status, resumed? }` |
+| POST | `/checkout/create-session` | Bearer signup or access | Body: `{ tier, interval, promotion_code? }` → `{ checkout_url }` or `{ upgraded, storage_tier }` |
+| POST | `/auth/register` | No | **Legacy.** Body: `{ password, checkout_session_id, install_id? }` → tokens + `email` |
 | POST | `/auth/attach-checkout` | Bearer | Body: `{ checkout_session_id }` → `{ ok: true }` |
-| POST | `/auth/login` | No | Body: `{ email, password }` → `{ access_token, refresh_token }` |
+| POST | `/auth/login` | No | Body: `{ email, password }` → `{ access_token, refresh_token }` (rate limited) |
+| POST | `/auth/forgot-password` | No | Body: `{ email }` → generic success (rate limited; sends Resend email if configured) |
+| POST | `/auth/reset-password` | No | Body: `{ token, password }` → `{ ok: true }` |
+| POST | `/auth/verify-email` | No | Body: `{ token }` → `{ ok: true, verified: true }` |
+| POST | `/auth/resend-verification` | Bearer | Resend verification email → `{ ok: true, sent: true }` |
 | POST | `/auth/refresh` | No | Body: `{ refresh_token }` → new tokens |
-| GET | `/entitlements` | Bearer | Subscription status from Stripe + `portal_url`; updates install subscription milestones |
+| GET | `/entitlements` | Bearer | Subscription status + `portal_url`, `storage_tier`, `platforms`, `email_verified` |
 | POST | `/telemetry/heartbeat` | No | Anonymous install heartbeat + usage aggregates |
 | POST | `/telemetry/event` | No | Idempotent funnel events (`first_invoice`, `uninstall`, …) |
-| GET | `/admin` | HTTP Basic (`ADMIN_PASSWORD`) | HTML analytics dashboard |
+| GET | `/admin` | HTTP Basic (`ADMIN_PASSWORD`) | HTML analytics dashboard + registered accounts table |
 | GET | `/admin/api/summary` | HTTP Basic | JSON funnel / churn / signup metrics |
+| GET | `/admin/api/accounts` | HTTP Basic | JSON list of registered accounts (email, plan, state, tier, Stripe id) |
 | POST | `/admin/api/user-test/enabled` | HTTP Basic | Body `{ enabled: bool }` — toggle remote user-test intake |
 | GET | `/admin/api/user-test/submissions` | HTTP Basic | List submissions + total video bytes |
 | GET | `/admin/api/user-test/submissions/:id` | HTTP Basic | Submission answers JSON |
@@ -41,7 +58,16 @@ Configure Payment Link redirects for local dev: `.\scripts\configure-payment-lin
 | POST | `/user-test/submissions` | No (CORS) | Start submission; presigned PUT URL if video, else `{ uploadUrl: null }` |
 | POST | `/user-test/submissions/:id/complete` | No (CORS) | Save answers JSON (7 keys: `getting_started`, `invoice_workflow`, `confidence_trust`, `expectations_gaps`, `overall`, `pricing_trial`, `anything_else`; all required) |
 | GET | `/releases/latest` | No | In-app update metadata (see below) |
-| POST | `/webhooks/stripe` | Stripe signature | Ack only — entitlements are live-queried from Stripe |
+| POST | `/guest/session` | No (CORS `app.frogswork.com`, localhost:8090) | Guest cloud trial → `{ guest_id, guest_token, expires_at }` |
+| GET | `/documents/bootstrap` | Bearer access or guest (cloud tier for users) | Full snapshot: businesses, customers, invoices, settings |
+| POST | `/documents/migrate` | Bearer access or guest (cloud tier for users) | Import local backup JSON payload (max 5 MB) |
+| POST | `/documents/sync` | Bearer access or guest (cloud tier for users) | Body `{ mutations: [...] }` — offline queue replay |
+| GET | `/documents/invoices/:n/pdf` | Bearer access or guest | PDF as `{ filename, content_b64 }` |
+| POST | `/documents/invoices/:n/generate` | Bearer access or guest | Server PDF generation (pdf-lib) → R2 for users |
+| POST | `/documents/invoices/:n/send` | Bearer access or guest | Queue integrated email; `pdf_b64` validated with `%PDF-` magic |
+| POST | `/admin/api/cleanup-pending` | HTTP Basic | Delete `pending_payment` users older than 7 days |
+| POST | `/admin/api/checkout/default-beta80` | HTTP Basic | Body `{ enabled: bool }` — auto-apply BETA80 on new Checkout Sessions |
+| POST | `/webhooks/stripe` | Stripe signature | `checkout.session.completed` activates account; idempotent |
 
 ### Auth
 

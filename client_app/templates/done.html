@@ -40,8 +40,10 @@
             <p class="done-step-hint">Marked as sent{% if sent_date %} on {{ sent_date | fmt_invoice_date }}{% endif %}.</p>
             {% elif send_later %}
             <p class="done-step-hint">Send later. Stays in Past invoices under Not sent.</p>
+            {% elif inv and inv.get('status') == 'send_queued' %}
+            <p class="done-step-hint">Sending automatically…</p>
             {% else %}
-            <p class="done-step-hint">Use Prepare to send to copy the email text, attach the PDF, and mark as sent.</p>
+            <p class="done-step-hint">Send from FrogsWork, or view the PDF first if you prefer.</p>
             {% if invoice_number %}
             {% with invoice_number=invoice_number, next_page='done', show_send_later=true %}
             {% include "_invoice_send_actions.html" %}

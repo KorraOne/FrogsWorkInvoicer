@@ -1,4 +1,5 @@
 import Stripe from "stripe";
+import { jwtSecretBytes } from "./jwt_secret.js";
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 import {
@@ -8,7 +9,7 @@ import {
   updateSubscriptionMilestones,
   upsertHeartbeat,
 } from "./telemetry.js";
-import { buildAdminSummary, checkAdminAuth, renderAdminHtml } from "./admin.js";
+import { buildAdminSummary, checkAdminAuth, listAdminAccounts, renderAdminHtml } from "./admin.js";
 import {
   deleteUserTestSubmission,
   getUserTestSubmission,
@@ -18,6 +19,37 @@ import {
   handleUserTestStatus,
   setUserTestEnabled,
 } from "./user_test.js";
+import {
+  resolveStorageTier,
+  storageTierFromSubscription,
+  entitlementsPlatforms,
+  handleDocumentsRoute,
+  handleGuestDocumentsRoute,
+  handleGuestRoute,
+  processEmailOutbox,
+  verifyGuestToken,
+} from "./documents.js";
+import { corsPreflight, withCors } from "./cors.js";
+import {
+  handleSignup,
+  handleCreateCheckoutSession,
+  handleCheckoutSessionInfo,
+  handleStripeWebhook,
+  cleanupPendingUsers,
+  activateUserFromCheckout,
+} from "./billing.js";
+import {
+  setDefaultBeta80Enabled,
+  getCheckoutPromoAdminContext,
+} from "./checkout_settings.js";
+import {
+  handleForgotPassword,
+  handleResetPassword,
+  handleVerifyEmail,
+  handleResendVerification,
+  isEmailVerified,
+} from "./auth_email.js";
+import { checkRateLimit, clientIp, rateLimitResponse } from "./rate_limit.js";
 
 const ACCESS_TTL_SEC = 12 * 60 * 60;
 const REFRESH_TTL_SEC = 30 * 24 * 60 * 60;
@@ -51,7 +83,7 @@ async function readJson(request) {
 }
 
 async function issueTokens(env, userId, email) {
-  const secret = new TextEncoder().encode(env.JWT_SECRET);
+  const secret = jwtSecretBytes(env);
   const now = Math.floor(Date.now() / 1000);
   const access = await new SignJWT({
     sub: String(userId),
@@ -75,7 +107,7 @@ async function issueTokens(env, userId, email) {
 }
 
 async function decodeToken(env, token, expectedType) {
-  const secret = new TextEncoder().encode(env.JWT_SECRET);
+  const secret = jwtSecretBytes(env);
   const { payload } = await jwtVerify(token, secret);
   if (payload.type !== expectedType) {
     throw new Error("wrong token type");
@@ -200,6 +232,29 @@ async function requireUser(request, env) {
   }
 }
 
+async function requireUserOrGuest(request, env) {
+  const header = request.headers.get("Authorization") || "";
+  if (!header.startsWith("Bearer ")) {
+    return { error: textError("Unauthorized", 401) };
+  }
+  const token = header.slice(7);
+  try {
+    const payload = await decodeToken(env, token, "access");
+    const user = await userById(env.DB, Number(payload.sub));
+    if (user) {
+      return { kind: "user", user };
+    }
+  } catch {
+    /* try guest */
+  }
+  try {
+    const guestPayload = await verifyGuestToken(env, token);
+    return { kind: "guest", guestId: guestPayload.sub };
+  } catch {
+    return { error: textError("Invalid token", 401) };
+  }
+}
+
 async function validatedCheckoutSession(stripe, sessionId) {
   const checkout = await stripe.checkout.sessions.retrieve(sessionId, {
     expand: ["subscription"],
@@ -233,6 +288,38 @@ async function validatedCheckoutSession(stripe, sessionId) {
 
 export default {
   async fetch(request, env) {
+    const preflight = corsPreflight(request);
+    if (preflight) return preflight;
+    try {
+      const response = await handleRequest(request, env);
+      return withCors(request, response);
+    } catch (exc) {
+      return withCors(
+        request,
+        json({ error: String(exc?.message || exc) }, 500)
+      );
+    }
+  },
+  async scheduled(_event, env) {
+    try {
+      const deleted = await cleanupPendingUsers(env.DB);
+      console.log(`cleanupPendingUsers: deleted ${deleted}`);
+    } catch (exc) {
+      console.error("scheduled cleanup failed:", exc);
+    }
+  },
+};
+
+async function enforceRateLimit(request, env, scope) {
+  const ip = clientIp(request);
+  const result = await checkRateLimit(env.DB, `${scope}:${ip}`);
+  if (!result.allowed) {
+    return rateLimitResponse(result.retryAfterSec);
+  }
+  return null;
+}
+
+async function handleRequest(request, env) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/$/, "") || "/";
 
@@ -241,23 +328,26 @@ export default {
     }
 
     if (path === "/checkout/session-info" && request.method === "GET") {
-      const sessionId = (url.searchParams.get("session_id") || "").trim();
-      if (!sessionId.startsWith("cs_")) {
-        return textError("Invalid checkout session.", 400);
-      }
-      try {
-        const stripe = getStripe(env);
-        const { email } = await validatedCheckoutSession(stripe, sessionId);
-        const existing = await userByEmail(env.DB, email);
-        return json({
-          email,
-          paid: true,
-          subscription_active: true,
-          account_exists: Boolean(existing),
-        });
-      } catch (exc) {
-        return textError(String(exc.message || exc), 400);
-      }
+      return handleCheckoutSessionInfo(request, env, {
+        getStripe,
+        userById,
+        subscriptionStatus,
+      });
+    }
+
+    if (path === "/auth/signup" && request.method === "POST") {
+      const limited = await enforceRateLimit(request, env, "auth_signup");
+      if (limited) return limited;
+      return handleSignup(request, env, { userByEmail, userById });
+    }
+
+    if (path === "/checkout/create-session" && request.method === "POST") {
+      return handleCreateCheckoutSession(request, env, {
+        getStripe,
+        requireUser,
+        userById,
+        subscriptionStatus,
+      });
     }
 
     if (path === "/auth/register" && request.method === "POST") {
@@ -293,7 +383,7 @@ export default {
       const passwordHash = bcrypt.hashSync(password, 10);
       const createdAt = new Date().toISOString();
       const result = await env.DB.prepare(
-        "INSERT INTO users (email, password_hash, stripe_customer_id, created_at) VALUES (?, ?, ?, ?)"
+        "INSERT INTO users (email, password_hash, stripe_customer_id, account_status, created_at) VALUES (?, ?, ?, 'active', ?)"
       )
         .bind(email, passwordHash, customerId, createdAt)
         .run();
@@ -327,8 +417,9 @@ export default {
       }
       let email;
       let customerId;
+      let stripe;
       try {
-        const stripe = getStripe(env);
+        stripe = getStripe(env);
         ({ email, customerId } = await validatedCheckoutSession(stripe, sessionId));
       } catch (exc) {
         return textError(String(exc.message || exc), exc.message === "Stripe is not configured." ? 503 : 400);
@@ -337,20 +428,33 @@ export default {
         return textError("Checkout email does not match your account.", 400);
       }
       await env.DB.prepare(
-        "UPDATE users SET stripe_customer_id = ? WHERE id = ?"
+        "UPDATE users SET stripe_customer_id = ?, account_status = 'active' WHERE id = ?"
       )
         .bind(customerId, auth.user.id)
         .run();
-      return json({ ok: true });
+      const tier = await resolveStorageTier(env.DB, stripe, {
+        ...auth.user,
+        stripe_customer_id: customerId,
+      });
+      return json({ ok: true, storage_tier: tier });
     }
 
     if (path === "/auth/login" && request.method === "POST") {
+      const limited = await enforceRateLimit(request, env, "auth_login");
+      if (limited) return limited;
       const body = await readJson(request);
       const email = (body.email || "").trim().toLowerCase();
       const password = body.password || "";
       const user = await userByEmail(env.DB, email);
       if (!user || !bcrypt.compareSync(password, user.password_hash)) {
         return textError("Invalid email or password.", 401);
+      }
+      const accountStatus = (user.account_status || "active").trim();
+      if (accountStatus === "pending_payment") {
+        return textError(
+          "Your account is not active yet. Finish checkout on the subscribe page.",
+          403
+        );
       }
       const tokens = await issueTokens(env, user.id, user.email);
       return json(tokens);
@@ -372,6 +476,24 @@ export default {
       }
     }
 
+    if (path === "/auth/forgot-password" && request.method === "POST") {
+      const limited = await enforceRateLimit(request, env, "auth_forgot");
+      if (limited) return limited;
+      return handleForgotPassword(request, env, { userByEmail });
+    }
+
+    if (path === "/auth/reset-password" && request.method === "POST") {
+      return handleResetPassword(request, env);
+    }
+
+    if (path === "/auth/verify-email" && request.method === "POST") {
+      return handleVerifyEmail(request, env);
+    }
+
+    if (path === "/auth/resend-verification" && request.method === "POST") {
+      return handleResendVerification(request, env, { requireUser });
+    }
+
     if (path === "/entitlements" && request.method === "GET") {
       const auth = await requireUser(request, env);
       if (auth.error) return auth.error;
@@ -383,7 +505,16 @@ export default {
       }
       const sub = await subscriptionStatus(stripe, auth.user.stripe_customer_id);
       sub.portal_url = await portalUrl(stripe, auth.user.stripe_customer_id);
+      sub.storage_tier = await resolveStorageTier(env.DB, stripe, auth.user);
+      sub.platforms = entitlementsPlatforms(sub.storage_tier);
+      sub.email_verified = isEmailVerified(auth.user);
+      sub.email = auth.user.email;
       await updateSubscriptionMilestones(env.DB, auth.user, sub);
+      try {
+        await processEmailOutbox(env, auth.user.id, auth.user.email);
+      } catch {
+        /* non-fatal */
+      }
       return json(sub);
     }
 
@@ -418,6 +549,15 @@ export default {
     const completeMatch = path.match(/^\/user-test\/submissions\/([^/]+)\/complete$/);
     if (completeMatch) {
       return handleUserTestComplete(request, env, completeMatch[1]);
+    }
+
+    if (path === "/admin/api/checkout/default-beta80" && request.method === "POST") {
+      const auth = checkAdminAuth(request, env.ADMIN_PASSWORD);
+      if (!auth.ok) return auth.response;
+      const body = await readJson(request);
+      const enabled = Boolean(body.enabled);
+      await setDefaultBeta80Enabled(env.DB, enabled);
+      return json({ ok: true, enabled });
     }
 
     if (path === "/admin/api/user-test/enabled" && request.method === "POST") {
@@ -492,6 +632,17 @@ export default {
       return json({ ok: true });
     }
 
+    if (path === "/admin/api/accounts" && request.method === "GET") {
+      const auth = checkAdminAuth(request, env.ADMIN_PASSWORD);
+      if (!auth.ok) return auth.response;
+      try {
+        const accounts = await listAdminAccounts(env.DB);
+        return json({ accounts });
+      } catch (exc) {
+        return textError(String(exc.message || exc), 500);
+      }
+    }
+
     if (path === "/admin/api/summary" && request.method === "GET") {
       const auth = checkAdminAuth(request, env.ADMIN_PASSWORD);
       if (!auth.ok) return auth.response;
@@ -509,7 +660,8 @@ export default {
       try {
         const summary = await buildAdminSummary(env.DB);
         const userTest = await getUserTestAdminContext(env.DB);
-        return new Response(renderAdminHtml(summary, userTest), {
+        const checkoutPromo = await getCheckoutPromoAdminContext(env.DB);
+        return new Response(renderAdminHtml(summary, userTest, checkoutPromo), {
           headers: { "Content-Type": "text/html; charset=utf-8" },
         });
       } catch (exc) {
@@ -529,27 +681,41 @@ export default {
       });
     }
 
-    if (path === "/webhooks/stripe" && request.method === "POST") {
-      // Ack only — GET /entitlements queries Stripe live; no DB cache yet.
-      if (!env.STRIPE_WEBHOOK_SECRET) {
-        return textError("Webhook secret not configured.", 500);
+    const guestResponse = await handleGuestRoute(request, env, path);
+    if (guestResponse) return guestResponse;
+
+    if (path.startsWith("/documents")) {
+      const docAuth = await requireUserOrGuest(request, env);
+      if (docAuth.error) return docAuth.error;
+      if (docAuth.kind === "guest") {
+        const docResponse = await handleGuestDocumentsRoute(request, env, path, docAuth.guestId);
+        if (docResponse) return docResponse;
+        return textError("Not found", 404);
       }
       let stripe;
       try {
         stripe = getStripe(env);
       } catch {
-        return textError("Stripe is not configured.", 500);
+        return textError("Stripe is not configured.", 503);
       }
-      const payload = await request.text();
-      const sig = request.headers.get("Stripe-Signature") || "";
-      try {
-        stripe.webhooks.constructEvent(payload, sig, env.STRIPE_WEBHOOK_SECRET);
-      } catch (exc) {
-        return textError(String(exc.message || exc), 400);
-      }
-      return json({ received: true });
+      const docResponse = await handleDocumentsRoute(request, env, path, docAuth, stripe);
+      if (docResponse) return docResponse;
+    }
+
+    if (path === "/admin/api/cleanup-pending" && request.method === "POST") {
+      const auth = checkAdminAuth(request, env.ADMIN_PASSWORD);
+      if (!auth.ok) return auth.response;
+      const deleted = await cleanupPendingUsers(env.DB);
+      return json({ ok: true, deleted });
+    }
+
+    if (path === "/webhooks/stripe" && request.method === "POST") {
+      return handleStripeWebhook(request, env, {
+        getStripe,
+        userById,
+        subscriptionStatus,
+      });
     }
 
     return textError("Not found", 404);
-  },
-};
+}

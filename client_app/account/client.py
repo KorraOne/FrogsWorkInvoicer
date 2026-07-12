@@ -7,7 +7,6 @@ import urllib.parse
 import urllib.request
 
 from . import auth_store
-from app_config import STRIPE_PAYMENT_LINK_ANNUAL, STRIPE_PAYMENT_LINK_MONTHLY
 
 log = logging.getLogger(__name__)
 
@@ -145,6 +144,10 @@ def _refresh_if_needed():
         raise
 
 
+def resend_verification():
+    return _request("POST", "/auth/resend-verification", auth=True)
+
+
 def get_entitlements():
     try:
         return _request("GET", "/entitlements", auth=True)
@@ -155,11 +158,14 @@ def get_entitlements():
         raise
 
 
-def payment_link_for_plan(plan, email=None):
-    """Return Stripe Payment Link URL for monthly or annual plan."""
-    del email  # Stripe collects email at checkout (source of truth for registration).
-    base = STRIPE_PAYMENT_LINK_ANNUAL if plan == "annual" else STRIPE_PAYMENT_LINK_MONTHLY
-    return base or None
+# Re-export document API helpers
+from .documents import (  # noqa: E402
+    documents_bootstrap,
+    documents_download_pdf,
+    documents_migrate,
+    documents_sync,
+    enqueue_invoice_send,
+)
 
 
 def map_http_auth_error(message):

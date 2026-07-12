@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#16a34a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>FrogsWork</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>FrogsWork</h1>
+    <p id="sync-status" class="sync-status" hidden></p>
+  </header>
+  <main id="app" class="app-main">
+    <section id="gate-screen" class="panel">
+      <h2>Welcome</h2>
+      <p id="gate-message" class="hint">Sign in with your Cloud account or try a guest workspace.</p>
+      <div class="btn-row">
+        <a id="sign-in-link" class="btn primary" href="https://frogswork.com/account/login.html?next=pwa">Sign in</a>
+        <button type="button" id="guest-start" class="btn secondary">Try without account</button>
+      </div>
+      <p class="hint gate-subscribe">
+        Need a subscription? <a id="subscribe-link" href="https://frogswork.com/account/signup.html">Create account</a>
+        · <a href="https://frogswork.com/account/forgot-password.html">Forgot password?</a>
+      </p>
+      <a id="upgrade-link" class="btn ghost" href="https://frogswork.com/account/subscribe.html?upgrade=1&tier=cloud" hidden>Upgrade to Cloud</a>
+    </section>
+    <section id="app-screen" hidden>
+      <div id="tab-home" class="tab-panel" data-tab="home"></div>
+      <div id="tab-invoices" class="tab-panel" data-tab="invoices" hidden></div>
+      <div id="tab-customers" class="tab-panel" data-tab="customers" hidden></div>
+      <div id="tab-settings" class="tab-panel" data-tab="settings" hidden></div>
+    </section>
+  </main>
+  <nav id="bottom-nav" class="bottom-nav" hidden>
+    <button data-tab="home" class="active">Home</button>
+    <button data-tab="invoices">Invoices</button>
+    <button data-tab="customers">Customers</button>
+    <button data-tab="settings">Settings</button>
+  </nav>
+  <button id="fab" class="fab" hidden aria-label="Add">+</button>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

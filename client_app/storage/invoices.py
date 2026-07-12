@@ -9,7 +9,7 @@ from datetime import date
 from storage._json_cache import cached_read, invalidate
 from storage.bootstrap import get_deleted_pdf_dir, get_data_path, get_pdf_dir
 
-VALID_STATUSES = ("not_sent", "sent", "paid")
+VALID_STATUSES = ("not_sent", "send_queued", "send_failed", "sent", "paid")
 
 STATUS_TRANSITIONS = {
     "not_sent": "sent",
@@ -30,6 +30,11 @@ def _invoice_key(number):
 
 
 def load_invoices():
+    from storage.context import active_provider
+
+    provider = active_provider()
+    if provider is not None:
+        return provider.load_invoices()
     path = _invoices_path()
 
     def _read():
@@ -44,6 +49,11 @@ def load_invoices():
 
 
 def load_active_invoices():
+    from storage.context import active_provider
+
+    provider = active_provider()
+    if provider is not None:
+        return provider.load_active_invoices()
     return {
         key: inv
         for key, inv in load_invoices().items()
@@ -52,6 +62,11 @@ def load_active_invoices():
 
 
 def get_invoice(number, *, include_deleted=False):
+    from storage.context import active_provider
+
+    provider = active_provider()
+    if provider is not None:
+        return provider.get_invoice(number, include_deleted=include_deleted)
     inv = load_invoices().get(_invoice_key(number))
     if inv is None:
         return None
@@ -61,6 +76,12 @@ def get_invoice(number, *, include_deleted=False):
 
 
 def save_invoices(invoices):
+    from storage.context import active_provider
+
+    provider = active_provider()
+    if provider is not None:
+        provider.save_invoices(invoices)
+        return
     path = _invoices_path()
     with open(path, "w", encoding="utf-8") as f:
         json.dump(invoices, f, indent=2)
@@ -68,6 +89,12 @@ def save_invoices(invoices):
 
 
 def add_invoice(record):
+    from storage.context import active_provider
+
+    provider = active_provider()
+    if provider is not None:
+        provider.add_invoice(record)
+        return
     invoices = load_invoices()
     key = _invoice_key(record["invoice_number"])
     invoices[key] = {
@@ -140,6 +167,10 @@ def set_invoice_status(number, status):
     if status == "not_sent":
         invoice["sent_date"] = None
         invoice["paid_date"] = None
+    elif status == "send_queued":
+        pass
+    elif status == "send_failed":
+        pass
     elif status == "sent":
         if not invoice.get("sent_date"):
             invoice["sent_date"] = today

@@ -12,6 +12,7 @@
     "aws4fetch": "^1.0.20",
     "bcryptjs": "^2.4.3",
     "jose": "^5.9.6",
+    "pdf-lib": "^1.17.1",
     "stripe": "^17.4.0"
   },
   "devDependencies": {
