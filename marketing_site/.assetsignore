@@ -4,3 +4,7 @@ downloads/**
 # Wrangler / local tooling
 .wrangler/**
 package-lock.json
+src/**
+README.md
+wrangler.toml
+.assetsignore

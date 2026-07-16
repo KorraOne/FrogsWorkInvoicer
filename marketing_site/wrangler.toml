@@ -3,6 +3,7 @@
 # Dashboard project: frogswork-invoicer
 
 name = "frogswork-invoicer"
+main = "src/worker.js"
 compatibility_date = "2026-06-28"
 compatibility_flags = ["nodejs_compat"]
 
@@ -11,3 +12,8 @@ enabled = true
 
 [assets]
 directory = "."
+binding = "ASSETS"
+# Do not treat the site as an SPA (avoids serving a stale index for missing paths).
+html_handling = "auto-trailing-slash"
+not_found_handling = "404-page"
+run_worker_first = false
