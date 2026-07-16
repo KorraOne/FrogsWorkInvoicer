@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FrogsWork privacy</title>
-    <meta name="description" content="FrogsWork privacy policy. Local data on your PC; optional account data on the FrogsWork account API.">
+    <meta name="description" content="FrogsWork privacy policy. Cloud account and invoice data on the FrogsWork API.">
     <link rel="icon" href="/assets/brand/favicon.ico" sizes="any">
     <link rel="icon" type="image/png" sizes="32x32" href="/assets/brand/favicon-32.png">
     <link rel="icon" type="image/png" sizes="48x48" href="/assets/brand/favicon-48.png">
@@ -30,44 +30,35 @@
 
     <main class="site-main prose">
         <h1 class="section-heading">Privacy policy</h1>
-        <p class="section-lead">Last updated: June 2026. FrogsWork is operated by KorraOne.</p>
+        <p class="section-lead">Last updated: July 2026. FrogsWork is operated by KorraOne.</p>
 
-        <h2>Local data on your computer</h2>
-        <p>FrogsWork stores customers, invoices, settings, and subscription cache on your PC, mainly under <code>%APPDATA%\FrogsWork\</code>. PDFs go in a <code>pdfs</code> folder, by default under AppData or wherever you chose at install or in Settings.</p>
-        <p>If you remove an invoice from your list, FrogsWork keeps a minimal record and moves the PDF to a hidden <code>.deleted</code> folder under AppData, separate from your PDF folder.</p>
-        <p>This data stays on your machine unless you choose to back it up or sign in to a FrogsWork account.</p>
+        <h2>Cloud service</h2>
+        <p>FrogsWork is a Cloud product. You use it in the browser, as a phone PWA, or through the Windows desktop shell. Those clients talk to the FrogsWork account API at <code>api.frogswork.com</code>.</p>
 
-        <h2>When you create an account</h2>
-        <p>If you register, we store your email and hashed password on the FrogsWork account API (<code>api.frogswork.com</code>). Stripe handles subscription billing. We link your account to a Stripe customer ID.</p>
+        <h2>Account and billing</h2>
+        <p>When you register, we store your email and a hashed password. Stripe handles subscription billing. We link your account to a Stripe customer ID and subscription status.</p>
 
-        <h2>Local vs Cloud storage</h2>
-        <p><strong>Local plan:</strong> Your invoice data (customers, line items, PDFs) stays on your PC under <code>%APPDATA%\FrogsWork\</code> unless you export a backup yourself.</p>
-        <p><strong>Cloud plan:</strong> Invoice records (business details, customers, invoice JSON) are stored on our Cloudflare D1 database, scoped to your account. Invoice PDFs are stored in our Cloudflare R2 bucket. The mobile browser app and Cloud desktop mode sync through the same API. Data is protected by HTTPS in transit and account access controls.</p>
+        <h2>Invoice and business data</h2>
+        <p>With an active Cloud subscription, invoice records (business details, customers, invoice JSON) are stored in our Cloudflare D1 database, scoped to your account. Invoice PDFs are stored in our Cloudflare R2 bucket. Email sending uses Resend through our API.</p>
+        <p>Data is protected by HTTPS in transit and account access controls. Clients may keep a local cache (for example IndexedDB in the browser, or WebView2 storage in the desktop shell) to work when briefly offline.</p>
+
+        <h2>Desktop shell</h2>
+        <p>The Windows installer is a thin shell around the Cloud app. It may keep window size, update state, and an install identifier under <code>%APPDATA%\FrogsWork\</code>. It does not replace Cloud storage for invoices.</p>
 
         <h2 id="usage-statistics">Anonymous usage statistics</h2>
-        <p>For <strong>Local plan</strong> users, FrogsWork is built to keep your business data on your computer. To improve the app, it may send anonymous usage information to our servers. For example: that the app was installed, how many invoices you have created in total (a count, not the invoices themselves), your app version, and whether you have an active subscription.</p>
-        <p>We use a pseudonymous identifier for installs that have not signed in. If you create an account, we link that identifier to your email for support and billing only.</p>
-        <p><strong>Local plan — we do not receive invoice content:</strong></p>
-        <ul>
-            <li>customer names, contacts, or ABNs</li>
-            <li>individual invoice line items, descriptions, or invoice numbers</li>
-            <li>invoice PDFs or attachments</li>
-            <li>bank account or BSB details on invoices (subscription payments are handled by Stripe)</li>
-        </ul>
-        <p>Local-plan customers and invoice content stay on your PC unless you choose Cloud sync or back up data yourself.</p>
+        <p>The desktop shell may send anonymous usage information to our servers, for example that the app was installed, aggregate invoice counts (not invoice content), app version, and whether a subscription is active. We use a pseudonymous install identifier until you sign in. After you create an account, we may link that identifier to your email for support and billing only.</p>
 
         <h2>What we do not do</h2>
         <ul>
             <li>We do not sell your personal information.</li>
-            <li>We do not use third-party advertising trackers in the desktop app.</li>
-            <li>We do not require an account during the free trial (20 invoices or $20,000 ex GST).</li>
+            <li>We do not use third-party advertising trackers in the Cloud app or desktop shell.</li>
         </ul>
 
         <h2>Updates and downloads</h2>
-        <p>The app may contact <code>api.frogswork.com</code> for sign-in, subscription checks, and update metadata. Installers download from <code>downloads.frogswork.com</code> over HTTPS.</p>
+        <p>Clients contact <code>api.frogswork.com</code> for sign-in, entitlements, documents, and email. Installers download from <code>downloads.frogswork.com</code> over HTTPS.</p>
 
-        <h2>Support</h2>
-        <p>For access, correction, or deletion requests related to account data, contact us via <a href="/contact.html">FrogsWork support</a>.</p>
+        <h2>Retention and rights</h2>
+        <p>We keep account and Cloud document data while your account is active and as needed for billing and legal obligations. For access, correction, or deletion requests, contact us via <a href="/contact.html">FrogsWork support</a>.</p>
     </main>
 
     <footer class="site-footer">

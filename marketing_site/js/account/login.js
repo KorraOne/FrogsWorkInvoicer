@@ -1,5 +1,5 @@
 import { login, attachCheckout, mapAuthError } from "./api.js";
-import { DESKTOP_CALLBACK_URL, PWA_URL, SESSION_KEYS } from "./config.js";
+import { PWA_URL, SESSION_KEYS } from "./config.js";
 
 const params = new URLSearchParams(location.search);
 const next = params.get("next") || "";
@@ -33,22 +33,13 @@ function redirectAfterLogin(tokens, email) {
       finishSubscribe();
       return;
     }
-    if (next === "pwa") {
+    if (next === "pwa" || next === "desktop" || next === "app") {
       const q = new URLSearchParams({
         pwa_auth: "1",
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token || "",
       });
       window.location.href = `${PWA_URL}/?${q}`;
-      return;
-    }
-    if (next === "desktop") {
-      const q = new URLSearchParams({
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token || "",
-        email,
-      });
-      window.location.href = `${DESKTOP_CALLBACK_URL}?${q}`;
       return;
     }
     window.location.href = "/account/success.html?flow=login";

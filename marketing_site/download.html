@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Download FrogsWork</title>
-    <meta name="description" content="Download FrogsWork for Windows. Local sales invoicing for Australian sole traders.">
+    <meta name="description" content="Optional Windows shell for FrogsWork Cloud. Same app as app.frogswork.com in a desktop window.">
     <link rel="icon" href="/assets/brand/favicon.ico" sizes="any">
     <link rel="icon" type="image/png" sizes="32x32" href="/assets/brand/favicon-32.png">
     <link rel="icon" type="image/png" sizes="48x48" href="/assets/brand/favicon-48.png">
@@ -29,14 +29,15 @@
     </header>
 
     <main class="site-main">
-        <h1 class="section-heading">Download FrogsWork</h1>
-        <p class="section-lead">Windows installer for your PC. Invoices and customer records stay on your computer. <a href="/account/login.html?next=desktop">Sign in</a> after subscribing.</p>
+        <h1 class="section-heading">Download for Windows</h1>
+        <p class="section-lead">Optional. Most people can use FrogsWork in the browser at <a href="https://app.frogswork.com">app.frogswork.com</a>. The Windows installer opens the same Cloud app in a desktop window.</p>
 
         <div class="download-panel">
             <div class="download-cta">
                 <a id="download-btn" class="btn btn-primary btn-download" href="#" aria-disabled="true">Download for Windows</a>
-                <p class="download-meta">Version <span id="release-version">…</span>. Windows 10 or later, 64-bit.</p>
-                <p id="download-fallback" class="download-meta">No build uploaded yet. Check back soon or <a href="/support.html">contact support</a>.</p>
+                <p class="download-meta">Version <span id="release-version">…</span>. Windows 10 or later, 64-bit. Needs Microsoft Edge WebView2.</p>
+                <p id="download-fallback" class="download-meta">No build uploaded yet. Use <a href="https://app.frogswork.com">the browser app</a> or <a href="/support.html">contact support</a>.</p>
+                <p class="download-meta"><a class="btn btn-secondary" href="https://app.frogswork.com">Open Cloud app instead</a></p>
             </div>
 
             <section class="download-section">
@@ -44,20 +45,20 @@
                 <ol class="steps">
                     <li>Click download and wait for the file to finish.</li>
                     <li>Run the installer. The default location is fine for most people.</li>
-                    <li>Open FrogsWork from the Start menu.</li>
+                    <li>Open FrogsWork from the Start menu and sign in with your Cloud account.</li>
                 </ol>
                 <p class="download-hint">If Windows warns about an unknown publisher, choose <strong>More info</strong>, then <strong>Run anyway</strong>. The installer is not signed yet.</p>
                 <p class="guide-link" data-guide-link="install" data-guide-label="install FrogsWork"></p>
             </section>
 
             <section class="download-section">
-                <h2>Your invoices and settings</h2>
-                <p>Your data lives in AppData on your PC, separate from the program. You can export invoices before uninstalling.</p>
+                <h2>Your invoices</h2>
+                <p>Invoice data lives in FrogsWork Cloud (same as the browser app). The shell does not keep a separate Local invoice database.</p>
             </section>
 
             <section class="download-section">
                 <h2>Automatic updates</h2>
-                <p>When online, FrogsWork checks for updates and installs them from inside the app. Your data is not changed.</p>
+                <p>When online, the shell can check for updates and install them from inside the app.</p>
             </section>
 
             <details class="version-history" id="version-history">

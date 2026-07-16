@@ -11,24 +11,20 @@ const pwaLink = document.getElementById("open-pwa");
 
 if (flow === "subscribe" || flow === "register") {
   if (titleEl) titleEl.textContent = "Subscription active";
-  const tierLabel = tier === "cloud" ? "Cloud" : tier === "local" ? "Local" : "";
   if (leadEl) {
     const who = email ? `Signed in as ${email}. ` : "";
-    const plan = tierLabel ? `${tierLabel} plan is active. ` : "";
-    leadEl.textContent = `${who}${plan}Download FrogsWork for Windows${tier === "cloud" ? " or open the browser app on your phone" : ""}.`;
+    leadEl.textContent = `${who}Open the Cloud app to start invoicing. Optional: install the Windows shell from Download.`;
   }
 } else if (flow === "upgrade") {
   if (titleEl) titleEl.textContent = "Plan updated";
   if (leadEl) {
-    leadEl.textContent =
-      tier === "cloud"
-        ? "Cloud is active. On your PC, open Settings to migrate data, then use the mobile app."
-        : "Your plan was updated. Open FrogsWork on your PC.";
+    leadEl.textContent = "Cloud is active. Open the app to continue.";
   }
-}
-
-if (tier === "local" && pwaLink) {
-  pwaLink.hidden = true;
+} else if (flow === "login") {
+  if (titleEl) titleEl.textContent = "Signed in";
+  if (leadEl) {
+    leadEl.textContent = "Open the Cloud app to continue.";
+  }
 }
 
 if (pwaLink) pwaLink.setAttribute("href", PWA_URL);

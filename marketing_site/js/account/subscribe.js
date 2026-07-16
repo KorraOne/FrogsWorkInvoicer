@@ -3,7 +3,6 @@ import { PLANS, SESSION_KEYS, authHeader } from "./config.js";
 
 const params = new URLSearchParams(location.search);
 const installId = params.get("install_id");
-const presetTier = params.get("tier") === "cloud" ? "cloud" : params.get("tier") === "local" ? "local" : "";
 const isUpgrade = params.get("upgrade") === "1" || params.get("upgrade") === "cloud";
 const promoCode = (params.get("promo") || "").trim();
 
@@ -26,11 +25,8 @@ function showError(text) {
 }
 
 function updatePrices() {
-  const localPlan = PLANS.local[selectedInterval === "year" ? "annual" : "monthly"];
   const cloudPlan = PLANS.cloud[selectedInterval === "year" ? "annual" : "monthly"];
-  const localEl = document.querySelector("[data-price-local]");
   const cloudEl = document.querySelector("[data-price-cloud]");
-  if (localEl) localEl.textContent = localPlan.display;
   if (cloudEl) cloudEl.textContent = cloudPlan.display;
 }
 
@@ -57,7 +53,7 @@ function ensureAuth() {
   return null;
 }
 
-async function startCheckout(tier) {
+async function startCheckout() {
   const token = ensureAuth();
   if (!token) return;
   showError("");
@@ -67,10 +63,10 @@ async function startCheckout(tier) {
   });
   try {
     const interval = selectedInterval === "year" ? "year" : "month";
-    const result = await createCheckoutSession(tier, interval, token, promoCode || undefined);
+    const result = await createCheckoutSession("cloud", interval, token, promoCode || undefined);
     if (result.upgraded) {
       sessionStorage.removeItem(SESSION_KEYS.signupToken);
-      window.location.href = `/account/success.html?flow=upgrade&tier=${encodeURIComponent(result.storage_tier || tier)}`;
+      window.location.href = `/account/success.html?flow=upgrade&tier=cloud`;
       return;
     }
     if (result.checkout_url) {
@@ -89,8 +85,7 @@ async function startCheckout(tier) {
 
 document.querySelectorAll("[data-checkout-tier]").forEach((btn) => {
   btn.addEventListener("click", () => {
-    const tier = btn.dataset.checkoutTier === "cloud" ? "cloud" : "local";
-    startCheckout(tier);
+    startCheckout();
   });
 });
 
@@ -101,15 +96,11 @@ if (storedEmail && emailStrong) {
 }
 
 if (isUpgrade) {
-  if (heading) heading.textContent = "Upgrade or change plan";
+  if (heading) heading.textContent = "Upgrade to Cloud";
   if (lead) {
     lead.textContent =
-      "Choose Cloud to sync across devices and use the mobile app. Your checkout uses your account email.";
+      "Cloud keeps the same invoices on browser, phone, and Windows. Checkout uses your account email.";
   }
-}
-
-if (presetTier === "cloud") {
-  document.querySelector('[data-tier="cloud"]')?.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 updatePrices();

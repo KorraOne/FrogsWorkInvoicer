@@ -1,164 +1,69 @@
 <!DOCTYPE html>
-
 <html lang="en-AU">
-
 <head>
-
     <meta charset="UTF-8">
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Choose plan · FrogsWork</title>
-
-    <meta name="description" content="Choose Local or Cloud storage and monthly or annual billing for FrogsWork.">
-
+    <title>Subscribe · FrogsWork</title>
+    <meta name="description" content="Subscribe to FrogsWork Cloud. Monthly or annual billing via Stripe.">
     <link rel="icon" href="/assets/brand/favicon.ico" sizes="any">
-
     <link rel="stylesheet" href="/css/site.css">
-
 </head>
-
 <body>
-
     <header class="site-header">
-
         <div class="site-header-inner">
-
             <a class="site-brand" href="/">
-
                 <img class="site-brand-logo" src="/assets/brand/favicon-32.png" alt="" width="32" height="32">
-
                 FrogsWork
-
             </a>
-
             <button class="site-nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
-
             <nav class="site-nav" id="site-nav" aria-label="Main">
-
                 <a href="/">Home</a>
-
                 <a href="/pricing.html">Pricing</a>
-
                 <a href="/download.html">Download</a>
-
             </nav>
-
         </div>
-
     </header>
 
-
-
     <main class="site-main account-main">
-
         <div class="account-stepper" aria-label="Progress">
-
             <span class="account-step account-step--done">1. Create account</span>
-
             <span class="account-step account-step--active">2. Choose plan</span>
-
             <span class="account-step">3. Pay</span>
-
         </div>
 
-
-
-        <h1 class="section-heading" id="subscribe-heading">Choose your plan</h1>
-
-        <p class="section-lead" id="subscribe-lead">You'll pay with the same email you used to create your account. Receipts go to that address. Have a promo code? Enter it on the Stripe checkout page.</p>
-
+        <h1 class="section-heading" id="subscribe-heading">Subscribe to Cloud</h1>
+        <p class="section-lead" id="subscribe-lead">You will pay with the same email you used to create your account. Receipts go to that address. Have a promo code? Enter it on the Stripe checkout page.</p>
         <p class="account-email" id="subscribe-email" hidden>Account: <strong></strong></p>
 
-
-
         <div class="billing-toggle" role="group" aria-label="Billing interval">
-
             <button type="button" class="billing-toggle-btn billing-toggle-btn--active" data-interval="month">Monthly</button>
-
             <button type="button" class="billing-toggle-btn" data-interval="year">Annual <span class="billing-toggle-hint">save vs monthly</span></button>
-
         </div>
-
-
 
         <div class="tier-plans">
-
-            <article class="tier-plan" data-tier="local">
-
-                <p class="tier-plan-badge">Lower price</p>
-
-                <h2 class="tier-plan-title">Local</h2>
-
-                <p class="tier-plan-price" data-price-local>—</p>
-
-                <ul class="tier-plan-features">
-
-                    <li>Invoice data stays on your Windows PC</li>
-
-                    <li>Privacy-focused — nothing synced to the cloud</li>
-
-                    <li>Best for one computer</li>
-
-                    <li>Full desktop app after subscribe</li>
-
-                </ul>
-
-                <button type="button" class="btn btn-secondary tier-plan-btn" data-checkout-tier="local">Choose Local</button>
-
-            </article>
-
             <article class="tier-plan tier-plan--featured" data-tier="cloud">
-
-                <p class="tier-plan-badge">Multi-device</p>
-
-                <h2 class="tier-plan-title">Cloud</h2>
-
+                <p class="tier-plan-badge">Cloud</p>
+                <h2 class="tier-plan-title">FrogsWork Cloud</h2>
                 <p class="tier-plan-price" data-price-cloud>—</p>
-
                 <ul class="tier-plan-features">
-
-                    <li>Same invoices on PC and phone</li>
-
-                    <li>Mobile PWA for invoicing on the go</li>
-
-                    <li>Upload or migrate data from desktop</li>
-
-                    <li>Offline queue syncs when back online</li>
-
+                    <li>Same invoices on browser, phone, and Windows</li>
+                    <li>Invoice email sending</li>
+                    <li>Works with an active Stripe subscription</li>
                 </ul>
-
-                <button type="button" class="btn btn-primary tier-plan-btn" data-checkout-tier="cloud">Choose Cloud</button>
-
+                <button type="button" class="btn btn-primary tier-plan-btn" data-checkout-tier="cloud">Subscribe</button>
             </article>
-
         </div>
-
-
 
         <p id="subscribe-error" class="account-error" hidden></p>
-
         <p class="form-footer">Already subscribed? <a href="/account/login.html">Sign in</a></p>
-
     </main>
 
-
-
     <footer class="site-footer">
-
         <div class="site-footer-inner">
-
             <span>FrogsWork by <a href="https://korraone.com" rel="noopener noreferrer">KorraOne</a></span>
-
         </div>
-
     </footer>
-
     <script src="/js/site.js"></script>
-
     <script type="module" src="/js/account/subscribe.js"></script>
-
 </body>
-
 </html>
-

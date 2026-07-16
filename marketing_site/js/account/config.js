@@ -9,8 +9,7 @@ function queryApiBase() {
 }
 
 export const API_BASE = queryApiBase();
-export const PWA_URL = isLocal ? "http://127.0.0.1:8090" : "https://app.frogswork.com";
-export const DESKTOP_CALLBACK_URL = "http://127.0.0.1:5000/account/auth/callback";
+export const PWA_URL = isLocal ? "http://127.0.0.1:5173" : "https://app.frogswork.com";
 export const TERMS_URL = "/terms.html";
 export const PRIVACY_URL = "/privacy.html";
 

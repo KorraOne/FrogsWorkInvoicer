@@ -34,37 +34,31 @@
 
         <h2>Quick checks</h2>
         <ol>
-            <li><strong>Restart FrogsWork.</strong> Close it from the taskbar if needed, then open it from the Start menu.</li>
-            <li><strong>Check you're online</strong> if you need sign-in or invoicing after the free trial (20 invoices or $20,000 ex GST).</li>
-            <li><strong>Check your version</strong> in <strong>Settings → App update</strong>.</li>
-            <li><strong>Find your data.</strong> Settings and invoices are in <code>%APPDATA%\FrogsWork\</code>. PDFs are in your <code>pdfs</code> folder (<strong>Settings → Data storage</strong>).</li>
-            <li><strong>Sending invoices.</strong> Use <strong>Prepare to send</strong>, copy the email text, and open the PDF yourself.</li>
+            <li><strong>Open the Cloud app</strong> at <a href="https://app.frogswork.com">app.frogswork.com</a> and sign in.</li>
+            <li><strong>Check you are online</strong> for sign-in, sync, and email send.</li>
+            <li><strong>Confirm your subscription</strong> under Settings → Account in the app.</li>
+            <li><strong>Sending invoices.</strong> Use Send on the invoice. Email goes through FrogsWork Cloud.</li>
         </ol>
-        <p class="guide-link" data-guide-link="backup-restore" data-guide-label="back up and restore"></p>
-        <div class="guide-inline" data-guide-id="backup-restore"></div>
 
-        <h2 id="installer-will-not-run">Installer will not run</h2>
+        <h2 id="install-pwa">Install on your phone</h2>
+        <p>Open <a href="https://app.frogswork.com">app.frogswork.com</a> in Safari or Chrome. Use the browser menu to Add to Home Screen / Install app.</p>
+
+        <h2 id="installer-will-not-run">Windows installer will not run</h2>
         <p>Download again from <a href="/download.html">Download</a>. Windows may block files from the internet. Right-click the setup file → Properties → Unblock, then run. You need Windows 10 or 11 (64-bit).</p>
         <p class="guide-link" data-guide-link="install" data-guide-label="install FrogsWork"></p>
         <div class="guide-inline" data-guide-id="install"></div>
 
         <h2>WebView2 missing</h2>
-        <p>FrogsWork needs Microsoft Edge WebView2. The installer usually installs it. If the app shows a blank window, install the <a href="https://developer.microsoft.com/microsoft-edge/webview2/" rel="noopener noreferrer">WebView2 runtime</a> and restart FrogsWork.</p>
+        <p>The Windows shell needs Microsoft Edge WebView2. The installer usually installs it. If the app shows a blank window, install the <a href="https://developer.microsoft.com/microsoft-edge/webview2/" rel="noopener noreferrer">WebView2 runtime</a> and restart FrogsWork.</p>
 
         <h2>Cannot reach account server</h2>
-        <p>Invoicing during the free trial works offline. After subscribing, the app caches your subscription and allows up to <strong>14 days</strong> offline before requiring verification. Sign-in and subscription checks need <code>api.frogswork.com</code>. Check your internet connection and firewall. Open <strong>Settings → Your account</strong> and tap <strong>Verify subscription</strong>.</p>
+        <p>Sign-in, sync, and email need <code>api.frogswork.com</code>. Check your internet connection and firewall. In the app, open <strong>Settings → Account</strong> and try again.</p>
 
-        <h2 id="update-failed">Update failed</h2>
-        <p>Use <strong>Settings → App update → Check for updates</strong> when online. If download fails, download the latest installer from this site and run it over the existing install.</p>
-        <p class="guide-link" data-guide-link="install" data-guide-label="install FrogsWork"></p>
-
-        <h2 id="pdf-location">Invoice PDF missing or wrong folder</h2>
-        <p>PDFs save under the folder you chose at install (usually <code>…\pdfs</code>). Change it in <strong>Settings → Data storage</strong>. Use <strong>Prepare to send → Show PDF in folder</strong> on the send page.</p>
-        <p class="guide-link" data-guide-link="pdf-location" data-guide-label="change your PDF folder"></p>
-        <div class="guide-inline" data-guide-id="pdf-location"></div>
+        <h2 id="update-failed">Windows shell update failed</h2>
+        <p>Download the latest installer from this site and run it over the existing install, or keep using the browser app.</p>
 
         <h2 id="sign-in-problems">Sign-in problems</h2>
-        <p>Use <a href="/account/forgot-password.html">forgot password</a> to reset your account password by email. If the account API is unreachable, you can still use the free trial offline with existing local data.</p>
+        <p>Use <a href="/account/forgot-password.html">forgot password</a> to reset your account password by email. Promo codes and Stripe subscription trials are entered at checkout, not as an in-app free meter.</p>
         <p class="guide-link" data-guide-link="subscribing" data-guide-label="subscribe and manage billing"></p>
 
         <p><a href="/contact.html">Contact support</a></p>
