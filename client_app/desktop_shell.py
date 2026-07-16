@@ -1,7 +1,8 @@
-"""Native desktop window shell (pywebview + Edge WebView2)."""
+"""Native desktop window shell (pywebview + Edge WebView2) hosting the Cloud app."""
 
 import base64
 import html
+import logging
 import mimetypes
 import os
 import sys
@@ -12,6 +13,9 @@ import urllib.request
 
 import app_config
 import app_platform.window_state as window_state
+from app_platform.external_browser import open_external
+
+log = logging.getLogger(__name__)
 
 _main_window = None
 _desktop_mode = False
@@ -148,6 +152,19 @@ _SPLASH_HTML = """<!DOCTYPE html>
 </html>"""
 
 
+class DesktopBridge:
+    """Exposed to the Cloud UI as window.pywebview.api."""
+
+    def open_external(self, url):
+        return bool(open_external(url))
+
+    def get_api_base(self):
+        override = (os.environ.get("FROGSWORK_ACCOUNT_API_URL") or "").strip()
+        if override:
+            return override.rstrip("/")
+        return app_config.CLOUD_API_URL.rstrip("/")
+
+
 def is_desktop_mode():
     return _desktop_mode
 
@@ -206,21 +223,6 @@ def _splash_html(tagline="Starting up…", error_message=None):
     )
 
 
-def _wait_for_server(url, attempts=300):
-    for _ in range(attempts):
-        try:
-            with urllib.request.urlopen(url, timeout=0.15) as resp:
-                if resp.status in (200, 204):
-                    return True
-        except OSError:
-            pass
-        except urllib.error.HTTPError as exc:
-            if exc.code in (200, 204):
-                return True
-        time.sleep(0.05)
-    return False
-
-
 def _wait_for_splash_paint(timeout=10.0):
     """Block until WebView reports first paint, or timeout."""
     deadline = time.perf_counter() + timeout
@@ -236,6 +238,16 @@ def _ensure_min_splash_duration():
     remaining = app_config.APP_SPLASH_MIN_SECONDS - (time.perf_counter() - _splash_shown_at)
     if remaining > 0:
         time.sleep(remaining)
+
+
+def _probe_url(url, timeout=2.0):
+    """Best-effort reachability check (Cloud Pages or local Vite)."""
+    try:
+        req = urllib.request.Request(url, method="GET", headers={"User-Agent": f"FrogsWork/{app_config.APP_VERSION}"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.status < 500
+    except (OSError, urllib.error.HTTPError, urllib.error.URLError, ValueError):
+        return False
 
 
 def _initial_window_options(state):
@@ -262,25 +274,6 @@ def _initial_window_options(state):
     return options
 
 
-def _apply_saved_geometry(window, state):
-    global _is_maximized
-    if state.get("maximized"):
-        window.maximize()
-        _is_maximized = True
-        return
-    width = state.get("width")
-    height = state.get("height")
-    if width and height:
-        window.resize(int(width), int(height))
-        x = state.get("x")
-        y = state.get("y")
-        if x is not None and y is not None:
-            window.move(int(x), int(y))
-        return
-    window.maximize()
-    _is_maximized = True
-
-
 def _capture_geometry(window):
     return {
         "maximized": _is_maximized,
@@ -289,6 +282,40 @@ def _capture_geometry(window):
         "x": window.x,
         "y": window.y,
     }
+
+
+def _inject_host_bridge(window):
+    """Ensure window.frogsworkDesktop exists for the Cloud UI host contract."""
+    api_base = DesktopBridge().get_api_base().replace("\\", "\\\\").replace("'", "\\'")
+    script = f"""
+(function () {{
+  function wire() {{
+    var api = window.pywebview && window.pywebview.api;
+    window.frogsworkDesktop = {{
+      apiBase: '{api_base}',
+      openExternal: function (url) {{
+        if (api && api.open_external) {{
+          return api.open_external(url);
+        }}
+        window.open(url, '_blank');
+        return true;
+      }}
+    }};
+    document.documentElement.classList.add('host-desktop');
+    if (document.body) document.body.classList.add('host-desktop');
+  }}
+  if (window.pywebview && window.pywebview.api) {{
+    wire();
+  }} else {{
+    window.addEventListener('pywebviewready', wire);
+    wire();
+  }}
+}})();
+"""
+    try:
+        window.evaluate_js(script)
+    except Exception:
+        log.debug("Host bridge inject failed", exc_info=True)
 
 
 def run_desktop_app(app_url, on_close, startup_error=None):
@@ -301,8 +328,8 @@ def run_desktop_app(app_url, on_close, startup_error=None):
     _pending_geometry = saved
     window_opts = _initial_window_options(saved)
     _is_maximized = window_opts["maximized"]
-    ping_url = app_url.rstrip("/") + "/ping"
     startup_error = startup_error if startup_error is not None else {}
+    bridge = DesktopBridge()
 
     def _handle_closing():
         if _main_window is not None:
@@ -321,50 +348,29 @@ def run_desktop_app(app_url, on_close, startup_error=None):
         global _is_maximized
         _is_maximized = False
 
+    def _on_loaded():
+        if _main_window is not None:
+            _inject_host_bridge(_main_window)
+
     def _navigate_when_ready():
         home_url = app_url.rstrip("/") + "/"
-        deadline = time.perf_counter() + 45
-        server_ready = False
+        deadline = time.perf_counter() + 20
+        reachable = False
 
         while time.perf_counter() < deadline:
-            if startup_error.get("code") == "port_in_use":
+            if _probe_url(home_url) or _probe_url(app_url):
+                reachable = True
                 break
-            if _wait_for_server(ping_url, attempts=1) or _wait_for_server(home_url, attempts=1):
-                server_ready = True
-                break
-            time.sleep(0.05)
+            time.sleep(0.2)
 
         _ensure_min_splash_duration()
 
         if _main_window is None:
             return
 
-        if startup_error.get("code") == "port_in_use":
-            _main_window.load_html(
-                _splash_html(
-                    tagline="Already running",
-                    error_message=(
-                        f"{app_config.APP_BRAND_NAME} is already open. "
-                        "Check the taskbar for the existing window."
-                    ),
-                )
-            )
-            return
-
-        if not server_ready:
-            _main_window.load_html(
-                _splash_html(
-                    tagline="Still starting…",
-                    error_message="Taking longer than usual. Close the app and open it again.",
-                )
-            )
-            while time.perf_counter() < deadline + 30:
-                if _wait_for_server(ping_url, attempts=1) or _wait_for_server(home_url, attempts=1):
-                    server_ready = True
-                    break
-                time.sleep(0.1)
-            if not server_ready:
-                return
+        if not reachable:
+            # Still try to load; WebView may succeed when our probe did not (CORS/HEAD quirks).
+            log.warning("Cloud app probe failed; loading %s anyway", app_url)
 
         _main_window.load_url(app_url)
 
@@ -376,8 +382,9 @@ def run_desktop_app(app_url, on_close, startup_error=None):
         "height": window_opts["height"],
         "min_size": (app_config.APP_WINDOW_MIN_WIDTH, app_config.APP_WINDOW_MIN_HEIGHT),
         "easy_drag": False,
-        "text_select": False,
+        "text_select": True,
         "maximized": window_opts["maximized"],
+        "js_api": bridge,
     }
     if window_opts["x"] is not None and window_opts["y"] is not None:
         create_kwargs["x"] = window_opts["x"]
@@ -389,6 +396,7 @@ def run_desktop_app(app_url, on_close, startup_error=None):
     window.events.shown += _on_shown
     window.events.maximized += _on_maximized
     window.events.restored += _on_restored
+    window.events.loaded += _on_loaded
 
     threading.Thread(target=_navigate_when_ready, daemon=True, name="splash-navigate").start()
 

@@ -23,7 +23,7 @@ from .format import (
     persist_invoice_counter,
     suggested_invoice_number,
 )
-from .form import dashboard_totals, has_invoice_draft, invoices_by_status
+from .form import dashboard_totals, invoices_by_status
 from .gst_settings import (
     apply_gst_registered_to_settings,
     apply_registration_to_parsed_items,
@@ -51,7 +51,6 @@ __all__ = [
     "format_qty",
     "gst_settings",
     "dashboard_totals",
-    "has_invoice_draft",
     "invoice_due_summary",
     "invoice_uses_tax_invoice",
     "invoices_by_status",

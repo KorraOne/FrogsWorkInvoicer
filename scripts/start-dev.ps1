@@ -16,5 +16,5 @@ Start-FrogsWorkAppTerminal -DevBrowser:$DevBrowser
 
 Write-Host ""
 Write-Host "API:  $(Get-FrogsWorkAccountApiUrl)"
-Write-Host "App:  http://127.0.0.1:5000/"
+Write-Host "App:  Cloud shell loads https://app.frogswork.com (set FROGSWORK_DESKTOP_APP_URL for local Vite)"
 Write-Host "Stripe: copy account_api\dev\.dev.vars.example to .dev.vars; run .\scripts\configure-payment-links.ps1 once after setup."

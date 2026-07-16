@@ -55,7 +55,8 @@ function Get-DevVarsExportBlock {
     param([hashtable]$Vars)
     $lines = @()
     foreach ($key in @(
-        "FROGSWORK_ACCOUNT_API_URL"
+        "FROGSWORK_ACCOUNT_API_URL",
+        "FROGSWORK_DESKTOP_APP_URL"
     )) {
         if ($Vars.ContainsKey($key) -and $Vars[$key]) {
             $escaped = $Vars[$key] -replace "'", "''"
@@ -95,16 +96,17 @@ function Start-FrogsWorkAppTerminal {
     $devVars = Import-FrogsWorkDevVars
     $apiUrl = Get-FrogsWorkAccountApiUrl
     $devVars["FROGSWORK_ACCOUNT_API_URL"] = $apiUrl
+    if (-not $devVars.ContainsKey("FROGSWORK_DESKTOP_APP_URL") -or -not $devVars["FROGSWORK_DESKTOP_APP_URL"]) {
+        $devVars["FROGSWORK_DESKTOP_APP_URL"] = "https://app.frogswork.com"
+    }
     $envBlock = Get-DevVarsExportBlock -Vars $devVars
     $python = Get-FrogsWorkPython
-    $devBrowserLine = ""
     if ($DevBrowser) {
-        $devBrowserLine = "`$env:FROGSWORK_DEV_BROWSER = '1'"
+        Write-Host "Note: -DevBrowser is obsolete (Flask UI removed). Opening Cloud desktop shell."
     }
 
     $cmd = @"
 Set-Location '$AppDir'
-$devBrowserLine
 $envBlock
 & '$python' app.py
 "@

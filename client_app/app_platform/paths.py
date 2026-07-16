@@ -27,20 +27,19 @@ def exe_dir():
 
 
 def resolve_pdf_path(filename):
-    from flask import abort
-
+    """Resolve a PDF basename under the configured PDF folder. Raises FileNotFoundError."""
     import storage
     from app_platform.path_safety import is_safe_basename
 
     if not is_safe_basename(filename):
-        abort(404)
+        raise FileNotFoundError(filename)
     for inv in storage.load_invoices().values():
         if inv.get("filename") == filename and storage.is_invoice_deleted(inv):
-            abort(404)
+            raise FileNotFoundError(filename)
     primary = os.path.join(storage.get_pdf_dir(), filename)
     if os.path.isfile(primary):
         return primary
     legacy = os.path.join(exe_dir(), filename)
     if os.path.isfile(legacy):
         return legacy
-    abort(404)
+    raise FileNotFoundError(filename)

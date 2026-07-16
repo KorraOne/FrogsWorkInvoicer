@@ -2,10 +2,15 @@
 
 import os
 
-DEFAULT_ACCOUNT_API_URL = os.environ.get("FROGSWORK_ACCOUNT_API_URL") or "http://127.0.0.1:8787"
+DEFAULT_ACCOUNT_API_URL = os.environ.get("FROGSWORK_ACCOUNT_API_URL") or "https://api.frogswork.com"
 # Windows: %APPDATA%\<APP_DATA_DIR_NAME>\ — macOS/Linux use platformdirs later.
 APP_DATA_DIR_NAME = "FrogsWork"
 
+# Cloud UI hosted by the desktop shell (override with FROGSWORK_DESKTOP_APP_URL for Vite/staging).
+DESKTOP_APP_URL = os.environ.get("FROGSWORK_DESKTOP_APP_URL") or "https://app.frogswork.com"
+CLOUD_API_URL = os.environ.get("FROGSWORK_ACCOUNT_API_URL") or "https://api.frogswork.com"
+
+# Legacy local Flask URL (no longer used by the shell; kept for any remaining scripts).
 LOCAL_APP_HOST = "127.0.0.1"
 LOCAL_APP_PORT = 5000
 LOCAL_APP_URL = f"http://{LOCAL_APP_HOST}:{LOCAL_APP_PORT}/"

@@ -32,7 +32,7 @@ a = Analysis(
     ["app.py"],
     pathex=[],
     binaries=_binaries,
-    datas=[("templates", "templates"), ("static", "static"), ("assets", "assets")],
+    datas=[("static", "static"), ("assets", "assets")],
     hiddenimports=[
         "cryptography",
         "cryptography.fernet",

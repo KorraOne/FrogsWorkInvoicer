@@ -3,7 +3,7 @@ import { fetchAccount } from "./api/mobile";
 import { captureAuthFromUrl, clearSession, getAccessToken, saveSession } from "./auth/session";
 import { showToast } from "./components/ui";
 import { pullBootstrap, flushQueue } from "./data/sync";
-import { applyHostEnvironment, wireExternalLinks } from "./lib/host";
+import { applyHostEnvironment, watchPywebviewReady, wireExternalLinks } from "./lib/host";
 import { allowNavigation, rememberAllowedHash, getLastAllowedHash } from "./lib/unsaved";
 import { router, setBottomNavActive, showTabPanels } from "./router";
 import { renderWelcome } from "./screens/welcome";
@@ -15,6 +15,7 @@ import { renderSettings } from "./screens/settings";
 import type { AppContext, MobileAccount, Screen } from "./types";
 
 applyHostEnvironment();
+watchPywebviewReady();
 wireExternalLinks(document);
 
 if (/^\/\/+/.test(window.location.pathname)) {

@@ -10,18 +10,45 @@ export type FrogsworkDesktopHost = {
 declare global {
   interface Window {
     frogsworkDesktop?: FrogsworkDesktopHost | true;
+    pywebview?: {
+      api?: {
+        open_external?: (url: string) => unknown;
+        get_api_base?: () => string;
+      };
+    };
   }
 }
 
+function syncFromPywebviewApi(): FrogsworkDesktopHost | null {
+  const api = window.pywebview?.api;
+  if (!api) return null;
+  const host: FrogsworkDesktopHost = {
+    openExternal: (url: string) => {
+      if (api.open_external) api.open_external(url);
+    },
+  };
+  try {
+    const base = api.get_api_base?.();
+    if (base) host.apiBase = String(base).replace(/\/$/, "");
+  } catch {
+    /* ignore */
+  }
+  window.frogsworkDesktop = host;
+  return host;
+}
+
 export function isDesktopHost(): boolean {
-  return Boolean(window.frogsworkDesktop);
+  return Boolean(window.frogsworkDesktop) || Boolean(window.pywebview);
 }
 
 export function desktopHostConfig(): FrogsworkDesktopHost | null {
-  const host = window.frogsworkDesktop;
-  if (!host) return null;
-  if (host === true) return {};
-  return host;
+  if (window.frogsworkDesktop && window.frogsworkDesktop !== true) {
+    return window.frogsworkDesktop;
+  }
+  const fromApi = syncFromPywebviewApi();
+  if (fromApi) return fromApi;
+  if (window.frogsworkDesktop === true || window.pywebview) return {};
+  return null;
 }
 
 /** Apply body classes and strip PWA install chrome when running in the desktop shell. */
@@ -31,6 +58,7 @@ export function applyHostEnvironment(): void {
   document.documentElement.classList.add("host-desktop");
   const manifest = document.querySelector('link[rel="manifest"]');
   if (manifest) manifest.remove();
+  syncFromPywebviewApi();
 }
 
 /** Prefer the system browser for http(s) links when the shell provides openExternal. */
@@ -60,4 +88,14 @@ export function wireExternalLinks(root: ParentNode = document): void {
       event.preventDefault();
     }
   });
+}
+
+/** Listen for late pywebviewready so host classes apply even if the event fires after boot. */
+export function watchPywebviewReady(): void {
+  if (!window.pywebview) {
+    window.addEventListener("pywebviewready", () => {
+      syncFromPywebviewApi();
+      applyHostEnvironment();
+    });
+  }
 }
