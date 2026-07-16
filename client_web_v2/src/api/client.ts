@@ -1,6 +1,10 @@
 import { clearSession, getAccessToken, getRefreshToken, saveSession } from "../auth/session";
+import { desktopHostConfig } from "../lib/host";
 
 function getApiBase(): string {
+  const fromHost = desktopHostConfig()?.apiBase?.replace(/\/$/, "");
+  if (fromHost) return fromHost;
+
   const host = window.location.hostname;
   const isLocal = host === "localhost" || host === "127.0.0.1";
   const stored = localStorage.getItem("frogswork_api")?.replace(/\/$/, "");

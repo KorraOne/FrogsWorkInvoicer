@@ -23,7 +23,7 @@ export function renderWelcome(
       </div>
       <section class="panel gate-card">
         <p id="welcome-message" class="${opts.isError ? "error-text" : "hint"}">${esc(
-          opts.message || "Sign in with your Cloud subscription to use the mobile app."
+          opts.message || "Sign in with your Cloud subscription."
         )}</p>
         <form id="welcome-form" class="gate-login-form" novalidate>
           <div class="field"><label for="welcome-email">Email</label><input id="welcome-email" type="email" autocomplete="username" inputmode="email"></div>

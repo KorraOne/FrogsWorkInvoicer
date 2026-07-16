@@ -925,3 +925,92 @@ body.sheet-open {
 }
 
 a { color: var(--fw-link); }
+
+/* Desktop / wide layout: wider content; side nav from 900px up */
+@media (min-width: 768px) {
+  .app-main {
+    max-width: 42rem;
+    padding: 1.25rem 1.5rem;
+  }
+
+  .gate-screen {
+    max-width: 32rem;
+  }
+
+  .invoice-grid,
+  .settings-grid,
+  .customer-list {
+    gap: 0.75rem;
+  }
+}
+
+@media (min-width: 900px) {
+  body {
+    padding-bottom: 0;
+    padding-left: 5.75rem;
+  }
+
+  body:has(.gate-screen),
+  body.app-flow-immersive {
+    padding-left: 0;
+  }
+
+  .app-main {
+    max-width: 56rem;
+    padding: 1.5rem 2rem;
+  }
+
+  .app-header {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+
+  .bottom-nav {
+    left: 0;
+    right: auto;
+    top: 0;
+    bottom: 0;
+    width: 5.75rem;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: 4.5rem 0 1rem;
+    border-top: none;
+    border-right: 1px solid var(--fw-border);
+    box-shadow: 2px 0 12px var(--fw-shadow);
+  }
+
+  .bottom-nav button {
+    flex: 0 0 auto;
+    min-height: 4.25rem;
+    padding: 0.65rem 0.35rem;
+    font-size: 0.75rem;
+  }
+
+  .fab {
+    right: 1.5rem;
+    bottom: 1.5rem;
+  }
+
+  .panel-header,
+  .list-toolbar {
+    gap: 1rem;
+  }
+}
+
+@media (min-width: 1200px) {
+  .app-main {
+    max-width: 64rem;
+  }
+}
+
+/* Desktop shell: no PWA install chrome */
+body.host-desktop .pwa-install-hint,
+html.host-desktop .pwa-install-hint {
+  display: none !important;
+}
+
+body.host-desktop {
+  /* WebView2 already has a native title bar */
+  --safe-bottom: 0px;
+}
+

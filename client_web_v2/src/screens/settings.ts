@@ -69,7 +69,7 @@ export async function renderSettings(panel: HTMLElement, ctx: AppContext) {
     </a>
     <a class="nav-card" href="${SUPPORT_URL}" target="_blank" rel="noopener">
       <span class="nav-card-title">Help &amp; support</span>
-      <span class="nav-card-hint">Install help and troubleshooting</span>
+      <span class="nav-card-hint">Guides and troubleshooting</span>
     </a>`;
 }
 

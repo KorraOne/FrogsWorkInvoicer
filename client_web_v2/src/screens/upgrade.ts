@@ -12,10 +12,10 @@ export function renderUpgrade(
   const localActive = account.storage_tier === "local" && account.active;
   const title = localActive ? "Upgrade to Cloud" : "Subscription required";
   const lead = localActive
-    ? "Your Local plan includes the full desktop app. Upgrade to Cloud to use this mobile app and sync your data."
+    ? "Your Local plan includes data on one PC. Upgrade to Cloud to use this app and sync your data."
     : account.active
-      ? "An active Cloud subscription is required to use the mobile app."
-      : "Your subscription is inactive. Renew or upgrade to Cloud to use the mobile app.";
+      ? "An active Cloud subscription is required to use this app."
+      : "Your subscription is inactive. Renew or upgrade to Cloud to use this app.";
 
   root.innerHTML = `
     <div class="gate-screen">
@@ -28,8 +28,8 @@ export function renderUpgrade(
         <p class="upgrade-signed-in">Signed in as ${esc(account.email)}</p>
         <p class="hint">${esc(lead)}</p>
         <ul class="upgrade-list">
-          <li><strong>Local</strong> — full app on desktop only</li>
-          <li><strong>Cloud</strong> — desktop + this mobile app + cloud sync</li>
+          <li><strong>Local</strong> (deferred): data stays on one PC</li>
+          <li><strong>Cloud</strong>: browser, phone, and desktop with sync</li>
         </ul>
         <div class="btn-row stacked">
           <a class="btn primary btn-block" href="${upgradeUrl}">${localActive ? "Upgrade to Cloud" : "Subscribe to Cloud"}</a>
