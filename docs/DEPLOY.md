@@ -195,7 +195,11 @@ npx wrangler deploy
 - [ ] Signup → choose Local or Cloud → Stripe checkout; test card `4242 4242 4242 4242`
 - [ ] After payment, return page → success (account active; no separate password step)
 - [ ] Desktop: Sign in opens web; returns to app via `127.0.0.1:5000/account/auth/callback`
-- [ ] PWA (Cloud): Sign in → token handoff at `app.frogswork.com/#auth/callback`
+- [ ] PWA (Cloud): Sign in → token handoff at `app.frogswork.com/#auth/callback` → dashboard
+- [ ] PWA Local subscriber: sign-in shows upgrade gate (expected)
+- [ ] PWA Cloud paid: **Send** delivers invoice email via Resend
+- [ ] Desktop Local paid: **Send automatically** delivers PDF (relay API)
+- [ ] Forgot password / verification emails arrive (Resend)
 - [ ] Local subscriber: Upgrade to Cloud opens web checkout; after pay, migrate wizard works
 - [ ] Settings → Your account shows active subscription and storage tier (desktop)
 
@@ -207,11 +211,19 @@ See also [`account_api/worker/README.md`](../account_api/worker/README.md).
 
 | Setting | Value |
 |---------|--------|
-| Source | [`client_web/`](../client_web/) |
-| Deploy | `cd client_web` then `npx wrangler pages deploy . --project-name frogswork-app` |
+| Source | [`client_web_v2/`](../client_web_v2/) (v2 rebuild; legacy in `client_web_legacy/`) |
+| Build | `cd client_web_v2` then `npm install` and `npm run build` |
+| Deploy | `npx wrangler pages deploy dist --project-name frogswork-app` |
 | Custom domain | `app.frogswork.com` in Cloudflare Pages dashboard |
+| API | PWA v2 uses `/mobile/v1/*` (cloud-only); desktop keeps `/documents/*` |
+| Access | **Cloud subscribers only** — Local plans are desktop-only |
+| Offline | **Deferred** — online-first; no service worker |
 
-Requires API CORS for `app.frogswork.com` (already in worker). Cloud-tier subscribers sign in via `frogswork.com/account/login.html?next=pwa`.
+In-app email/password sign-in is primary. Web handoff: `frogswork.com/account/login.html?next=pwa` → `?pwa_auth=1&access_token=…`.
+
+Deploy API worker after changing [`mobile.js`](../account_api/worker/src/mobile.js): `cd account_api\worker` then `npm run deploy`.
+
+See [`PWA-V2-AUDIT.md`](PWA-V2-AUDIT.md) for v1 debt notes and migration rationale.
 
 ---
 
@@ -221,22 +233,37 @@ Requires API CORS for `app.frogswork.com` (already in worker). Cloud-tier subscr
 cd account_api\worker
 npx wrangler d1 execute frogswork-account --remote --file=..\migrations\006_checkout_promo_settings.sql
 npx wrangler d1 execute frogswork-account --remote --file=..\migrations\007_auth_extensions.sql
+npx wrangler d1 execute frogswork-account --remote --file=..\migrations\008_cloud_documents_tables.sql
+npx wrangler d1 execute frogswork-account --remote --file=..\migrations\009_email_outbox_invoice_key.sql
 npm run deploy
 ```
 
+Migration `008` creates `guest_workspaces`, `doc_*`, and `email_outbox` if missing (safe to re-run). Use it instead of `003` when `storage_tier` already exists.
+
 ---
 
-## Email (password reset + verification)
+## Email (Resend — invoices + transactional)
 
 Set on the API worker:
 
 ```powershell
 cd account_api\worker
 npx wrangler secret put RESEND_API_KEY
-npx wrangler secret put EMAIL_FROM   # e.g. noreply@frogswork.com (verified domain in Resend)
+npx wrangler secret put EMAIL_FROM   # e.g. FrogsWork <invoices@frogswork.com>
+npm run deploy
 ```
 
-Without Resend, dev logs print reset/verify links to the Worker console.
+1. Verify **frogswork.com** in Resend (SPF + DKIM in Cloudflare DNS).
+2. `EMAIL_FROM` can be any address `@frogswork.com` once the domain is verified.
+
+**Send behaviour:**
+
+| User | Auto email | Manual send |
+|------|------------|-------------|
+| Local paid (desktop) | Yes — `POST /email/invoices/:n/send` relay | Copy email page |
+| Cloud paid (PWA) | Yes — documents outbox + Resend | N/A |
+
+Without Resend secrets, dev logs print email payloads to the Worker console.
 
 ---
 

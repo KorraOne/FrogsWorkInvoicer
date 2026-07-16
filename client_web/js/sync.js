@@ -98,7 +98,10 @@ export async function softDeleteInvoice(invoiceNumber) {
   await syncMutation("delete_invoice", { invoice_number: invoiceNumber });
 }
 
-export async function queueEmailSend(invoiceNumber) {
+export async function queueEmailSend(invoiceNumber, { autoSendAllowed = true } = {}) {
+  if (!autoSendAllowed) {
+    throw new Error("Automatic send requires an active paid subscription.");
+  }
   const invoices = await cache.getInvoices();
   const key = String(invoiceNumber).padStart(8, "0");
   if (invoices[key]) {

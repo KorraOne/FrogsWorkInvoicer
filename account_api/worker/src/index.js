@@ -50,6 +50,9 @@ import {
   isEmailVerified,
 } from "./auth_email.js";
 import { checkRateLimit, clientIp, rateLimitResponse } from "./rate_limit.js";
+import { handleInvoiceRelaySend } from "./invoice_relay.js";
+import { handleMobileRoute } from "./mobile.js";
+import { purgeAndSeedFromStripe } from "./dev_seed.js";
 
 const ACCESS_TTL_SEC = 12 * 60 * 60;
 const REFRESH_TTL_SEC = 30 * 24 * 60 * 60;
@@ -287,11 +290,11 @@ async function validatedCheckoutSession(stripe, sessionId) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const preflight = corsPreflight(request);
     if (preflight) return preflight;
     try {
-      const response = await handleRequest(request, env);
+      const response = await handleRequest(request, env, ctx);
       return withCors(request, response);
     } catch (exc) {
       return withCors(
@@ -319,7 +322,55 @@ async function enforceRateLimit(request, env, scope) {
   return null;
 }
 
-async function handleRequest(request, env) {
+async function handleMobileSession(request, env) {
+  const limited = await enforceRateLimit(request, env, "auth_login");
+  if (limited) return limited;
+  const body = await readJson(request);
+  const email = (body.email || "").trim().toLowerCase();
+  const password = body.password || "";
+  const user = await userByEmail(env.DB, email);
+  if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+    return textError("Invalid email or password.", 401);
+  }
+  const accountStatus = (user.account_status || "active").trim();
+  if (accountStatus === "pending_payment") {
+    return textError(
+      "Your account is not active yet. Finish checkout on the subscribe page.",
+      403
+    );
+  }
+  const tokens = await issueTokens(env, user.id, user.email);
+  let stripe;
+  try {
+    stripe = getStripe(env);
+  } catch {
+    return json({
+      ...tokens,
+      account: {
+        email: user.email,
+        active: false,
+        storage_tier: user.storage_tier || "local",
+        portal_url: null,
+        email_verified: isEmailVerified(user),
+      },
+    });
+  }
+  const tier = await resolveStorageTier(env.DB, stripe, user);
+  const sub = await subscriptionStatus(stripe, user.stripe_customer_id);
+  const portal = await portalUrl(stripe, user.stripe_customer_id);
+  return json({
+    ...tokens,
+    account: {
+      email: user.email,
+      active: sub.active,
+      storage_tier: tier,
+      portal_url: portal,
+      email_verified: isEmailVerified(user),
+    },
+  });
+}
+
+async function handleRequest(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/$/, "") || "/";
 
@@ -684,6 +735,27 @@ async function handleRequest(request, env) {
     const guestResponse = await handleGuestRoute(request, env, path);
     if (guestResponse) return guestResponse;
 
+    const mobileResponse = await handleMobileRoute(request, env, path, {
+      requireUser,
+      getStripe,
+      subscriptionStatus,
+      portalUrl,
+      handleDocumentsRoute,
+      handleMobileSession,
+      executionCtx: ctx,
+    });
+    if (mobileResponse) return mobileResponse;
+
+    if (path.startsWith("/email/invoices/")) {
+      const auth = await requireUser(request, env);
+      if (auth.error) return auth.error;
+      const relayResponse = await handleInvoiceRelaySend(request, env, auth, {
+        getStripe,
+        subscriptionStatus,
+      });
+      if (relayResponse) return relayResponse;
+    }
+
     if (path.startsWith("/documents")) {
       const docAuth = await requireUserOrGuest(request, env);
       if (docAuth.error) return docAuth.error;
@@ -698,7 +770,15 @@ async function handleRequest(request, env) {
       } catch {
         return textError("Stripe is not configured.", 503);
       }
-      const docResponse = await handleDocumentsRoute(request, env, path, docAuth, stripe);
+      const docResponse = await handleDocumentsRoute(
+        request,
+        env,
+        path,
+        docAuth,
+        stripe,
+        subscriptionStatus,
+        ctx
+      );
       if (docResponse) return docResponse;
     }
 
@@ -707,6 +787,19 @@ async function handleRequest(request, env) {
       if (!auth.ok) return auth.response;
       const deleted = await cleanupPendingUsers(env.DB);
       return json({ ok: true, deleted });
+    }
+
+    if (path === "/admin/api/dev-reset-seed" && request.method === "POST") {
+      const auth = checkAdminAuth(request, env.ADMIN_PASSWORD);
+      if (!auth.ok) return auth.response;
+      let stripe;
+      try {
+        stripe = getStripe(env);
+      } catch (exc) {
+        return textError(String(exc.message || exc), 503);
+      }
+      const result = await purgeAndSeedFromStripe(env, stripe);
+      return json(result);
     }
 
     if (path === "/webhooks/stripe" && request.method === "POST") {

@@ -8,11 +8,21 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8080",
   "http://localhost:8088",
   "http://127.0.0.1:8088",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "http://localhost:5174",
+  "http://127.0.0.1:5174",
 ]);
+
+function originAllowed(origin) {
+  if (!origin) return true;
+  if (ALLOWED_ORIGINS.has(origin)) return true;
+  return /^https:\/\/[a-z0-9-]+\.frogswork-app\.pages\.dev$/.test(origin);
+}
 
 export function corsHeaders(request) {
   const origin = request.headers.get("Origin") || "";
-  if (!ALLOWED_ORIGINS.has(origin)) {
+  if (!originAllowed(origin)) {
     return {};
   }
   return {
@@ -54,5 +64,5 @@ export function corsPreflight(request) {
 
 export function isAllowedOrigin(request) {
   const origin = request.headers.get("Origin") || "";
-  return !origin || ALLOWED_ORIGINS.has(origin);
+  return !origin || originAllowed(origin);
 }

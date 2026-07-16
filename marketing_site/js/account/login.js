@@ -35,10 +35,11 @@ function redirectAfterLogin(tokens, email) {
     }
     if (next === "pwa") {
       const q = new URLSearchParams({
+        pwa_auth: "1",
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token || "",
       });
-      window.location.href = `${PWA_URL}/#auth/callback?${q}`;
+      window.location.href = `${PWA_URL}/?${q}`;
       return;
     }
     if (next === "desktop") {

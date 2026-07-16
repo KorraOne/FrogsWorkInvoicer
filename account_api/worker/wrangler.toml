@@ -17,6 +17,7 @@ CLIENT_RELEASE_VERSION = "3.0.2"
 CLIENT_RELEASE_URL = "https://downloads.frogswork.com/FrogsWork-3.0.2-win64.zip"
 CLIENT_RELEASE_SHA256 = "ce6185e7cd0001a8ef783c4fe5cd3c0d98dc9725c6c8e175f0247998b358d4fe"
 CLIENT_RELEASE_NOTES = "Cloud upgrade banner, web signup URLs, forgot password and email verification on frogswork.com, PWA polish."
+EMAIL_PROVIDER = "resend"
 R2_BUCKET_NAME = "frogswork-invoicer-releases"
 CHECKOUT_RETURN_BASE = "https://frogswork.com"
 # Set after running account_api/dev/setup_stripe_prices.py

@@ -1,7 +1,7 @@
 import { cache } from "../idb.js";
 import { upsertCustomer, deleteCustomer, flushQueue } from "../sync.js";
-import { normalizeAuAddress, normalizeAbn } from "../domain/address.js";
-import { addressFields, readAddressFromForm } from "../components/forms.js";
+import { normalizeAbn } from "../domain/address.js";
+import { addressFields, readAndNormalizeAddress } from "../components/forms.js";
 import { router } from "../router.js";
 
 export async function renderCustomers(panel, ctx) {
@@ -34,7 +34,7 @@ async function renderCustomerForm(panel, ctx) {
   const customers = await cache.getCustomers();
   const record = editing ? customers[name] || {} : {};
   panel.innerHTML = `
-    <form id="customer-form" class="panel">
+    <form id="customer-form" class="panel" novalidate>
       <h2>${editing ? "Edit customer" : "Add customer"}</h2>
       ${editing ? `<div class="field"><label>Customer name</label><input value="${esc(name)}" disabled></div>` : `<div class="field"><label>Customer name</label><input name="name" required></div>`}
       <div class="field"><label>Email</label><input name="email" type="email" value="${esc(record.email || "")}"></div>
@@ -42,33 +42,41 @@ async function renderCustomerForm(panel, ctx) {
       <div class="field"><label>ABN (optional)</label><input name="abn" value="${esc(record.abn || "")}" inputmode="numeric"></div>
       <p class="error-text" id="form-error" hidden></p>
       <div class="btn-row">
-        <button type="submit" class="btn primary">Save</button>
+        <button type="submit" class="btn primary" id="save-customer">Save</button>
         ${editing ? `<button type="button" class="btn danger" id="delete-customer">Delete</button>` : ""}
         <button type="button" class="btn secondary" id="cancel-customer">Cancel</button>
       </div>
     </form>`;
-  document.getElementById("cancel-customer").addEventListener("click", () => router.navigate("customers"));
-  document.getElementById("customer-form").addEventListener("submit", async (e) => {
+  panel.querySelector("#cancel-customer").addEventListener("click", () => router.navigate("customers"));
+  panel.querySelector("#customer-form").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const err = document.getElementById("form-error");
+    const err = panel.querySelector("#form-error");
+    const saveBtn = panel.querySelector("#save-customer");
     err.hidden = true;
+    saveBtn.disabled = true;
+    saveBtn.textContent = "Saving…";
     try {
       const fd = new FormData(e.target);
       const custName = editing ? name : (fd.get("name") || "").trim();
       if (!custName) throw new Error("Customer name is required.");
-      const addr = normalizeAuAddress(readAddressFromForm(fd));
+      const email = (fd.get("email") || "").trim();
+      if (email && !email.includes("@")) throw new Error("Enter a valid email address.");
+      const addr = readAndNormalizeAddress(fd);
       const abn = fd.get("abn") ? normalizeAbn(fd.get("abn")) : "";
-      const payload = { email: (fd.get("email") || "").trim(), ...addr, abn };
+      const payload = { email, ...addr, abn };
       await upsertCustomer(custName, payload);
       await flushQueue(ctx.onSyncStatus);
       router.navigate("customers");
     } catch (ex) {
       err.textContent = ex.message;
       err.hidden = false;
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = "Save";
     }
   });
   if (editing) {
-    document.getElementById("delete-customer")?.addEventListener("click", async () => {
+    panel.querySelector("#delete-customer")?.addEventListener("click", async () => {
       if (!confirm(`Delete customer "${name}"?`)) return;
       const invoices = await cache.getInvoices();
       const inUse = Object.values(invoices).some((inv) => !inv.deleted_at && inv.customer_name === name);

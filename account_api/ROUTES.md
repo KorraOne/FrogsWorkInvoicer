@@ -44,6 +44,11 @@ Add printed `STRIPE_PRICE_*` values to `client_app/production.env` and `account_
 | POST | `/auth/resend-verification` | Bearer | Resend verification email → `{ ok: true, sent: true }` |
 | POST | `/auth/refresh` | No | Body: `{ refresh_token }` → new tokens |
 | GET | `/entitlements` | Bearer | Subscription status + `portal_url`, `storage_tier`, `platforms`, `email_verified` |
+| POST | `/mobile/v1/session` | No | Body `{ email, password }` → tokens + `account` (PWA v2) |
+| GET | `/mobile/v1/account` | Bearer | Slim account: `email`, `active`, `storage_tier`, `portal_url`, `email_verified` |
+| GET | `/mobile/v1/bootstrap` | Bearer | Cloud-only snapshot (same as `/documents/bootstrap`) |
+| POST | `/mobile/v1/sync` | Bearer | Cloud-only mutation sync |
+| GET | `/mobile/v1/invoices/:n/pdf` | Bearer | Cloud-only PDF |
 | POST | `/telemetry/heartbeat` | No | Anonymous install heartbeat + usage aggregates |
 | POST | `/telemetry/event` | No | Idempotent funnel events (`first_invoice`, `uninstall`, …) |
 | GET | `/admin` | HTTP Basic (`ADMIN_PASSWORD`) | HTML analytics dashboard + registered accounts table |
@@ -59,13 +64,15 @@ Add printed `STRIPE_PRICE_*` values to `client_app/production.env` and `account_
 | POST | `/user-test/submissions/:id/complete` | No (CORS) | Save answers JSON (7 keys: `getting_started`, `invoice_workflow`, `confidence_trust`, `expectations_gaps`, `overall`, `pricing_trial`, `anything_else`; all required) |
 | GET | `/releases/latest` | No | In-app update metadata (see below) |
 | POST | `/guest/session` | No (CORS `app.frogswork.com`, localhost:8090) | Guest cloud trial → `{ guest_id, guest_token, expires_at }` |
+| POST | `/email/invoices/:n/send` | Bearer access + active subscription | Local-tier relay send — body `{ pdf_b64, customer_email, filename?, subject?, body_text? }`; no D1/R2 persist |
 | GET | `/documents/bootstrap` | Bearer access or guest (cloud tier for users) | Full snapshot: businesses, customers, invoices, settings |
 | POST | `/documents/migrate` | Bearer access or guest (cloud tier for users) | Import local backup JSON payload (max 5 MB) |
 | POST | `/documents/sync` | Bearer access or guest (cloud tier for users) | Body `{ mutations: [...] }` — offline queue replay |
 | GET | `/documents/invoices/:n/pdf` | Bearer access or guest | PDF as `{ filename, content_b64 }` |
 | POST | `/documents/invoices/:n/generate` | Bearer access or guest | Server PDF generation (pdf-lib) → R2 for users |
-| POST | `/documents/invoices/:n/send` | Bearer access or guest | Queue integrated email; `pdf_b64` validated with `%PDF-` magic |
+| POST | `/documents/invoices/:n/send` | Bearer access (active sub) or guest | Cloud: queue integrated email. Guest: **403** (manual send only in PWA) |
 | POST | `/admin/api/cleanup-pending` | HTTP Basic | Delete `pending_payment` users older than 7 days |
+| POST | `/admin/api/dev-reset-seed` | HTTP Basic | Dev: Stripe-check tiers, hard-purge cloud docs + R2 `user-docs/`, seed Cloud subscribers |
 | POST | `/admin/api/checkout/default-beta80` | HTTP Basic | Body `{ enabled: bool }` — auto-apply BETA80 on new Checkout Sessions |
 | POST | `/webhooks/stripe` | Stripe signature | `checkout.session.completed` activates account; idempotent |
 

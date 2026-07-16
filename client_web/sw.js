@@ -1,41 +1,25 @@
-const CACHE = "frogswork-pwa-v5";
-const ASSETS = [
+const CACHE = "frogswork-pwa-v9";
+
+const PRECACHE = [
   "/",
   "/index.html",
   "/css/app.css",
   "/manifest.webmanifest",
-  "/js/app.js",
-  "/js/api.js",
-  "/js/idb.js",
-  "/js/sync.js",
-  "/js/router.js",
-  "/js/components/forms.js",
-  "/js/domain/address.js",
-  "/js/domain/dashboard.js",
-  "/js/domain/due_dates.js",
-  "/js/domain/gst.js",
-  "/js/domain/invoice_format.js",
-  "/js/domain/invoices_group.js",
-  "/js/views/business.js",
-  "/js/views/customers.js",
-  "/js/views/dashboard.js",
-  "/js/views/invoice_form.js",
-  "/js/views/invoices.js",
-  "/js/views/settings.js",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
 ];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)));
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(PRECACHE)));
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
-    ).then(() => self.clients.claim())
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
 });
 
@@ -43,7 +27,21 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
-  event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
-  );
+
+  // Never intercept JS modules — service worker fetch breaks dynamic import().
+  if (url.pathname.startsWith("/js/")) return;
+
+  if (url.pathname === "/" || url.pathname.endsWith(".html")) {
+    event.respondWith(
+      fetch(event.request)
+        .then((res) => {
+          if (res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE).then((cache) => cache.put(event.request, copy));
+          }
+          return res;
+        })
+        .catch(() => caches.match(event.request).then((c) => c || caches.match("/index.html")))
+    );
+  }
 });

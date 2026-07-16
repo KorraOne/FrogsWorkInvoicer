@@ -2,6 +2,10 @@ import { SignJWT, jwtVerify } from "jose";
 import { jwtSecretBytes } from "./jwt_secret.js";
 import { buildInvoicePdf } from "./invoice_pdf.js";
 import {
+  buildInvoiceEmailContent,
+  emailCopyPrefsFromSettings,
+} from "./invoice_email.js";
+import {
   decodePdfB64,
   MAX_MIGRATE_BYTES,
   readJsonLimited,
@@ -25,8 +29,69 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+/** Chunked base64 — avoid stack overflow from String.fromCharCode(...largeBuffer). */
+function bytesToBase64(bytes) {
+  const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  const chunk = 0x8000;
+  let binary = "";
+  for (let i = 0; i < u8.length; i += chunk) {
+    binary += String.fromCharCode(...u8.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
 function invoiceKey(number) {
   return String(number).padStart(8, "0");
+}
+
+/** Storage key: invoice_id when present; else legacy padded invoice_number. */
+function storageKeyFromInvoice(invoice) {
+  const id = String(invoice?.invoice_id || "").trim();
+  if (id) return id;
+  const number = Number(invoice?.invoice_number);
+  if (!Number.isFinite(number) || number < 1) throw new Error("Invalid invoice number");
+  return invoiceKey(number);
+}
+
+function mutationInvoiceKey(payload) {
+  const id = String(payload?.invoice_id || "").trim();
+  if (id) return id;
+  if (payload?.invoice_number != null && payload.invoice_number !== "") {
+    return invoiceKey(Number(payload.invoice_number));
+  }
+  throw new Error("invoice_id or invoice_number required");
+}
+
+async function resolveInvoiceLookup(db, userId, pathSeg) {
+  const seg = String(pathSeg || "").trim();
+  if (!seg) return null;
+  let row = await dbInvoice(db, userId, seg);
+  if (row) return { key: seg, row };
+  if (/^\d+$/.test(seg)) {
+    const padded = invoiceKey(Number(seg));
+    if (padded !== seg) {
+      row = await dbInvoice(db, userId, padded);
+      if (row) return { key: padded, row };
+    }
+    const map = await loadInvoicesMap(db, userId);
+    let best = null;
+    for (const [key, inv] of Object.entries(map)) {
+      if (Number(inv.invoice_number) !== Number(seg)) continue;
+      if (inv.deleted_at) continue;
+      if (
+        !best ||
+        String(inv.updated_at || inv.invoice_date || "") >
+          String(best.inv.updated_at || best.inv.invoice_date || "")
+      ) {
+        best = { key, inv };
+      }
+    }
+    if (best) {
+      row = await dbInvoice(db, userId, best.key);
+      if (row) return { key: best.key, row };
+    }
+  }
+  return null;
 }
 
 export function storageTierFromSubscription(sub) {
@@ -42,14 +107,23 @@ export function entitlementsPlatforms(storageTier) {
 }
 
 export async function resolveStorageTier(db, stripe, user) {
+  const access = await loadCloudAccess(db, stripe, user);
+  return access.tier;
+}
+
+/** One Stripe subscriptions.list → tier + active. */
+export async function loadCloudAccess(db, stripe, user) {
   if (!user?.stripe_customer_id || !stripe) {
-    return user?.storage_tier === "cloud" ? "cloud" : "local";
+    const tier = user?.storage_tier === "cloud" ? "cloud" : "local";
+    return { tier, active: false, listMs: 0 };
   }
+  const t0 = Date.now();
   const subs = await stripe.subscriptions.list({
     customer: user.stripe_customer_id,
     status: "all",
     limit: 5,
   });
+  const listMs = Date.now() - t0;
   for (const sub of subs.data) {
     if (sub.status === "active" || sub.status === "trialing") {
       const tier = storageTierFromSubscription(sub);
@@ -59,18 +133,29 @@ export async function resolveStorageTier(db, stripe, user) {
           .bind(tier, user.id)
           .run();
       }
-      return tier;
+      return { tier, active: true, listMs, status: sub.status };
     }
   }
-  return user?.storage_tier === "cloud" ? "cloud" : "local";
+  return {
+    tier: user?.storage_tier === "cloud" ? "cloud" : "local",
+    active: false,
+    listMs,
+  };
 }
 
 async function requireCloudUser(auth, env, stripe) {
-  const tier = await resolveStorageTier(env.DB, stripe, auth.user);
-  if (tier !== "cloud") {
-    return { error: textError("Cloud storage tier required.", 403) };
+  if (auth.cloudAccess?.tier === "cloud") {
+    return { tier: "cloud", perf: { requireCloudUserMs: 0, reusedMobileGate: true } };
   }
-  return { tier };
+  const access = await loadCloudAccess(env.DB, stripe, auth.user);
+  if (access.tier !== "cloud") {
+    return {
+      error: textError("Cloud storage tier required.", 403),
+      perf: { requireCloudUserMs: access.listMs },
+    };
+  }
+  auth.cloudAccess = access;
+  return { tier: access.tier, perf: { requireCloudUserMs: access.listMs } };
 }
 
 function documentsBucket(env) {
@@ -113,6 +198,28 @@ async function loadCustomersMap(db, userId) {
   return out;
 }
 
+/** Prefer saved customer; fall back to address/email snapshotted on the invoice (one-off customers). */
+function customerForInvoice(invoice, customers) {
+  const name = String(invoice?.customer_name || "").trim();
+  const saved = name && customers ? customers[name] : null;
+  if (saved && typeof saved === "object") {
+    return {
+      ...saved,
+      email: invoice.customer_email || saved.email || "",
+      abn: invoice.customer_abn || saved.abn || "",
+    };
+  }
+  return {
+    email: invoice?.customer_email || "",
+    abn: invoice?.customer_abn || "",
+    address_line1: invoice?.address_line1 || invoice?.customer_address_line1 || "",
+    address_line2: invoice?.address_line2 || invoice?.customer_address_line2 || "",
+    suburb: invoice?.suburb || invoice?.customer_suburb || "",
+    state: invoice?.state || invoice?.customer_state || "",
+    postcode: invoice?.postcode || invoice?.customer_postcode || "",
+  };
+}
+
 async function loadInvoicesMap(db, userId) {
   const rows = await db
     .prepare(
@@ -124,6 +231,7 @@ async function loadInvoicesMap(db, userId) {
   for (const row of rows.results || []) {
     try {
       const inv = JSON.parse(row.data_json);
+      inv.invoice_id = String(inv.invoice_id || row.invoice_key);
       inv.pdf_status = row.pdf_status || inv.pdf_status || "pending";
       inv.pdf_r2_key = row.pdf_r2_key;
       out[row.invoice_key] = inv;
@@ -199,11 +307,12 @@ async function deleteCustomer(db, userId, name) {
   await db.prepare("DELETE FROM doc_customers WHERE user_id = ? AND name = ?").bind(userId, name).run();
 }
 
-async function softDeleteInvoice(db, userId, invoiceNumber) {
-  const key = invoiceKey(invoiceNumber);
+async function softDeleteInvoice(db, userId, payload) {
+  const key = mutationInvoiceKey(payload);
   const row = await dbInvoice(db, userId, key);
   if (!row) throw new Error("Invoice not found");
   const inv = JSON.parse(row.data_json);
+  inv.invoice_id = String(inv.invoice_id || key);
   inv.deleted_at = nowIso();
   const ts = nowIso();
   await db
@@ -216,31 +325,46 @@ async function softDeleteInvoice(db, userId, invoiceNumber) {
 
 async function upsertInvoice(db, userId, invoice) {
   const number = Number(invoice.invoice_number);
-  const key = invoiceKey(number);
+  if (!Number.isFinite(number) || number < 1) throw new Error("Invalid invoice number");
+  const key = storageKeyFromInvoice(invoice);
+  const payload = {
+    ...invoice,
+    invoice_id: key,
+    invoice_number: number,
+    pdf_status: "pending",
+  };
+  delete payload.pdf_r2_key;
   const ts = nowIso();
   await db
     .prepare(
-      `INSERT INTO doc_invoices (user_id, invoice_key, invoice_number, data_json, revision, updated_at, pdf_status)
-       VALUES (?, ?, ?, ?, 1, ?, 'pending')
+      `INSERT INTO doc_invoices (user_id, invoice_key, invoice_number, data_json, revision, updated_at, pdf_status, pdf_r2_key)
+       VALUES (?, ?, ?, ?, 1, ?, 'pending', NULL)
        ON CONFLICT(user_id, invoice_key) DO UPDATE SET
          data_json = excluded.data_json,
          invoice_number = excluded.invoice_number,
          revision = revision + 1,
-         updated_at = excluded.updated_at`
+         updated_at = excluded.updated_at,
+         pdf_status = 'pending',
+         pdf_r2_key = NULL`
     )
-    .bind(userId, key, number, JSON.stringify(invoice), ts)
+    .bind(userId, key, number, JSON.stringify(payload), ts)
     .run();
   return key;
 }
 
-async function updateInvoiceStatus(db, userId, invoiceNumber, status) {
-  const key = invoiceKey(invoiceNumber);
+async function updateInvoiceStatus(db, userId, payload, status) {
+  const key = mutationInvoiceKey(
+    typeof payload === "object" && payload !== null
+      ? payload
+      : { invoice_number: payload }
+  );
   const row = await db
     .prepare("SELECT data_json FROM doc_invoices WHERE user_id = ? AND invoice_key = ?")
     .bind(userId, key)
     .first();
   if (!row) return false;
   const inv = JSON.parse(row.data_json);
+  inv.invoice_id = String(inv.invoice_id || key);
   inv.status = status;
   const ts = nowIso();
   await db
@@ -253,23 +377,41 @@ async function updateInvoiceStatus(db, userId, invoiceNumber, status) {
 }
 
 /** Generate invoice PDF bytes (pdf-lib). */
-async function buildInvoicePdfBytes(invoice) {
-  return buildInvoicePdf(invoice);
+async function buildInvoicePdfBytes(invoice, business = {}, customer = {}) {
+  return buildInvoicePdf(invoice, business, customer);
 }
 
-export async function generateInvoicePdf(env, userId, invoiceNumber) {
-  const key = invoiceKey(invoiceNumber);
-  const row = await dbInvoice(env.DB, userId, key);
+export async function generateInvoicePdf(env, userId, invoiceRef) {
+  let key;
+  let row;
+  if (typeof invoiceRef === "object" && invoiceRef !== null) {
+    key = mutationInvoiceKey(invoiceRef);
+    row = await dbInvoice(env.DB, userId, key);
+  } else if (typeof invoiceRef === "string" && !/^\d+$/.test(invoiceRef)) {
+    key = invoiceRef;
+    row = await dbInvoice(env.DB, userId, key);
+  } else {
+    const looked = await resolveInvoiceLookup(env.DB, userId, String(invoiceRef));
+    if (!looked) throw new Error("Invoice not found");
+    key = looked.key;
+    row = looked.row;
+  }
   if (!row) throw new Error("Invoice not found");
   const invoice = JSON.parse(row.data_json);
+  invoice.invoice_id = String(invoice.invoice_id || key);
+  const businesses = await loadBusinessesMap(env.DB, userId);
+  const customers = await loadCustomersMap(env.DB, userId);
+  const business = businesses[invoice.business_name] || {};
+  const customer = customerForInvoice(invoice, customers);
   const bucket = documentsBucket(env);
   if (!bucket) throw new Error("Document storage not configured");
   const r2Key = pdfR2Key(userId, key);
-  const bytes = await buildInvoicePdfBytes(invoice);
+  const bytes = await buildInvoicePdfBytes(invoice, business, customer);
   await bucket.put(r2Key, bytes, {
     httpMetadata: { contentType: "application/pdf" },
   });
-  const filename = `Invoice_${key}_${invoice.invoice_date || "draft"}.pdf`;
+  const numPad = invoiceKey(Number(invoice.invoice_number) || 0);
+  const filename = `Invoice_${numPad}_${invoice.invoice_date || "draft"}.pdf`;
   invoice.filename = filename;
   invoice.pdf_status = "ready";
   const ts = nowIso();
@@ -278,7 +420,7 @@ export async function generateInvoicePdf(env, userId, invoiceNumber) {
   )
     .bind(JSON.stringify(invoice), r2Key, ts, userId, key)
     .run();
-  return { filename, r2Key };
+  return { filename, r2Key, invoice_key: key };
 }
 
 async function dbInvoice(db, userId, key) {
@@ -288,18 +430,65 @@ async function dbInvoice(db, userId, key) {
     .first();
 }
 
-export async function enqueueEmailSend(env, userId, invoiceNumber, userEmail) {
+export async function enqueueEmailSend(env, userId, invoiceRef, userEmail) {
+  const payload =
+    typeof invoiceRef === "object" && invoiceRef !== null
+      ? invoiceRef
+      : { invoice_number: invoiceRef };
+  const key = mutationInvoiceKey(payload);
+  const row = await dbInvoice(env.DB, userId, key);
+  if (!row) throw new Error("Invoice not found");
+  const inv = JSON.parse(row.data_json);
+  const invoiceNumber = Number(inv.invoice_number || payload.invoice_number);
   const id = crypto.randomUUID();
   const ts = nowIso();
-  await env.DB.prepare(
-    `INSERT INTO email_outbox (id, user_id, invoice_number, status, created_at, updated_at)
-     VALUES (?, ?, ?, 'pending', ?, ?)`
-  )
-    .bind(id, userId, invoiceNumber, ts, ts)
-    .run();
-  await updateInvoiceStatus(env.DB, userId, invoiceNumber, "send_queued");
-  await processEmailOutbox(env, userId, userEmail);
-  return { id, status: "send_queued" };
+  try {
+    await env.DB.prepare(
+      `INSERT INTO email_outbox (id, user_id, invoice_number, invoice_key, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'pending', ?, ?)`
+    )
+      .bind(id, userId, invoiceNumber, key, ts, ts)
+      .run();
+  } catch {
+    await env.DB.prepare(
+      `INSERT INTO email_outbox (id, user_id, invoice_number, status, created_at, updated_at)
+       VALUES (?, ?, ?, 'pending', ?, ?)`
+    )
+      .bind(id, userId, invoiceNumber, ts, ts)
+      .run();
+  }
+  await updateInvoiceStatus(env.DB, userId, { invoice_id: key, invoice_number: invoiceNumber }, "send_queued");
+
+  const runOutbox = () =>
+    processEmailOutbox(env, userId, userEmail).catch((err) => {
+      console.log(
+        JSON.stringify({
+          action: "processEmailOutbox.bg_error",
+          error: String(err?.message || err),
+        })
+      );
+    });
+
+  if (env._executionCtx?.waitUntil) {
+    env._executionCtx.waitUntil(runOutbox());
+    return {
+      id,
+      status: "send_queued",
+      invoice_key: key,
+      invoice_number: invoiceNumber,
+      async: true,
+    };
+  }
+
+  const processed = await processEmailOutbox(env, userId, userEmail);
+  const forThis =
+    (processed.items || []).find((item) => item.outbox_id === id) || processed.items?.[0] || null;
+  return {
+    id,
+    status: forThis?.final_status || "send_queued",
+    invoice_key: key,
+    invoice_number: invoiceNumber,
+  };
 }
 
 export async function processEmailOutbox(env, userId, userEmail) {
@@ -308,85 +497,163 @@ export async function processEmailOutbox(env, userId, userEmail) {
   )
     .bind(userId)
     .all();
-  const provider = env.EMAIL_PROVIDER || "log";
+  const provider =
+    (env.EMAIL_PROVIDER || "").trim() || (env.RESEND_API_KEY ? "resend" : "log");
+  const hasResendKey = Boolean(env.RESEND_API_KEY);
+  const settings = await loadSettings(env.DB, userId);
+  const businesses = await loadBusinessesMap(env.DB, userId);
+  const customers = await loadCustomersMap(env.DB, userId);
+  const copyPrefs = emailCopyPrefsFromSettings(settings);
+  const items = [];
   for (const row of rows.results || []) {
     const ts = nowIso();
+    const item = {
+      outbox_id: row.id,
+      invoice_number: row.invoice_number,
+      invoice_key: row.invoice_key || null,
+      branch: null,
+      pdf_was_ready: null,
+      has_customer_email: false,
+      resend_status: null,
+      final_status: null,
+      error: null,
+      cc_self: copyPrefs.ccSelf,
+      bcc_self: copyPrefs.bccSelf,
+      self_copy_mode: copyPrefs.mode,
+    };
     try {
-      const key = invoiceKey(row.invoice_number);
-      let invRow = await dbInvoice(env.DB, userId, key);
-      if (!invRow) continue;
+      let key = String(row.invoice_key || "").trim();
+      let invRow = key ? await dbInvoice(env.DB, userId, key) : null;
+      if (!invRow) {
+        const looked = await resolveInvoiceLookup(env.DB, userId, String(row.invoice_number));
+        if (!looked) {
+          item.branch = "invoice_not_found";
+          item.final_status = "skipped";
+          items.push(item);
+          continue;
+        }
+        key = looked.key;
+        invRow = looked.row;
+      }
+      item.invoice_key = key;
+      item.pdf_was_ready = invRow.pdf_status === "ready";
       if (invRow.pdf_status !== "ready") {
         await env.DB.prepare(`UPDATE email_outbox SET status = 'generating_pdf', updated_at = ? WHERE id = ?`)
           .bind(ts, row.id)
           .run();
-        await generateInvoicePdf(env, userId, row.invoice_number);
+        const tPdf = Date.now();
+        await generateInvoicePdf(env, userId, { invoice_id: key });
+        item.pdf_generate_ms = Date.now() - tPdf;
         invRow = await dbInvoice(env.DB, userId, key);
+      } else {
+        item.pdf_generate_ms = 0;
       }
       const invoice = JSON.parse(invRow.data_json);
-      const custRow = await env.DB.prepare(
-        "SELECT data_json FROM doc_customers WHERE user_id = ? AND name = ?"
-      )
-        .bind(userId, invoice.customer_name)
-        .first();
-      let customerEmail = "";
-      if (custRow) {
-        try {
-          customerEmail = JSON.parse(custRow.data_json).email || "";
-        } catch {
-          /* ignore */
-        }
-      }
+      const customer = customerForInvoice(invoice, customers);
+      const customerEmail = String(
+        invoice.customer_email || customer.email || ""
+      ).trim();
+      item.has_customer_email = Boolean(customerEmail);
       if (!customerEmail && provider !== "log") {
         throw new Error("Customer email required");
       }
+      const composed = buildInvoiceEmailContent({
+        invoice,
+        customer,
+        settings,
+        businesses,
+      });
       const bucket = documentsBucket(env);
       const pdfObj = invRow.pdf_r2_key ? await bucket.get(invRow.pdf_r2_key) : null;
       const pdfBytes = pdfObj ? await pdfObj.arrayBuffer() : null;
+      const selfEmail = String(userEmail || "").trim();
+      const cc = copyPrefs.ccSelf && selfEmail ? [selfEmail] : [];
+      const bcc = copyPrefs.bccSelf && selfEmail ? [selfEmail] : [];
       if (provider === "log") {
+        item.branch = "log_provider_no_resend";
+        item.resend_ms = 0;
         console.log(
           JSON.stringify({
             action: "send_invoice_email",
             to: customerEmail || "(missing)",
-            cc: userEmail,
+            cc,
+            bcc,
+            subject: composed.subject,
             invoice_number: row.invoice_number,
             pdf_bytes: pdfBytes ? pdfBytes.byteLength : 0,
           })
         );
       } else if (env.RESEND_API_KEY && customerEmail) {
-        const b64 = pdfBytes ? btoa(String.fromCharCode(...new Uint8Array(pdfBytes))) : "";
-        await fetch("https://api.resend.com/emails", {
+        item.branch = "resend";
+        const bytes = pdfBytes ? new Uint8Array(pdfBytes) : null;
+        item.pdf_bytes = bytes ? bytes.length : 0;
+        const b64 = bytes && bytes.length ? bytesToBase64(bytes) : "";
+        const payload = {
+          from: env.EMAIL_FROM || "invoices@frogswork.com",
+          to: [customerEmail],
+          subject: composed.subject,
+          text: composed.text,
+          html: composed.html,
+          attachments: b64
+            ? [{ filename: composed.filename || "invoice.pdf", content: b64 }]
+            : [],
+        };
+        if (cc.length) payload.cc = cc;
+        if (bcc.length) payload.bcc = bcc;
+        const tResend = Date.now();
+        const res = await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${env.RESEND_API_KEY}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            from: env.EMAIL_FROM || "invoices@frogswork.com",
-            to: [customerEmail],
-            cc: userEmail ? [userEmail] : [],
-            subject: `Invoice ${invoice.invoice_number} from FrogsWork`,
-            text: `Please find your invoice attached.`,
-            attachments: b64
-              ? [{ filename: invoice.filename || "invoice.pdf", content: b64 }]
-              : [],
-          }),
+          body: JSON.stringify(payload),
         });
+        item.resend_ms = Date.now() - tResend;
+        item.resend_status = res.status;
+        if (!res.ok) {
+          const body = await res.text();
+          throw new Error(body || `Resend error ${res.status}`);
+        }
+      } else {
+        item.branch = "no_resend_path";
+        throw new Error(
+          !env.RESEND_API_KEY
+            ? "Email provider not configured (missing RESEND_API_KEY)."
+            : "Customer email required"
+        );
       }
       await env.DB.prepare(
         `UPDATE email_outbox SET status = 'sent', updated_at = ?, attempts = attempts + 1 WHERE id = ?`
       )
         .bind(ts, row.id)
         .run();
-      await updateInvoiceStatus(env.DB, userId, row.invoice_number, "sent");
+      await updateInvoiceStatus(
+        env.DB,
+        userId,
+        { invoice_id: key, invoice_number: row.invoice_number },
+        "sent"
+      );
+      item.final_status = "sent";
     } catch (exc) {
+      item.error = String(exc.message || exc).slice(0, 300);
+      item.final_status = "send_failed";
       await env.DB.prepare(
         `UPDATE email_outbox SET status = 'failed', last_error = ?, updated_at = ?, attempts = attempts + 1 WHERE id = ?`
       )
         .bind(String(exc.message || exc), ts, row.id)
         .run();
-      await updateInvoiceStatus(env.DB, userId, row.invoice_number, "send_failed");
+      const failKey = String(row.invoice_key || "").trim() || invoiceKey(row.invoice_number);
+      await updateInvoiceStatus(
+        env.DB,
+        userId,
+        { invoice_id: failKey, invoice_number: row.invoice_number },
+        "send_failed"
+      );
     }
+    items.push(item);
   }
+  return { provider, hasResendKey, items };
 }
 
 async function applyMutation(db, userId, mutation, env, userEmail) {
@@ -405,23 +672,44 @@ async function applyMutation(db, userId, mutation, env, userEmail) {
       await upsertSettings(db, userId, payload.settings);
       return { ok: true };
     case "delete_invoice":
-      await softDeleteInvoice(db, userId, payload.invoice_number);
+      await softDeleteInvoice(db, userId, payload);
       return { ok: true };
     case "create_invoice": {
       const key = await upsertInvoice(db, userId, payload.invoice);
+      if (payload.prepare_pdf && env?._executionCtx?.waitUntil) {
+        env._executionCtx.waitUntil(
+          generateInvoicePdf(env, userId, { invoice_id: key }).catch((err) => {
+            console.log(
+              JSON.stringify({
+                action: "prepare_pdf.bg_error",
+                error: String(err?.message || err),
+              })
+            );
+          })
+        );
+      }
       return { ok: true, invoice_key: key };
     }
     case "update_invoice_status":
-      await updateInvoiceStatus(db, userId, payload.invoice_number, payload.status);
+      await updateInvoiceStatus(db, userId, payload, payload.status);
       return { ok: true };
     case "enqueue_email_send":
-      return enqueueEmailSend(env, userId, payload.invoice_number, userEmail);
+      return enqueueEmailSend(env, userId, payload, userEmail);
     default:
       return { ok: false, error: `Unknown mutation: ${type}` };
   }
 }
 
-export async function handleDocumentsRoute(request, env, path, auth, stripe) {
+export async function handleDocumentsRoute(
+  request,
+  env,
+  path,
+  auth,
+  stripe,
+  subscriptionStatus,
+  executionCtx = null
+) {
+  if (executionCtx) env._executionCtx = executionCtx;
   const cloud = await requireCloudUser(auth, env, stripe);
   if (cloud.error) return cloud.error;
   const userId = auth.user.id;
@@ -479,7 +767,22 @@ export async function handleDocumentsRoute(request, env, path, auth, stripe) {
     const mutations = body.mutations || [];
     const results = [];
     const errors = [];
+    let subActive =
+      typeof auth.cloudAccess?.active === "boolean" ? auth.cloudAccess.active : null;
     for (const mutation of mutations) {
+      if (mutation.type === "enqueue_email_send") {
+        if (subActive === null) {
+          const sub = await subscriptionStatus(stripe, auth.user.stripe_customer_id);
+          subActive = sub.active;
+        }
+        if (!subActive) {
+          errors.push({
+            mutation,
+            error: "Active subscription required for automatic email send.",
+          });
+          continue;
+        }
+      }
       try {
         const result = await applyMutation(
           env.DB,
@@ -496,29 +799,34 @@ export async function handleDocumentsRoute(request, env, path, auth, stripe) {
     return json({ ok: errors.length === 0, results, errors });
   }
 
-  const pdfMatch = path.match(/^\/documents\/invoices\/(\d+)\/pdf$/);
+  const pdfMatch = path.match(/^\/documents\/invoices\/([^/]+)\/pdf$/);
   if (pdfMatch && request.method === "GET") {
-    const number = Number(pdfMatch[1]);
-    const key = invoiceKey(number);
-    let row = await dbInvoice(env.DB, userId, key);
-    if (!row) return textError("Invoice not found", 404);
+    const looked = await resolveInvoiceLookup(env.DB, userId, pdfMatch[1]);
+    if (!looked) return textError("Invoice not found", 404);
+    let { key, row } = looked;
     if (row.pdf_status !== "ready") {
-      await generateInvoicePdf(env, userId, number);
+      await generateInvoicePdf(env, userId, { invoice_id: key });
       row = await dbInvoice(env.DB, userId, key);
     }
     const bucket = documentsBucket(env);
-    if (!row.pdf_r2_key || !bucket) return textError("PDF not available", 404);
+    if (!row?.pdf_r2_key || !bucket) return textError("PDF not available", 404);
     const obj = await bucket.get(row.pdf_r2_key);
     if (!obj) return textError("PDF not found", 404);
     const buf = await obj.arrayBuffer();
     const inv = JSON.parse(row.data_json);
-    const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
-    return json({ filename: inv.filename, content_b64: b64 });
+    const b64 = bytesToBase64(buf);
+    return json({ filename: inv.filename, content_b64: b64, invoice_key: key });
   }
 
-  const sendMatch = path.match(/^\/documents\/invoices\/(\d+)\/send$/);
+  const sendMatch = path.match(/^\/documents\/invoices\/([^/]+)\/send$/);
   if (sendMatch && request.method === "POST") {
-    const number = Number(sendMatch[1]);
+    const sub = await subscriptionStatus(stripe, auth.user.stripe_customer_id);
+    if (!sub.active) {
+      return textError("Active subscription required for automatic email send.", 403);
+    }
+    const looked = await resolveInvoiceLookup(env.DB, userId, sendMatch[1]);
+    if (!looked) return textError("Invoice not found", 404);
+    const { key } = looked;
     let body = {};
     try {
       body = await request.json();
@@ -526,7 +834,6 @@ export async function handleDocumentsRoute(request, env, path, auth, stripe) {
       body = {};
     }
     if (body.pdf_b64) {
-      const key = invoiceKey(number);
       let binary;
       try {
         binary = decodePdfB64(body.pdf_b64);
@@ -542,6 +849,7 @@ export async function handleDocumentsRoute(request, env, path, auth, stripe) {
       if (row) {
         const inv = JSON.parse(row.data_json);
         inv.pdf_status = "ready";
+        inv.invoice_id = String(inv.invoice_id || key);
         await env.DB.prepare(
           `UPDATE doc_invoices SET pdf_status = 'ready', pdf_r2_key = ?, data_json = ?, updated_at = ? WHERE user_id = ? AND invoice_key = ?`
         )
@@ -549,13 +857,14 @@ export async function handleDocumentsRoute(request, env, path, auth, stripe) {
           .run();
       }
     }
-    return enqueueEmailSend(env, userId, number, auth.user.email);
+    return enqueueEmailSend(env, userId, { invoice_id: key }, auth.user.email);
   }
 
-  const genMatch = path.match(/^\/documents\/invoices\/(\d+)\/generate$/);
+  const genMatch = path.match(/^\/documents\/invoices\/([^/]+)\/generate$/);
   if (genMatch && request.method === "POST") {
-    const number = Number(genMatch[1]);
-    const result = await generateInvoicePdf(env, userId, number);
+    const looked = await resolveInvoiceLookup(env.DB, userId, genMatch[1]);
+    if (!looked) return textError("Invoice not found", 404);
+    const result = await generateInvoicePdf(env, userId, { invoice_id: looked.key });
     return json({ ok: true, ...result });
   }
 
@@ -603,13 +912,17 @@ function applyGuestMutation(workspace, mutation) {
       return { ok: true };
     }
     case "create_invoice": {
-      const inv = payload.invoice;
-      const key = invoiceKey(inv.invoice_number);
-      workspace.invoices[key] = { ...inv, pdf_status: inv.pdf_status || "pending" };
+      const inv = payload.invoice || {};
+      const key = storageKeyFromInvoice(inv);
+      workspace.invoices[key] = {
+        ...inv,
+        invoice_id: key,
+        pdf_status: "pending",
+      };
       return { ok: true, invoice_key: key };
     }
     case "update_invoice_status": {
-      const key = invoiceKey(payload.invoice_number);
+      const key = mutationInvoiceKey(payload);
       if (workspace.invoices[key]) {
         workspace.invoices[key].status = payload.status;
       }
@@ -619,14 +932,14 @@ function applyGuestMutation(workspace, mutation) {
       workspace.settings = { ...workspace.settings, ...(payload.settings || {}) };
       return { ok: true };
     case "delete_invoice": {
-      const key = invoiceKey(payload.invoice_number);
+      const key = mutationInvoiceKey(payload);
       if (workspace.invoices[key]) {
         workspace.invoices[key].deleted_at = nowIso();
       }
       return { ok: true };
     }
     case "enqueue_email_send": {
-      const key = invoiceKey(payload.invoice_number);
+      const key = mutationInvoiceKey(payload);
       if (workspace.invoices[key]) {
         workspace.invoices[key].status = "sent";
         workspace.invoices[key].pdf_status = "ready";
@@ -687,43 +1000,66 @@ export async function handleGuestDocumentsRoute(request, env, path, guestId) {
     return json({ ok: errors.length === 0, results, errors });
   }
 
-  const pdfMatch = path.match(/^\/documents\/invoices\/(\d+)\/pdf$/);
+  const pdfMatch = path.match(/^\/documents\/invoices\/([^/]+)\/pdf$/);
   if (pdfMatch && request.method === "GET") {
-    const number = Number(pdfMatch[1]);
-    const key = invoiceKey(number);
     const ws = await loadGuestWorkspace(env.DB, guestId);
-    const inv = ws.invoices[key];
+    let key = String(pdfMatch[1] || "").trim();
+    let inv = ws.invoices[key];
+    if (!inv && /^\d+$/.test(key)) {
+      const padded = invoiceKey(Number(key));
+      inv = ws.invoices[padded];
+      if (inv) key = padded;
+      else {
+        for (const [k, candidate] of Object.entries(ws.invoices || {})) {
+          if (Number(candidate.invoice_number) === Number(key) && !candidate.deleted_at) {
+            inv = candidate;
+            key = k;
+            break;
+          }
+        }
+      }
+    }
     if (!inv) return textError("Invoice not found", 404);
-    const bytes = await buildInvoicePdfBytes(inv);
-    const b64 = btoa(String.fromCharCode(...new Uint8Array(bytes)));
+    const business = (ws.businesses || {})[inv.business_name] || {};
+    const customer = (ws.customers || {})[inv.customer_name] || {};
+    const bytes = await buildInvoicePdfBytes(inv, business, customer);
+    const b64 = bytesToBase64(bytes);
     inv.pdf_status = "ready";
+    inv.invoice_id = String(inv.invoice_id || key);
     ws.invoices[key] = inv;
     await saveGuestWorkspace(env.DB, guestId, ws);
-    return json({ filename: inv.filename || `Invoice_${key}.pdf`, content_b64: b64 });
+    const numPad = invoiceKey(Number(inv.invoice_number) || 0);
+    return json({
+      filename: inv.filename || `Invoice_${numPad}.pdf`,
+      content_b64: b64,
+      invoice_key: key,
+    });
   }
 
-  const sendMatch = path.match(/^\/documents\/invoices\/(\d+)\/send$/);
+  const sendMatch = path.match(/^\/documents\/invoices\/([^/]+)\/send$/);
   if (sendMatch && request.method === "POST") {
-    const number = Number(sendMatch[1]);
-    const ws = await loadGuestWorkspace(env.DB, guestId);
-    const key = invoiceKey(number);
-    if (!ws.invoices[key]) return textError("Invoice not found", 404);
-    ws.invoices[key].status = "sent";
-    ws.invoices[key].pdf_status = "ready";
-    await saveGuestWorkspace(env.DB, guestId, ws);
-    return json({ ok: true, status: "sent", note: "Guest trial — upgrade to send real email." });
+    return textError(
+      "Automatic email send requires a paid account. Use manual send or subscribe at frogswork.com.",
+      403
+    );
   }
 
-  const genMatch = path.match(/^\/documents\/invoices\/(\d+)\/generate$/);
+  const genMatch = path.match(/^\/documents\/invoices\/([^/]+)\/generate$/);
   if (genMatch && request.method === "POST") {
-    const number = Number(genMatch[1]);
-    const key = invoiceKey(number);
     const ws = await loadGuestWorkspace(env.DB, guestId);
+    let key = String(genMatch[1] || "").trim();
+    if (!ws.invoices[key] && /^\d+$/.test(key)) {
+      const padded = invoiceKey(Number(key));
+      if (ws.invoices[padded]) key = padded;
+    }
     if (!ws.invoices[key]) return textError("Invoice not found", 404);
-    const bytes = await buildInvoicePdfBytes(ws.invoices[key]);
+    const inv = ws.invoices[key];
+    const business = (ws.businesses || {})[inv.business_name] || {};
+    const customer = (ws.customers || {})[inv.customer_name] || {};
+    const bytes = await buildInvoicePdfBytes(inv, business, customer);
     ws.invoices[key].pdf_status = "ready";
     await saveGuestWorkspace(env.DB, guestId, ws);
-    return json({ ok: true, bytes: bytes.byteLength });
+    return json({ ok: true, bytes: bytes.byteLength, invoice_key: key });
   }
 
   return null;

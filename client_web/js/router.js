@@ -17,7 +17,9 @@ export const router = {
   },
 
   parseHash() {
-    const raw = (location.hash || "#home").replace(/^#/, "");
+    const hash = location.hash || "";
+    if (hash.startsWith("#auth/callback")) return;
+    const raw = hash.replace(/^#/, "") || "home";
     const parts = raw.split("/").filter(Boolean);
     this.tab = parts[0] || "home";
     this.sub = parts[1] || null;

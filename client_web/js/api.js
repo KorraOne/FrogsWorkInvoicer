@@ -21,17 +21,7 @@ function getApiBase() {
 
 
 function authToken() {
-
-  return (
-
-    localStorage.getItem("frogswork_access_token") ||
-
-    localStorage.getItem("frogswork_guest_token") ||
-
-    ""
-
-  );
-
+  return localStorage.getItem("frogswork_access_token") || "";
 }
 
 
@@ -178,6 +168,12 @@ export const api = {
 
   },
 
+  mapLoginError(message) {
+    const msg = String(message || "").trim();
+    if (!msg || msg === "Unauthorized") return "Invalid email or password.";
+    return msg;
+  },
+
   refresh() {
 
     const token = localStorage.getItem("frogswork_refresh_token");
@@ -191,8 +187,6 @@ export const api = {
     return request("POST", "/auth/resend-verification", {}, true);
 
   },
-
-  guestSession: () => request("POST", "/guest/session"),
 
   entitlements: () => request("GET", "/entitlements", null, true),
 
@@ -214,14 +208,18 @@ export const api = {
 
   },
 
-  isGuest() {
-
-    return Boolean(localStorage.getItem("frogswork_guest_token") && !localStorage.getItem("frogswork_access_token"));
-
-  },
-
   clearSession() {
     clearStoredSession();
+  },
+
+  saveSession(tokens) {
+    if (tokens?.access_token) {
+      localStorage.setItem("frogswork_access_token", tokens.access_token);
+    }
+    if (tokens?.refresh_token) {
+      localStorage.setItem("frogswork_refresh_token", tokens.refresh_token);
+    }
+    localStorage.removeItem("frogswork_guest_token");
   },
 
 };

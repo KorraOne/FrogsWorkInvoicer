@@ -53,14 +53,31 @@ def documents_download_pdf(invoice_number: int):
         raise
 
 
-def enqueue_invoice_send(invoice_number: int, *, pdf_b64: str | None = None):
-    body = {"invoice_number": invoice_number}
+def enqueue_invoice_send(
+    invoice_number: int,
+    *,
+    pdf_b64: str | None = None,
+    customer_email: str | None = None,
+    filename: str | None = None,
+    subject: str | None = None,
+    body_text: str | None = None,
+):
+    body = {}
     if pdf_b64:
         body["pdf_b64"] = pdf_b64
+    if customer_email:
+        body["customer_email"] = customer_email
+    if filename:
+        body["filename"] = filename
+    if subject:
+        body["subject"] = subject
+    if body_text:
+        body["body_text"] = body_text
+    path = f"/email/invoices/{invoice_number}/send"
     try:
-        return _request("POST", f"/documents/invoices/{invoice_number}/send", body, auth=True)
+        return _request("POST", path, body, auth=True)
     except AccountError as exc:
         if "401" in str(exc) or "token" in str(exc).lower():
             _refresh_if_needed()
-            return _request("POST", f"/documents/invoices/{invoice_number}/send", body, auth=True)
+            return _request("POST", path, body, auth=True)
         raise

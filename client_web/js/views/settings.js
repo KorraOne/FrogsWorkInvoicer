@@ -80,7 +80,7 @@ async function renderPaymentTerms(panel, ctx) {
 
 async function renderAccount(panel, ctx) {
   let ent = ctx.entitlements;
-  if (!ctx.isGuest && !ent) {
+  if (!ent) {
     try {
       ent = await api.entitlements();
       ctx.entitlements = ent;
@@ -89,11 +89,11 @@ async function renderAccount(panel, ctx) {
     }
   }
   const portalUrl = ent?.portal_url || "";
-  const needsVerify = !ctx.isGuest && ent && ent.email_verified === false;
+  const needsVerify = ent && ent.email_verified === false;
   panel.innerHTML = `
     <section class="panel">
       <h2>Your account</h2>
-      ${ctx.isGuest ? '<p class="hint">Guest trial — data expires in 30 days.</p>' : `<div class="preview-row"><span class="preview-label">Subscription</span><span>${ent?.active ? "Active" : "Inactive"}</span></div>`}
+      <div class="preview-row"><span class="preview-label">Subscription</span><span>${ent?.active ? "Active" : "Inactive"}</span></div>
       ${needsVerify ? `<p class="hint warn">Please verify your email. <button type="button" class="btn small secondary" id="resend-verify">Resend verification</button></p>` : ""}
       ${portalUrl ? `<a class="btn secondary" href="${portalUrl}" target="_blank" rel="noopener">Manage subscription</a>` : ""}
       <a class="btn secondary" href="https://frogswork.com/account/subscribe.html">Subscribe</a>

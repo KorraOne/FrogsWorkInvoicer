@@ -1,4 +1,4 @@
-import { AU_STATES } from "../domain/address.js";
+import { AU_STATES, normalizeAuAddress } from "../domain/address.js";
 import { VALID_DUE_RULE_TYPES } from "../domain/due_dates.js";
 
 export function addressFields(prefix = "", values = {}) {
@@ -18,7 +18,7 @@ export function addressFields(prefix = "", values = {}) {
           ${AU_STATES.map((s) => `<option value="${s}" ${v("state") === s ? "selected" : ""}>${s}</option>`).join("")}
         </select></div>
       <div class="field field-narrow"><label>Postcode</label>
-        <input name="${p}postcode" value="${esc(v("postcode"))}" pattern="[0-9]{4}" inputmode="numeric"></div>
+        <input name="${p}postcode" value="${esc(v("postcode"))}" inputmode="numeric" maxlength="4"></div>
     </div>`;
 }
 
@@ -92,6 +92,17 @@ export function readAddressFromForm(fd, prefix = "") {
     state: fd.get(`${p}state`) || "",
     postcode: fd.get(`${p}postcode`) || "",
   };
+}
+
+export function readAndNormalizeAddress(fd, prefix = "") {
+  const raw = readAddressFromForm(fd, prefix);
+  return normalizeAuAddress({
+    line1: raw.address_line1,
+    line2: raw.address_line2,
+    suburb: raw.suburb,
+    state: raw.state,
+    postcode: raw.postcode,
+  });
 }
 
 function esc(s) {

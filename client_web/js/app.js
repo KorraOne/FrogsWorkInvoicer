@@ -1,34 +1,132 @@
 import { api } from "./api.js";
 import { pullBootstrap, flushQueue } from "./sync.js";
 import { router, setBottomNavActive, showTabPanels } from "./router.js";
-import { renderDashboard } from "./views/dashboard.js";
-import { renderInvoices } from "./views/invoices.js";
-import { renderCustomers } from "./views/customers.js";
-import { renderSettings } from "./views/settings.js";
+
+function captureAuthFromUrl() {
+  let access = "";
+  let refresh = "";
+
+  const hash = window.location.hash || "";
+  if (hash.startsWith("#auth/callback")) {
+    const query = hash.includes("?") ? hash.slice(hash.indexOf("?") + 1) : "";
+    const params = new URLSearchParams(query);
+    access = params.get("access_token") || "";
+    refresh = params.get("refresh_token") || "";
+  }
+
+  const search = new URLSearchParams(window.location.search);
+  if (search.get("pwa_auth") === "1") {
+    access = access || search.get("access_token") || "";
+    refresh = refresh || search.get("refresh_token") || "";
+  }
+
+  if (!access) return false;
+
+  api.saveSession({ access_token: access, refresh_token: refresh || undefined });
+  const path = window.location.pathname.replace(/^\/+/, "/") || "/";
+  history.replaceState(null, "", path);
+  return true;
+}
+
+if (/^\/\/+/.test(window.location.pathname)) {
+  history.replaceState(null, "", "/" + window.location.search + window.location.hash);
+}
+
+const authJustCaptured = captureAuthFromUrl();
 
 const gateScreen = document.getElementById("gate-screen");
+const upgradeScreen = document.getElementById("upgrade-screen");
 const appScreen = document.getElementById("app-screen");
 const gateMessage = document.getElementById("gate-message");
-const guestStart = document.getElementById("guest-start");
-const upgradeLink = document.getElementById("upgrade-link");
-const signInLink = document.getElementById("sign-in-link");
+const gateLoginSubmit = document.getElementById("gate-login-submit");
+const upgradeTitle = document.getElementById("upgrade-title");
+const upgradeSignedIn = document.getElementById("upgrade-signed-in");
+const upgradeLead = document.getElementById("upgrade-lead");
+const upgradeCta = document.getElementById("upgrade-cta");
+const upgradePortal = document.getElementById("upgrade-portal");
+const upgradeSignOut = document.getElementById("upgrade-sign-out");
+const signInWebLink = document.getElementById("sign-in-web-link");
 const subscribeLink = document.getElementById("subscribe-link");
+const resetSession = document.getElementById("reset-session");
 const syncStatus = document.getElementById("sync-status");
 const bottomNav = document.getElementById("bottom-nav");
 const fab = document.getElementById("fab");
 
 const isLocal =
   window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+const upgradeUrl = isLocal
+  ? "http://127.0.0.1:8080/account/subscribe.html?upgrade=1&tier=cloud"
+  : "https://frogswork.com/account/subscribe.html?upgrade=1&tier=cloud";
+
 if (isLocal) {
   const loginBase = "http://127.0.0.1:8080/account/login.html?next=pwa";
   const subBase = "http://127.0.0.1:8080/account/signup.html";
-  const upgradeBase = "http://127.0.0.1:8080/account/subscribe.html?upgrade=1&tier=cloud";
-  if (signInLink) signInLink.href = loginBase;
+  if (signInWebLink) signInWebLink.href = loginBase;
   if (subscribeLink) subscribeLink.href = subBase;
-  if (upgradeLink) upgradeLink.href = upgradeBase;
+}
+if (upgradeCta) upgradeCta.href = upgradeUrl;
+
+const ctx = { entitlements: null, onSyncStatus: setSyncStatus };
+
+function clearStoredSession() {
+  api.clearSession();
+  ctx.entitlements = null;
 }
 
-const ctx = { isGuest: false, entitlements: null, onSyncStatus: setSyncStatus };
+function hideAllScreens() {
+  gateScreen.hidden = true;
+  upgradeScreen.hidden = true;
+  appScreen.hidden = true;
+  bottomNav.hidden = true;
+  fab.hidden = true;
+}
+
+function showWelcomeGate(message, { isError = false } = {}) {
+  hideAllScreens();
+  gateScreen.hidden = false;
+  gateMessage.textContent = message;
+  gateMessage.className = isError ? "error-text" : "hint";
+}
+
+function showUpgradeGate(entitlements) {
+  hideAllScreens();
+  upgradeScreen.hidden = false;
+
+  const email = entitlements?.email || "";
+  const localActive = entitlements?.storage_tier === "local" && entitlements?.active;
+  const inactive = !entitlements?.active;
+
+  if (upgradeTitle) {
+    upgradeTitle.textContent = localActive ? "Upgrade to Cloud" : "Subscription required";
+  }
+  if (upgradeSignedIn) {
+    upgradeSignedIn.textContent = email ? `Signed in as ${email}` : "You're signed in.";
+  }
+  if (upgradeLead) {
+    if (localActive) {
+      upgradeLead.textContent =
+        "Your Local plan includes the full desktop app. Upgrade to Cloud to use this mobile app and sync your data.";
+    } else if (inactive) {
+      upgradeLead.textContent =
+        "Your subscription is inactive. Renew or upgrade to Cloud to use the mobile app.";
+    } else {
+      upgradeLead.textContent = "An active Cloud subscription is required to use the mobile app.";
+    }
+  }
+  if (upgradeCta) {
+    upgradeCta.textContent = localActive ? "Upgrade to Cloud" : "Subscribe to Cloud";
+    upgradeCta.href = upgradeUrl;
+  }
+  if (upgradePortal) {
+    const portalUrl = entitlements?.portal_url || "";
+    if (portalUrl && inactive) {
+      upgradePortal.href = portalUrl;
+      upgradePortal.hidden = false;
+    } else {
+      upgradePortal.hidden = true;
+    }
+  }
+}
 
 async function setSyncStatus(text) {
   if (!text) {
@@ -42,21 +140,6 @@ async function setSyncStatus(text) {
 function panelForTab(tab) {
   const map = { home: "home", invoices: "invoices", customers: "customers", settings: "settings" };
   return document.getElementById(`tab-${map[tab] || tab}`);
-}
-
-function handleAuthCallback() {
-  const hash = window.location.hash || "";
-  if (!hash.startsWith("#auth/callback")) return false;
-  const query = hash.includes("?") ? hash.slice(hash.indexOf("?") + 1) : "";
-  const params = new URLSearchParams(query);
-  const access = params.get("access_token");
-  const refresh = params.get("refresh_token");
-  if (!access) return false;
-  localStorage.setItem("frogswork_access_token", access);
-  if (refresh) localStorage.setItem("frogswork_refresh_token", refresh);
-  localStorage.removeItem("frogswork_guest_token");
-  history.replaceState(null, "", window.location.pathname + window.location.search);
-  return true;
 }
 
 async function renderActive() {
@@ -75,14 +158,24 @@ async function renderActive() {
 
   const panel = panelForTab(tab);
   if (!panel) return;
-  if (tab === "home") await renderDashboard(panel, ctx);
-  else if (tab === "invoices") await renderInvoices(panel, ctx);
-  else if (tab === "customers") await renderCustomers(panel, ctx);
-  else if (tab === "settings") await renderSettings(panel, ctx);
+
+  if (tab === "home") {
+    const { renderDashboard } = await import("./views/dashboard.js");
+    await renderDashboard(panel, ctx);
+  } else if (tab === "invoices") {
+    const { renderInvoices } = await import("./views/invoices.js");
+    await renderInvoices(panel, ctx);
+  } else if (tab === "customers") {
+    const { renderCustomers } = await import("./views/customers.js");
+    await renderCustomers(panel, ctx);
+  } else if (tab === "settings") {
+    const { renderSettings } = await import("./views/settings.js");
+    await renderSettings(panel, ctx);
+  }
 }
 
 async function showApp() {
-  gateScreen.hidden = true;
+  hideAllScreens();
   appScreen.hidden = false;
   bottomNav.hidden = false;
   router.navigate(router.tab || "home");
@@ -90,70 +183,95 @@ async function showApp() {
 }
 
 async function resolveAccess() {
-  if (handleAuthCallback()) {
-    gateMessage.textContent = "Signing in…";
+  if (authJustCaptured) {
+    showWelcomeGate("Signing in…");
   }
-  ctx.isGuest = api.isGuest();
   const token = localStorage.getItem("frogswork_access_token");
-  if (!token && !ctx.isGuest) {
-    gateMessage.textContent = isLocal
-      ? `Sign in on the web or try guest mode. API: ${api.getBase()}`
-      : "Sign in with your Cloud account or try a guest workspace.";
-    return;
-  }
-  if (ctx.isGuest) {
-    try {
-      await pullBootstrap();
-      await flushQueue(setSyncStatus);
-    } catch {
-      /* offline */
-    }
-    await showApp();
+  if (!token) {
+    showWelcomeGate(
+      isLocal
+        ? `Sign in with your Cloud subscription. API: ${api.getBase()}`
+        : "Sign in with your Cloud subscription to use the mobile app."
+    );
     return;
   }
   try {
     ctx.entitlements = await api.entitlements();
     if (ctx.entitlements.storage_tier !== "cloud" || !ctx.entitlements.active) {
-      gateMessage.textContent = "Mobile requires an active Cloud subscription.";
-      upgradeLink.hidden = false;
-      if (signInLink) signInLink.hidden = true;
+      showUpgradeGate(ctx.entitlements);
       return;
     }
     await pullBootstrap();
     await flushQueue(setSyncStatus);
     await showApp();
   } catch (err) {
-    gateMessage.textContent = `Showing cached data (${err.message}).`;
-    await showApp();
+    const msg = String(err.message || "");
+    if (msg.includes("401") || msg.toLowerCase().includes("unauthorized")) {
+      clearStoredSession();
+      showWelcomeGate("Session expired. Sign in again.", { isError: true });
+      return;
+    }
+    showWelcomeGate(`Could not verify account (${msg}). Sign in again.`, { isError: true });
   }
 }
 
-guestStart.addEventListener("click", async () => {
-  gateMessage.textContent = "Starting guest trial…";
+async function handleGateLogin() {
+  const email = document.getElementById("gate-email")?.value?.trim() || "";
+  const password = document.getElementById("gate-password")?.value || "";
+
+  if (!email || !password) {
+    showWelcomeGate("Enter your email and password.", { isError: true });
+    return;
+  }
+
+  if (gateLoginSubmit) gateLoginSubmit.disabled = true;
+  showWelcomeGate("Signing in…");
+
   try {
-    const session = await api.guestSession();
-    localStorage.setItem("frogswork_guest_token", session.guest_token);
-    localStorage.removeItem("frogswork_access_token");
-    ctx.isGuest = true;
-    await pullBootstrap();
-    gateMessage.textContent = "";
-    await showApp();
+    const tokens = await api.login(email, password);
+    api.saveSession(tokens);
+    await resolveAccess();
   } catch (err) {
-    gateMessage.textContent = err.message;
-    gateMessage.className = "error-text";
+    showWelcomeGate(api.mapLoginError(err.message), { isError: true });
+  } finally {
+    if (gateLoginSubmit) gateLoginSubmit.disabled = false;
+  }
+}
+
+function signOutToWelcome() {
+  clearStoredSession();
+  const emailInput = document.getElementById("gate-email");
+  const passwordInput = document.getElementById("gate-password");
+  if (emailInput) emailInput.value = "";
+  if (passwordInput) passwordInput.value = "";
+  showWelcomeGate("Signed out. Sign in with your Cloud subscription.");
+}
+
+gateLoginSubmit?.addEventListener("click", handleGateLogin);
+document.getElementById("gate-login-form")?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    handleGateLogin();
   }
 });
+resetSession?.addEventListener("click", signOutToWelcome);
+upgradeSignOut?.addEventListener("click", signOutToWelcome);
 
 document.querySelectorAll("#bottom-nav button").forEach((btn) => {
   btn.addEventListener("click", () => router.navigate(btn.dataset.tab));
 });
 
 router.init();
-router.onChange(() => renderActive());
-
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/sw.js");
-}
+router.onChange(() => {
+  if (!appScreen.hidden) {
+    renderActive().catch((err) => {
+      showWelcomeGate(err.message || "Could not open this screen.", { isError: true });
+    });
+  }
+});
 
 window.addEventListener("online", () => flushQueue(setSyncStatus));
-resolveAccess();
+
+resolveAccess().catch((err) => {
+  showWelcomeGate(err.message || "Could not start app.", { isError: true });
+});

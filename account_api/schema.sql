@@ -133,6 +133,7 @@ CREATE TABLE IF NOT EXISTS email_outbox (
   user_id INTEGER,
   guest_id TEXT,
   invoice_number INTEGER NOT NULL,
+  invoice_key TEXT,
   status TEXT NOT NULL DEFAULT 'pending',
   attempts INTEGER NOT NULL DEFAULT 0,
   last_error TEXT,
@@ -142,6 +143,7 @@ CREATE TABLE IF NOT EXISTS email_outbox (
 );
 
 CREATE INDEX IF NOT EXISTS idx_email_outbox_status ON email_outbox(status);
+CREATE INDEX IF NOT EXISTS idx_email_outbox_invoice_key ON email_outbox(invoice_key);
 
 CREATE TABLE IF NOT EXISTS doc_settings (
   user_id INTEGER PRIMARY KEY,

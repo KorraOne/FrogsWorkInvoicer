@@ -223,14 +223,33 @@ def register_invoice_manage_routes(app):
 
                 from account import client as account_client
 
+                customer = storage.load_customers().get(inv.get("customer_name", ""), {})
+                settings = storage.load_settings()
                 pdf_path = resolve_pdf_path(inv.get("filename", ""))
                 pdf_b64 = None
                 if pdf_path and os.path.isfile(pdf_path):
                     with open(pdf_path, "rb") as f:
                         pdf_b64 = base64.b64encode(f.read()).decode("ascii")
-                account_client.enqueue_invoice_send(int(number), pdf_b64=pdf_b64)
-            storage.set_invoice_status(number, "send_queued")
-            flash("Sending automatically…", "success")
+                ctx = build_invoice_email_context(inv, customer, settings, pdf_path or "")
+                if not ctx.get("to"):
+                    flash("Customer email is required for automatic send. Add an email to the customer first.", "error")
+                    if next_page == "done":
+                        return redirect(url_for("home"))
+                    return redirect(url_for("invoices_list"))
+                result = account_client.enqueue_invoice_send(
+                    int(number),
+                    pdf_b64=pdf_b64,
+                    customer_email=ctx.get("to") or None,
+                    filename=ctx.get("pdf_filename") or None,
+                    subject=ctx.get("subject") or None,
+                    body_text=ctx.get("body") or None,
+                )
+            if not use_cloud_provider() and isinstance(result, dict) and result.get("status") == "sent":
+                storage.set_invoice_status(number, "sent")
+                flash("Invoice sent by email.", "success")
+            else:
+                storage.set_invoice_status(number, "send_queued")
+                flash("Sending automatically…", "success")
         except Exception:
             log.exception("Integrated send failed for invoice %s", number)
             flash("Couldn't queue email send. Try again when online.", "error")

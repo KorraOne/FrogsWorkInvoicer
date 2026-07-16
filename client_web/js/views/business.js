@@ -1,7 +1,6 @@
 import { cache } from "../idb.js";
 import { upsertBusiness, upsertSettings, flushQueue } from "../sync.js";
 import {
-  normalizeAuAddress,
   normalizeAbn,
   normalizeBsb,
   normalizeAccountNumber,
@@ -16,6 +15,7 @@ import {
   dueRuleFields,
   wireDueRuleToggles,
   readAddressFromForm,
+  readAndNormalizeAddress,
 } from "../components/forms.js";
 import { router } from "../router.js";
 
@@ -60,7 +60,7 @@ async function renderBusinessForm(panel, ctx, forcedName = null, forcedRecord = 
   };
 
   panel.innerHTML = `
-    <form id="business-form" class="panel">
+    <form id="business-form" class="panel" novalidate>
       <h2>${isAdd ? "Add business" : "Business details"}</h2>
       <div class="field"><label>Business name</label>
         <input name="business_name" value="${esc(record.business_name || editingName)}" required ${!isAdd && editingName ? "" : ""}></div>
@@ -84,7 +84,7 @@ async function renderBusinessForm(panel, ctx, forcedName = null, forcedRecord = 
       const fd = new FormData(e.target);
       const businessName = (fd.get("business_name") || "").trim();
       if (!businessName) throw new Error("Business name is required.");
-      const addr = normalizeAuAddress(readAddressFromForm(fd));
+      const addr = readAndNormalizeAddress(fd);
       const profile = {
         business_name: businessName,
         ...addr,

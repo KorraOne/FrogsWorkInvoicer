@@ -21,10 +21,15 @@ import {
   formatInvoiceNumber,
   formatInvoiceDate,
 } from "../domain/invoice_format.js";
+import { buildInvoiceEmailContext, formatClipboardText } from "../email_compose.js";
 import { router } from "../router.js";
 import { renderInvoiceCreate } from "./invoice_form.js";
 
 let filterState = {};
+
+function canAutoSend(ctx) {
+  return Boolean(ctx.entitlements?.active);
+}
 
 export async function renderInvoices(panel, ctx) {
   if (router.sub === "create" || router.sub === "preview") {
@@ -77,7 +82,21 @@ export async function renderInvoices(panel, ctx) {
     </form>
     ${renderGroup("Not sent yet", "not_sent", groups.not_sent, settings, multiBiz, ctx)}
     ${renderGroup(`Sent, awaiting payment (${formatMoney(sentTotal)} owing)`, "sent", groups.sent, settings, multiBiz, ctx)}
-    ${renderGroup("Paid", "paid", groups.paid, settings, multiBiz, ctx)}`;
+    ${renderGroup("Paid", "paid", groups.paid, settings, multiBiz, ctx)}
+    <dialog id="manual-send-dialog" class="manual-send-dialog">
+      <form method="dialog" class="manual-send-form">
+        <h3>Prepare to send</h3>
+        <p class="hint">Copy the email text, attach the PDF in your email app, then mark as sent.</p>
+        <pre id="manual-send-text" class="manual-send-pre"></pre>
+        <p id="manual-send-feedback" class="hint" hidden></p>
+        <div class="btn-row">
+          <button type="button" class="btn small secondary" id="manual-copy">Copy email text</button>
+          <button type="button" class="btn small secondary" id="manual-pdf">View PDF</button>
+          <button type="button" class="btn small primary" id="manual-mark-sent">Mark as sent</button>
+          <button type="submit" class="btn small ghost">Close</button>
+        </div>
+      </form>
+    </dialog>`;
 
   panel.querySelector("#new-invoice")?.addEventListener("click", () => router.navigate("invoices", "create"));
   panel.querySelector("#invoice-filters").addEventListener("submit", (e) => {
@@ -90,21 +109,23 @@ export async function renderInvoices(panel, ctx) {
     filterState = {};
     renderInvoices(panel, ctx);
   });
-  wireInvoiceActions(panel, ctx);
+  wireInvoiceActions(panel, ctx, { customers, settings });
 }
 
 function renderGroup(title, key, items, settings, multiBiz, ctx) {
   if (!items.length) return `<details class="invoice-group"><summary>${title} (0)</summary><p class="hint">None</p></details>`;
   return `<details class="invoice-group" ${key !== "paid" ? "open" : ""}>
     <summary>${title} (${items.length})</summary>
-    ${items.map((inv) => invoiceCard(inv, settings, multiBiz)).join("")}
+    ${items.map((inv) => invoiceCard(inv, settings, multiBiz, ctx)).join("")}
   </details>`;
 }
 
-function invoiceCard(inv, settings, multiBiz) {
+function invoiceCard(inv, settings, multiBiz, ctx) {
   const n = inv.invoice_number;
   const countdown = inv.status === "sent" ? dueCountdownForInvoice(inv, new Date(), settings) : null;
   const canSend = ["not_sent", "send_failed"].includes(inv.status);
+  const autoSend = canSend && canAutoSend(ctx);
+  const manualSend = canSend && !canAutoSend(ctx);
   return `<article class="card" data-inv="${n}">
     <div class="card-top">
       <strong>#${formatInvoiceNumber(n)}</strong>
@@ -115,7 +136,8 @@ function invoiceCard(inv, settings, multiBiz) {
     <div class="meta">${formatMoney(inv.total_inc_gst)} · ${esc(lineItemsSummary(inv))}</div>
     ${countdown ? `<div class="meta countdown-${countdown.kind}">${countdown.label} (${countdown.due_date_fmt})</div>` : ""}
     <div class="actions">
-      ${canSend ? `<button class="btn small primary" data-action="send" data-n="${n}">Send</button>` : ""}
+      ${autoSend ? `<button class="btn small primary" data-action="send" data-n="${n}">Send</button>` : ""}
+      ${manualSend ? `<button class="btn small primary" data-action="manual" data-n="${n}">Prepare to send</button>` : ""}
       ${inv.status === "sent" ? `<button class="btn small primary" data-action="paid" data-n="${n}">Mark paid</button>` : ""}
       <button class="btn small secondary" data-action="pdf" data-n="${n}">View PDF</button>
       <select class="btn small ghost status-select" data-n="${n}">
@@ -129,7 +151,43 @@ function invoiceCard(inv, settings, multiBiz) {
   </article>`;
 }
 
-function wireInvoiceActions(panel, ctx) {
+function wireInvoiceActions(panel, ctx, { customers, settings }) {
+  const dialog = panel.querySelector("#manual-send-dialog");
+  let manualInvoiceNumber = null;
+  let manualClipboard = "";
+
+  panel.querySelector("#manual-copy")?.addEventListener("click", async () => {
+    const feedback = panel.querySelector("#manual-send-feedback");
+    try {
+      await navigator.clipboard.writeText(manualClipboard);
+      feedback.textContent = "Email text copied. Paste into your email app.";
+      feedback.hidden = false;
+    } catch {
+      feedback.textContent = "Couldn't copy. Select the text above.";
+      feedback.hidden = false;
+    }
+  });
+
+  panel.querySelector("#manual-pdf")?.addEventListener("click", async () => {
+    if (!manualInvoiceNumber) return;
+    const data = await api.getInvoicePdf(manualInvoiceNumber);
+    const bytes = Uint8Array.from(atob(data.content_b64), (c) => c.charCodeAt(0));
+    const blob = new Blob([bytes], { type: "application/pdf" });
+    window.open(URL.createObjectURL(blob), "_blank");
+  });
+
+  panel.querySelector("#manual-mark-sent")?.addEventListener("click", async () => {
+    if (!manualInvoiceNumber) return;
+    try {
+      await updateInvoiceStatus(manualInvoiceNumber, "sent");
+      await flushQueue(ctx.onSyncStatus);
+      dialog?.close();
+      await renderInvoices(panel, ctx);
+    } catch (ex) {
+      alert(ex.message);
+    }
+  });
+
   panel.querySelectorAll("[data-action]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const n = Number(btn.dataset.n);
@@ -137,8 +195,23 @@ function wireInvoiceActions(panel, ctx) {
       btn.disabled = true;
       try {
         if (action === "send") {
+          if (!canAutoSend(ctx)) {
+            throw new Error("Automatic send requires an active paid subscription.");
+          }
           await queueEmailSend(n);
           await flushQueue(ctx.onSyncStatus);
+        } else if (action === "manual") {
+          const invoices = await cache.getInvoices();
+          const key = String(n).padStart(8, "0");
+          const inv = invoices[key];
+          if (!inv) throw new Error("Invoice not found.");
+          const customer = customers[inv.customer_name] || {};
+          const emailCtx = buildInvoiceEmailContext(inv, customer, settings, inv.filename);
+          manualInvoiceNumber = n;
+          manualClipboard = formatClipboardText(emailCtx);
+          panel.querySelector("#manual-send-text").textContent = manualClipboard;
+          panel.querySelector("#manual-send-feedback").hidden = true;
+          dialog?.showModal();
         } else if (action === "paid") {
           await updateInvoiceStatus(n, "paid");
           await flushQueue(ctx.onSyncStatus);
@@ -152,7 +225,9 @@ function wireInvoiceActions(panel, ctx) {
           await softDeleteInvoice(n);
           await flushQueue(ctx.onSyncStatus);
         }
-        await renderInvoices(panel, ctx);
+        if (action !== "manual") {
+          await renderInvoices(panel, ctx);
+        }
       } catch (ex) {
         alert(ex.message);
       } finally {

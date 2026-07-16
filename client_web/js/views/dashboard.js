@@ -5,7 +5,7 @@ import { dashboardTotals } from "../domain/invoices_group.js";
 import { dashboardAmounts, businessGstRegistered, resolveActiveBusiness } from "../domain/dashboard.js";
 import { router } from "../router.js";
 
-export async function renderDashboard(panel, { entitlements, isGuest, onSyncStatus }) {
+export async function renderDashboard(panel, { entitlements }) {
   const [invoices, businesses, settings] = await Promise.all([
     cache.getInvoices(),
     cache.getBusinesses(),
@@ -18,9 +18,7 @@ export async function renderDashboard(panel, { entitlements, isGuest, onSyncStat
   const paid = dashboardAmounts(totals.paid, gstReg);
 
   let accountHtml = "";
-  if (isGuest) {
-    accountHtml = `<p class="hint">Guest trial — <a href="https://frogswork.com/account/subscribe.html">Subscribe</a> for email and desktop sync.</p>`;
-  } else if (entitlements) {
+  if (entitlements) {
     accountHtml = `
       <div class="preview-row"><span class="preview-label">Subscription</span>
         <span>${entitlements.active ? "Active" : "Inactive"}</span></div>`;
