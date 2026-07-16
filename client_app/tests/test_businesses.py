@@ -126,8 +126,6 @@ def test_build_usage_snapshot_includes_business_count(tmp_path, monkeypatch):
     (data_dir / "customers.json").write_text("{}", encoding="utf-8")
     (data_dir / "invoices.json").write_text("{}", encoding="utf-8")
 
-    monkeypatch.setattr("account.trial_stats.lifetime_totals", lambda: (0, __import__("decimal").Decimal("0")))
-
     snap = build_usage_snapshot()
     assert snap["business_count"] == 2
     assert snap["gst_registered"] is False

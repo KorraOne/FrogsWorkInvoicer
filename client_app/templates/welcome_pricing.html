@@ -5,13 +5,11 @@
 {% include "_onboarding_stepper.html" %}
 {% endwith %}
 <h1>Pricing</h1>
-<p class="home-intro">Start invoicing now. No account needed.</p>
+<p class="home-intro">Subscribe to create invoices. Sign in after checkout.</p>
 <ul class="welcome-list">
-    <li><strong>Free trial:</strong> 20 invoices or $20,000 ex GST</li>
-    <li><strong>Then subscribe:</strong> {{ subscription_monthly_display }} or {{ subscription_annual_display }} ({{ subscription_annual_savings }})</li>
-    <li>Works offline. Your invoice data stays on this PC.</li>
+    <li><strong>Subscribe:</strong> {{ subscription_monthly_display }} or {{ subscription_annual_display }} ({{ subscription_annual_savings }})</li>
+    <li>Your invoice data stays on this PC.</li>
 </ul>
-<p>After the trial, subscribe to keep generating invoices.</p>
 <form method="POST" action="{{ url_for('welcome_pricing') }}" class="onboarding-actions onboarding-actions--center onboarding-actions--fill">
     <button type="submit" class="btn btn-primary">Continue</button>
 </form>

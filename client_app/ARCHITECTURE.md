@@ -37,11 +37,11 @@ Operator docs: [`../docs/README.md`](../docs/README.md)
 | [`app.py`](app.py) | Flask app, error handlers, template filters, nav context, desktop `main()` |
 | [`routes/`](routes/) | HTTP routes (invoices, customers, settings, welcome, account, backup, system) |
 | [`storage/`](storage/) | AppData JSON, PDF folder, invoice records (`import storage` re-exports API) |
-| [`account/`](account/) | Auth store, API client, entitlements, trial meter, checkout handoff |
+| [`account/`](account/) | Auth store, API client, entitlements, checkout handoff |
 | [`invoicing/`](invoicing/) | Invoice forms, formatting, due dates, PDF (`pdf_generator.generate_invoice` → `pdf/templates/`), email compose, GST |
 | [`app_platform/`](app_platform/) | OS/desktop glue: paths, dialogs, updates, window state, Win uninstall hook |
 | [`desktop_shell.py`](desktop_shell.py) | pywebview window, splash (Win + future Mac desktop entry) |
-| [`app_config.py`](app_config.py) | Brand, version, trial limits, API URL defaults |
+| [`app_config.py`](app_config.py) | Brand, version, API URL defaults |
 | [`ui_config.py`](ui_config.py) | Template placeholders and idle timeout |
 
 ### `app_platform/` layout
@@ -103,7 +103,7 @@ Small inline `<script>` blocks with Jinja `url_for` / `tojson` are fine. Config 
 
 ## Subscription vs invoice logic
 
-- **Trial:** `account/trial_stats.py` sums lifetime invoices from `invoices.json`. `account/entitlement_guard.py` blocks generate when limits exceeded.
+- **Access:** `account/entitlement_guard.py` requires signed-in + active subscription (or Stripe `trialing`). Offline grace via entitlement cache.
 - **Subscribed:** `account/sync.py` fetches `GET /entitlements` from the account API. Result cached in `entitlement_cache.json` with 14-day offline grace.
 - **Invoices:** All customer/PDF data stays local. Only account auth and entitlement checks hit the network.
 

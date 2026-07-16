@@ -1,8 +1,7 @@
-"""User-facing copy for trial and subscription gating."""
+"""User-facing copy for account and subscription gating."""
 
-TRIAL_GATE = (
-    "Free trial limit reached: 20 invoices or $20,000 ex GST. "
-    "Subscribe to keep creating invoices."
+ACCOUNT_REQUIRED = (
+    "Sign in with an active subscription to create invoices."
 )
 
 SUBSCRIBE_REQUIRED = (

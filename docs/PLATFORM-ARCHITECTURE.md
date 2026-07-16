@@ -65,7 +65,7 @@ Both tiers share the **same account** (email + password) and **same API** for au
 
 | Tier | Data location | Desktop | Mobile PWA |
 |------|---------------|---------|------------|
-| **Local** (lower price) | `%APPDATA%\FrogsWork\` per machine — **not synced** between PCs | Full app | Guest trial only, or upgrade gate if logged in |
+| **Local** (lower price) | `%APPDATA%\FrogsWork\` per machine — **not synced** between PCs | Full app | Signed-in + active subscription (Cloud upgrade gate if Local deferred) |
 | **Cloud** (higher price) | API → D1 metadata + R2 PDFs — **one dataset** everywhere | Full app + cloud sync | Full app + offline queue |
 
 ```mermaid
@@ -221,7 +221,7 @@ flowchart TB
 | **Customers** | `routes/customers.py` | CRUD, structured AU addresses |
 | **Business profiles** | `routes/businesses.py`, `storage/businesses.py` | Multiple “invoice from” entities, per-business numbering |
 | **Settings** | `routes/settings.py` | Business details, PDF folder, account, updates, cloud migrate |
-| **Trial** | `account/trial_stats.py`, `entitlement_guard.py` | 20 invoices / $20k ex-GST without subscription |
+| **Entitlements** | `account/entitlement_guard.py` | Signed-in + active Stripe subscription (`active` / `trialing`); offline grace |
 | **Subscription** | Web signup + subscribe + `account/client.py` | Local/Cloud Checkout Sessions on frogswork.com; entitlement cache + offline grace |
 | **Backup** | `app_platform/backup.py` | ZIP export/import |
 | **Updates** | `app_platform/updates.py` | Polls `GET /releases/latest` |
@@ -381,10 +381,10 @@ sequenceDiagram
     U->>M: download.html
     M->>R2: setup.exe URL
     U->>W: Install and run
-    W->>W: Trial invoices in AppData
+    W->>W: Sign in and sync entitlements
     U->>M: account/signup.html
     U->>A: POST /auth/signup
-    U->>M: account/subscribe.html Local plan
+    U->>M: account/subscribe.html
     U->>A: POST /checkout/create-session
     U->>S: Stripe Checkout
     S->>M: return.html session_id

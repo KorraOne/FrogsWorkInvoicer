@@ -13,7 +13,7 @@ from decimal import Decimal
 import storage
 from invoicing.gst_settings import is_gst_registered
 from account.install_secret import _install_path, get_install_secret
-from app_config import APP_VERSION, TRIAL_MAX_EX_GST, TRIAL_MAX_INVOICES
+from app_config import APP_VERSION
 
 log = logging.getLogger(__name__)
 
@@ -69,16 +69,22 @@ def _is_packaged():
     return getattr(sys, "frozen", False)
 
 
-def _trial_gate_hit(count, total):
-    hit_invoices = count >= TRIAL_MAX_INVOICES
-    hit_amount = total >= TRIAL_MAX_EX_GST
-    if hit_invoices and hit_amount:
-        return "both"
-    if hit_invoices:
-        return "invoices"
-    if hit_amount:
-        return "amount"
-    return "none"
+def _invoice_ex_gst(invoice):
+    raw = invoice.get("amount_ex_gst")
+    if raw is not None and str(raw).strip() != "":
+        return Decimal(str(raw))
+    return Decimal(str(invoice.get("total_inc_gst", "0")))
+
+
+def _lifetime_totals(invoices):
+    count = 0
+    total = Decimal("0")
+    for invoice in invoices.values():
+        if storage.is_invoice_deleted(invoice):
+            continue
+        count += 1
+        total += _invoice_ex_gst(invoice)
+    return count, total
 
 
 def _invoice_status_counts(invoices):
@@ -125,13 +131,11 @@ def _custom_pdf_folder():
 
 
 def build_usage_snapshot():
-    from account.trial_stats import lifetime_totals
-
     settings = storage.load_settings()
     customers = storage.load_customers()
     businesses = storage.load_businesses()
     invoices = storage.load_invoices()
-    count, total = lifetime_totals()
+    count, total = _lifetime_totals(invoices)
     status_counts = _invoice_status_counts(invoices)
 
     due_rule = settings.get("due_rule_type") or settings.get("last_due_rule_type") or ""
@@ -147,8 +151,6 @@ def build_usage_snapshot():
         "invoices_not_sent": status_counts["not_sent"],
         "invoices_sent": status_counts["sent"],
         "invoices_paid": status_counts["paid"],
-        "trial_exhausted": count >= TRIAL_MAX_INVOICES or total >= TRIAL_MAX_EX_GST,
-        "trial_gate_hit": _trial_gate_hit(count, total),
         "due_rule_type": due_rule,
         "custom_pdf_folder": _custom_pdf_folder(),
         "days_since_last_invoice": _days_since_last_invoice(invoices),
@@ -161,8 +163,6 @@ def build_signup_snapshot():
         "lifetime_invoice_count": snap["lifetime_invoice_count"],
         "lifetime_ex_gst_total": snap["lifetime_ex_gst"],
         "gst_registered": snap["gst_registered"],
-        "trial_exhausted": snap["trial_exhausted"],
-        "trial_gate_hit": snap["trial_gate_hit"],
     }
 
 

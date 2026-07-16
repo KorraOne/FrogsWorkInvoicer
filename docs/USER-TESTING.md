@@ -12,7 +12,7 @@ Checklist for family sessions, LinkedIn outreach, and billing smoke-test.
 2. **LinkedIn (remote):** after sister retry fixes obvious blockers
 3. **Billing (you only):** subscribe / login / portal / cancel on your PC
 
-No subscribe flow during family or LinkedIn tests (trial limits are high enough).
+No subscribe flow during family or LinkedIn tests (use a Stripe coupon or test subscription if needed).
 
 ---
 
@@ -52,7 +52,7 @@ SmartScreen: **observe-fail** (help only after 3 to 5 minutes).
 
 ## Billing session (you only)
 
-See DEPLOY.md / admin. Exhaust trial; EARLY100 or card + cancel.
+See DEPLOY.md / admin. Subscribe with EARLY100 or card + cancel.
 
 ---
 

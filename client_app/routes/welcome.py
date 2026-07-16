@@ -1,9 +1,9 @@
-"""Welcome flow, trial usage context, and dashboard."""
+"""Welcome flow, account usage context, and dashboard."""
 
 from flask import redirect, render_template, request, url_for
 
 import storage
-from account import auth_store, entitlement_cache, messages, trial_stats
+from account import auth_store, entitlement_cache, messages
 from app_config import (
     SUBSCRIPTION_ANNUAL_DISPLAY,
     SUBSCRIPTION_ANNUAL_SAVINGS,
@@ -24,7 +24,6 @@ def register_welcome_routes(app, helpers):
 
     @app.context_processor
     def inject_usage_meter():
-        meter = trial_stats.meter_snapshot()
         auth = auth_store.load_auth()
         cache = entitlement_cache.load_cache()
         email = auth.get("email", "") if auth_store.is_authenticated() else ""
@@ -32,15 +31,7 @@ def register_welcome_routes(app, helpers):
         if auth_store.is_authenticated() and entitlement_cache.sync_status() == "reminder":
             sync_reminder = messages.SYNC_REMINDER
         return {
-            "show_trial_usage": not auth_store.is_authenticated(),
             "usage_meter": {
-                "lifetime_invoice_count": meter["lifetime_invoice_count"],
-                "max_invoices": meter["max_invoices"],
-                "lifetime_ex_gst_fmt": format_money(meter["lifetime_ex_gst_total"]),
-                "max_ex_gst_fmt": format_money(meter["max_ex_gst"]),
-                "invoices_remaining": meter["invoices_remaining"],
-                "amount_remaining_fmt": format_money(meter["amount_remaining_ex_gst"]),
-                "trial_exhausted": meter["trial_exhausted"],
                 "authenticated": auth_store.is_authenticated(),
                 "subscription_active": cache.get("active", False),
                 "email": email,
@@ -79,7 +70,6 @@ def register_welcome_routes(app, helpers):
         totals = helpers["dashboard_totals"](invoices)
         _, profile = storage.resolve_business()
         gst_registered = is_gst_registered(profile)
-        meter = trial_stats.meter_snapshot()
 
         def amount_lines(bucket):
             inc = format_money(bucket["inc_gst"])
@@ -101,9 +91,4 @@ def register_welcome_routes(app, helpers):
             paid_secondary=paid_secondary,
             outstanding_count=totals["outstanding"]["count"],
             gst_registered=gst_registered,
-            usage=meter,
-            usage_fmt={
-                "lifetime_invoices": str(meter["lifetime_invoice_count"]),
-                "lifetime_ex_gst": format_money(meter["lifetime_ex_gst_total"]),
-            },
         )

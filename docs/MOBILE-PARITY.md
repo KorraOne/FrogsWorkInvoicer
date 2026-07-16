@@ -16,7 +16,7 @@ Locked product decisions and per-screen element justifications for `client_web_v
 
 ## Out of scope
 
-- Local storage mode, guest trial, trial meter
+- Local storage mode, guest trial, in-app trial meter (Stripe coupons / subscription trials only)
 - Backup ZIP, cloud migrate wizard, app updater
 - Manual email compose / copy-to-clipboard send
 - Reveal PDF in Explorer / local file paths

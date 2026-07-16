@@ -1,4 +1,4 @@
-from . import auth_store, entitlement_cache, messages, trial_stats
+from . import auth_store, entitlement_cache, messages
 from app_config import SUBSCRIPTION_OFFLINE_GRACE_DAYS
 
 
@@ -12,13 +12,10 @@ def _sync_block_message():
 def check_generate_access():
     """
     Return (allowed, status, message).
-    status: None | trial_ok | subscribe_required | account_required | sync_required | subscription_inactive
+    status: subscribed | account_required | subscribe_required | sync_required | subscription_inactive
     """
-    if trial_stats.under_trial_limits():
-        return True, "trial_ok", None
-
     if not auth_store.is_authenticated():
-        return False, "account_required", messages.TRIAL_GATE
+        return False, "account_required", messages.ACCOUNT_REQUIRED
 
     if entitlement_cache.subscription_active_with_grace():
         sync_state = entitlement_cache.sync_status()
@@ -43,14 +40,9 @@ def preview_context(format_money):
     reminder = None
     if auth_store.is_authenticated() and sync_state == "reminder":
         reminder = messages.SYNC_REMINDER
-    meter = trial_stats.meter_snapshot()
-    meter["lifetime_ex_gst_fmt"] = format_money(meter["lifetime_ex_gst_total"])
-    meter["max_ex_gst_fmt"] = format_money(meter["max_ex_gst"])
-    meter["amount_remaining_fmt"] = format_money(meter["amount_remaining_ex_gst"])
     return {
         "generate_allowed": allowed,
         "gate_status": status,
         "gate_message": message,
         "sync_reminder": reminder,
-        "trial_meter": meter,
     }

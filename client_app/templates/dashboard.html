@@ -30,14 +30,7 @@
     </div>
 </div>
 
-{% if show_trial_usage %}
-<h2 class="dashboard-section-heading">Free trial</h2>
-{% include "_usage_context.html" %}
-<div class="preview-section">
-    <div class="preview-row"><span class="preview-label">Lifetime invoices</span>{{ usage_fmt.lifetime_invoices }} / {{ usage_meter.max_invoices }}</div>
-    <div class="preview-row"><span class="preview-label">Lifetime ex GST</span>{{ usage_fmt.lifetime_ex_gst }} / {{ usage_meter.max_ex_gst_fmt }}</div>
-</div>
-{% elif usage_meter.authenticated %}
+{% if usage_meter.authenticated %}
 <h2 class="dashboard-section-heading">Your account</h2>
 <div class="preview-section">
     <div class="preview-row"><span class="preview-label">Signed in as</span>{{ usage_meter.email }}</div>

@@ -1,6 +1,6 @@
 """Account API client, auth, entitlements, and subscription messaging."""
 
-from . import auth_store, client, entitlement_cache, entitlement_guard, install_secret, messages, sync, trial_stats
+from . import auth_store, client, entitlement_cache, entitlement_guard, install_secret, messages, sync
 from .auth_store import clear_auth, get_server_url, is_authenticated, load_auth, save_auth, set_server_url
 from .client import (
     AccountError,
@@ -44,5 +44,4 @@ __all__ = [
     "start_background_sync",
     "sync",
     "sync_entitlements_from_server",
-    "trial_stats",
 ]

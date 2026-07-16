@@ -92,7 +92,7 @@ Prompts for R2 bucket name if not passed: `-R2Bucket "your-bucket"`. Builds, upl
 Requires **Inno Setup 6**. See [`client_app/installer/README.md`](../client_app/installer/README.md).
 
 ```powershell
-.\scripts\package_client_release.ps1 -Version "2.0.0" -ReleaseNotes "Replaces usage-based billing with a simple monthly or annual subscription. Free trial: 20 invoices or `$20,000 ex GST before subscribe."
+.\scripts\package_client_release.ps1 -Version "2.0.0" -ReleaseNotes "Replaces usage-based billing with a simple monthly or annual subscription."
 ```
 
 The script updates `marketing_site/releases.json` with SHA256 hashes after the build. Confirm `client_app/app_config.py` shows `APP_VERSION = "2.0.0"`.
@@ -128,8 +128,8 @@ Update `marketing_site/releases.json`, commit, push, then from `marketing_site/`
 #### 4. Smoke test
 
 - [ ] Download page shows correct version
-- [ ] Fresh install: trial invoicing offline
-- [ ] Trial limit → account + subscribe flow (Stripe test card `4242…`)
+- [ ] Fresh install: sign in + subscribe required before invoicing
+- [ ] Stripe Checkout (test card `4242…`) or coupon / subscription trial
 - [ ] Settings → Your account → subscription verified
 - [ ] In-app update from older build
 

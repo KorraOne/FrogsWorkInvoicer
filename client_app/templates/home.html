@@ -16,7 +16,7 @@
         <p class="nav-section-label">Keep track</p>
         <a href="{{ url_for('dashboard') }}" class="btn nav-card nav-card-feature">
             <span class="nav-card-title">Dashboard</span>
-            <span class="nav-card-hint">Totals, outstanding, and trial usage</span>
+            <span class="nav-card-hint">Totals and outstanding</span>
         </a>
         <a href="{{ url_for('invoices_list') }}" class="btn nav-card nav-card-feature">
             <span class="nav-card-title">Past invoices</span>
@@ -50,7 +50,7 @@
             <div class="setup-account-row">
                 <a href="{{ url_for('account_subscribe') }}" class="btn btn-secondary nav-card nav-card-utility">
                     <span class="nav-card-title">Subscribe</span>
-                    <span class="nav-card-hint">After trial limit</span>
+                    <span class="nav-card-hint">Start a subscription</span>
                 </a>
                 <a href="{{ url_for('account_login') }}" class="btn btn-secondary nav-card nav-card-utility">
                     <span class="nav-card-title">Sign in</span>

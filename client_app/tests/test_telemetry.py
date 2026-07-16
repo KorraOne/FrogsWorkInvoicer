@@ -35,4 +35,4 @@ def test_build_signup_snapshot_keys(monkeypatch, tmp_path):
     snap = build_signup_snapshot()
     assert snap["lifetime_invoice_count"] == 0
     assert snap["gst_registered"] is True
-    assert snap["trial_gate_hit"] == "none"
+    assert "trial_gate_hit" not in snap

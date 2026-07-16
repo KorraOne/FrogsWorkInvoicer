@@ -122,8 +122,7 @@ Events (idempotent): `first_invoice`, `first_customer`, `first_invoice_sent`, `f
   "signup_snapshot": {
     "lifetime_invoice_count": 12,
     "lifetime_ex_gst_total": "8500.00",
-    "gst_registered": true,
-    "trial_gate_hit": "invoices"
+    "gst_registered": true
   }
 }
 ```

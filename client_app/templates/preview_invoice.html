@@ -263,7 +263,7 @@
 
 
 
-    {% if sync_reminder or (not generate_allowed and gate_message) or (generate_allowed and show_trial_usage) %}
+    {% if sync_reminder or (not generate_allowed and gate_message) %}
     <section class="preview-card preview-card-gate">
         <h2 class="preview-card-heading">Access</h2>
         {% if sync_reminder %}
@@ -275,8 +275,6 @@
         {% with message=gate_message, kind='info', title='Subscription required' %}
         {% include "_notice_panel.html" %}
         {% endwith %}
-        {% elif generate_allowed and show_trial_usage %}
-        <p class="preview-billing-text">Free trial: {{ trial_meter.invoices_remaining }} invoice(s) and {{ trial_meter.amount_remaining_fmt }} ex GST left (20 invoices or $20,000 ex GST total).</p>
         {% endif %}
     </section>
     {% endif %}

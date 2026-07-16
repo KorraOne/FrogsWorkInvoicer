@@ -269,7 +269,7 @@ def ensure_app_identity():
     content = f"""{APP_NAME}
 {'=' * len(APP_NAME)}
 
-Australian sole-trader invoicing with a free trial and optional subscription.
+Australian sole-trader invoicing with a Stripe subscription.
 Made by {APP_AUTHOR}, {APP_URL}
 
 WHAT THIS FOLDER IS

@@ -51,10 +51,6 @@ APP_SPLASH_MIN_SECONDS = 3.0
 # Temporary Settings entry for logo design outreach. Remove in a later release.
 SHOW_LOGO_DESIGN_SETTINGS = True
 
-# Free trial before account + subscription required (lifetime totals).
-TRIAL_MAX_INVOICES = 20
-TRIAL_MAX_EX_GST = 20_000
-
 # Subscribed users: offline grace before generate is blocked for verification.
 SUBSCRIPTION_OFFLINE_GRACE_DAYS = 14
 SUBSCRIPTION_OFFLINE_REMINDER_DAYS = 7
