@@ -1,6 +1,6 @@
 # FrogsWork Windows installer (Inno Setup)
 
-Builds **`FrogsWork-x.y.z-setup.exe`** from PyInstaller onedir output.
+Builds **`FrogsWork-x.y.z-setup.exe`**: a Cloud desktop shell (pywebview) that opens `app.frogswork.com`. There is no separate Local-only installer.
 
 ## Prerequisites
 
@@ -30,15 +30,16 @@ Custom PyInstaller folder:
 | Setting | Value |
 |---------|--------|
 | Default install dir | `{localappdata}\Programs\FrogsWork` |
-| Invoice PDF folder | Wizard page: parent folder + `pdfs` subfolder → `{userappdata}\FrogsWork\bootstrap.json` (first install only) |
-| Publisher / version | KorraOne, version metadata on setup.exe, clickable link to korraone.com on finish page |
+| What it installs | Shell + WebView2 dependency (Edge WebView2) |
+| Publisher / version | KorraOne, version metadata on setup.exe |
 | Privileges | `lowest` (no admin) |
 | Desktop shortcut | Optional task on install wizard |
 | Start at logon | Optional task — shortcut in Startup folder |
-| Uninstall PDF export | `FrogsWork.exe --export-uninstall-data` (lightweight, no Flask) |
-| Stop running app | `taskkill` before uninstall; retries install folder removal after |
+| Uninstall PDF export | `FrogsWork.exe --export-uninstall-data` (legacy local PDFs if any) |
+| Stop running app | `taskkill` before uninstall |
 | Remove AppData | `{userappdata}\FrogsWork` on uninstall |
 
 ## See also
 
 - [DEPLOY.md](../../docs/DEPLOY.md) — upload to R2 and release checklist
+- [PLATFORM-ARCHITECTURE.md](../../docs/PLATFORM-ARCHITECTURE.md) — Cloud shell vs PWA hosts

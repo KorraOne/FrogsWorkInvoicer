@@ -12,7 +12,7 @@ How the monorepo segments fit together: what each part does, where it runs, and 
 flowchart TB
     subgraph public [Public internet]
         Marketing[frogswork.com<br/>marketing_site]
-        PWA[app.frogswork.com<br/>client_web PWA]
+        AppUI[app.frogswork.com<br/>client_web_v2]
         Downloads[downloads.frogswork.com<br/>R2 binaries and videos]
     end
 
@@ -22,9 +22,8 @@ flowchart TB
         R2docs[R2 user PDFs and docs]
     end
 
-    subgraph desktop [Per-PC desktop]
-        WinApp[FrogsWork.exe<br/>client_app]
-        AppData["%APPDATA%\\FrogsWork\\"]
+    subgraph desktop [Per-PC desktop shell]
+        WinApp[FrogsWork.exe<br/>pywebview shell]
     end
 
     subgraph billing [Billing]
@@ -35,69 +34,48 @@ flowchart TB
 
     User --> Marketing
     User --> WinApp
-    User --> PWA
+    User --> AppUI
     Marketing --> Downloads
     WinApp --> Downloads
-    WinApp --> AppData
+    WinApp -->|loads| AppUI
     WinApp -->|HTTPS JWT| Worker
-    PWA -->|HTTPS JWT or guest token| Worker
+    AppUI -->|HTTPS JWT| Worker
     Worker --> D1
     Worker --> R2docs
     Worker --> Stripe
-    WinApp --> Stripe
-    PWA --> Marketing
+    AppUI --> Marketing
 ```
 
 | Segment | Folder | Host (prod) | Primary role |
 |---------|--------|-------------|--------------|
 | **Marketing site** | [`marketing_site/`](../marketing_site/) | `frogswork.com` | Acquisition, pricing, download, guides, legal |
 | **Account API** | [`account_api/`](../account_api/) | `api.frogswork.com` | Auth, billing, entitlements, cloud documents, telemetry |
-| **Windows desktop** | [`client_app/`](../client_app/) | User's PC (local) | Full invoicing app, Local or Cloud storage mode |
-| **Mobile PWA** | [`client_web/`](../client_web/) | `app.frogswork.com` | Cloud-tier mobile, offline cache + sync queue |
-| **Release assets** | R2 bucket | `downloads.frogswork.com` | Installers, update zips, marketing videos |
+| **Shared Cloud UI** | [`client_web_v2/`](../client_web_v2/) | `app.frogswork.com` | Invoicing UI for browser, PWA, and desktop shell |
+| **Windows desktop shell** | [`client_app/`](../client_app/) | User's PC | pywebview host + splash, updater, Inno installer |
+| **Release assets** | R2 bucket | `downloads.frogswork.com` | Cloud shell installers and update zips |
 | **Dev API** | [`account_api/dev/`](../account_api/dev/) | `127.0.0.1:8787` | Local Flask mirror of Worker routes |
 
 ---
 
-## Product model: two storage tiers
+## Product model: Cloud first (Local deferred)
 
-Both tiers share the **same account** (email + password) and **same API** for auth and billing. What differs is **where invoice data lives** and **which clients work fully**.
+The shipping product is **Cloud-only**: one dataset on the API (D1 + R2), used from browser, phone PWA, and the Windows shell.
 
-| Tier | Data location | Desktop | Mobile PWA |
-|------|---------------|---------|------------|
-| **Local** (lower price) | `%APPDATA%\FrogsWork\` per machine — **not synced** between PCs | Full app | Signed-in + active subscription (Cloud upgrade gate if Local deferred) |
-| **Cloud** (higher price) | API → D1 metadata + R2 PDFs — **one dataset** everywhere | Full app + cloud sync | Full app + offline queue |
+| Host | Data | Notes |
+|------|------|-------|
+| Browser / PWA | Cloud API + IndexedDB offline queue | Same build |
+| Windows shell | Same Cloud API | Native window; `window.frogsworkDesktop` host flag |
 
-```mermaid
-flowchart LR
-    subgraph localTier [Local subscriber]
-        PC1[Windows PC A]
-        PC2[Windows PC B]
-        AD1[(AppData A)]
-        AD2[(AppData B)]
-        PC1 --> AD1
-        PC2 --> AD2
-        MobileL[PWA]
-        MobileL --> Gate[Upgrade gate]
-    end
+### Local SKU decision gate (deferred)
 
-    subgraph cloudTier [Cloud subscriber]
-        Win[Windows cloud mode]
-        PWA2[PWA]
-        API[Document API]
-        PC1c[(AppData cache)]
-        Win --> API
-        Win --> PC1c
-        PWA2 --> API
-        API --> D1[(D1)]
-        API --> R2[(R2 PDFs)]
-    end
-```
+A Local plan (data on this PC, not offline-first Cloud) is **out of scope** until we re-evaluate after Cloud hosts are stable. Decide later based on:
 
-**Cross-device on Local tier:** Settings → Backup ZIP export/import, or upgrade to Cloud + migrate wizard.
+1. **Demand** — do subscribers ask for data-on-PC without cloud documents?
+2. **Limitations** — WebView2 vs true offline Local; cost of a local document API matching Cloud routes; marketing/checkout complexity.
 
-**Not supported:** shared NAS/Dropbox PDF folder as sync (invoice records stay in AppData; PDF folder is files-only).
+Options then: implement a Local sidecar with the same document API against AppData (and restore Local marketing), or drop Local permanently (optional Stripe Local price cleanup). Auth, Stripe, and Resend stay on the cloud API either way.
 
+Until then: no Local pricing cards, no Local-only installer messaging, and Local-tier accounts see the Cloud upgrade screen in the shared UI.
 ---
 
 ## 1. Marketing site
@@ -188,45 +166,39 @@ flowchart TB
 - **D1** — users, installs (telemetry aggregates), cloud document rows, email queue, guest workspaces.
 - **R2** — release binaries (existing bucket), user invoice PDFs under `user-docs/{user_id}/`, user-test videos.
 - **Stripe** — subscriptions; `storage_tier` derived from price metadata (`local` vs `cloud`).
-- **JWT** — access (12 h) and refresh (30 d) for desktop and PWA; separate guest tokens for trial.
+- **JWT** — access (12 h) and refresh (30 d) for shell, browser, and PWA.
 
 ### Coupling
 
 | Client | Calls API for | Never sends |
 |--------|---------------|-------------|
-| **Windows app** | Login, entitlements, telemetry, document sync (cloud mode), integrated email, updates | Full AppData on every request (only migrate/sync payloads) |
-| **PWA** | Guest session, entitlements, document bootstrap/sync, email queue | — |
-| **Marketing site** | User-test endpoints only | Invoice data |
+| **Shared Cloud UI** | Login, entitlements, document sync, email queue | — |
+| **Windows shell** | Telemetry heartbeat; updater polls `/releases/latest` | Invoice documents (from the Cloud UI) |
+| **Marketing site** | Checkout session create, user-test endpoints | Invoice data |
 | **Stripe** | Webhook POST (ack); entitlements polled live | — |
 
 **Source of truth:**
 
 - **Accounts / billing** — API + Stripe.
-- **Cloud invoice data** — API (D1 + R2).
-- **Local tier invoice data** — desktop AppData only (API sees telemetry counts, not line items).
+- **Invoice data** — API (D1 + R2). Local AppData is not the product store for this cut.
 
 ---
 
-## 3. Windows desktop app
+## 3. Windows desktop shell
 
 **Path:** [`client_app/`](../client_app/)  
-**Runtime:** Python 3, Flask (localhost:5000), pywebview window, PyInstaller → `FrogsWork.exe`  
+**Runtime:** Python 3, pywebview (WebView2), PyInstaller → `FrogsWork.exe`  
 **Deep dive:** [`client_app/ARCHITECTURE.md`](../client_app/ARCHITECTURE.md)
 
 ### Features
 
 | Area | Modules | Notes |
 |------|---------|-------|
-| **Invoicing** | `routes/invoices_*`, `invoicing/` | Create, preview, PDF (ReportLab), past invoices, status |
-| **Customers** | `routes/customers.py` | CRUD, structured AU addresses |
-| **Business profiles** | `routes/businesses.py`, `storage/businesses.py` | Multiple “invoice from” entities, per-business numbering |
-| **Settings** | `routes/settings.py` | Business details, PDF folder, account, updates, cloud migrate |
-| **Entitlements** | `account/entitlement_guard.py` | Signed-in + active Stripe subscription (`active` / `trialing`); offline grace |
-| **Subscription** | Web signup + subscribe + `account/client.py` | Local/Cloud Checkout Sessions on frogswork.com; entitlement cache + offline grace |
-| **Backup** | `app_platform/backup.py` | ZIP export/import |
+| **Cloud UI host** | `desktop_shell.py`, `app.py` | Loads `DESKTOP_APP_URL` (default `https://app.frogswork.com`) |
+| **Host bridge** | `DesktopBridge` + `client_web_v2` `host.ts` | `window.frogsworkDesktop` (`apiBase`, `openExternal`) |
+| **Splash / window** | `desktop_shell.py`, `window_state.py` | Brand splash, geometry persistence |
 | **Updates** | `app_platform/updates.py` | Polls `GET /releases/latest` |
-| **Integrated email** | `routes/invoices_manage.py` | Queue send via API (Local uploads PDF; Cloud chains server PDF) |
-| **Cloud mode** | `storage/providers/cloud.py`, `storage/sync_queue.py` | Optional when Cloud tier + `storage_mode: cloud` |
+| **Uninstall** | `win/uninstall.py` | `--export-uninstall-data` for Inno |
 
 ### Architecture
 
@@ -234,58 +206,32 @@ flowchart TB
 flowchart TB
     subgraph shell [Desktop shell]
         WebView[pywebview]
-        Flask[Flask 127.0.0.1:5000]
+        Bridge[js_api frogsworkDesktop]
     end
-
-    subgraph logic [Business packages]
-        Routes[routes]
-        Invoicing[invoicing]
-        Account[account]
-        Storage[storage plus providers]
+    subgraph cloud [Cloud]
+        AppUI[app.frogswork.com]
+        API[api.frogswork.com]
     end
-
-    subgraph local [On disk]
-        AppData[AppData JSON and cache]
-        PdfDir[PDF folder]
-    end
-
-    WebView --> Flask
-    Flask --> Routes
-    Routes --> Invoicing
-    Routes --> Account
-    Routes --> Storage
-    Storage -->|LocalProvider| AppData
-    Storage -->|LocalProvider| PdfDir
-    Storage -->|CloudProvider| AppData
-    Storage -->|CloudProvider cache| API
-    Account -->|HTTPS| API[api.frogswork.com]
-    Invoicing --> PdfDir
+    WebView --> AppUI
+    Bridge --> WebView
+    AppUI -->|HTTPS| API
 ```
-
-### Storage modes
-
-| Mode | When | Read/write |
-|------|------|------------|
-| **Local** | Default; Local tier only | `LocalProvider` → JSON in AppData + ReportLab PDFs on disk |
-| **Cloud** | Cloud tier + user switched in migrate wizard | `CloudProvider` → API primary; AppData `cloud_cache/` + `sync_queue.json` for offline |
-
-`storage/context.py` picks the active provider; `load_*` / `save_*` in storage modules delegate when cloud mode is on.
 
 ### Coupling
 
 | Partner | Coupling |
 |---------|----------|
-| **Account API** | Required for subscribe, login, entitlements, telemetry; optional for cloud sync and email |
-| **Marketing site** | Brand URLs, support links; user may download installer from frogswork.com |
-| **R2** | In-app update zip only (via API metadata) |
-| **PWA** | No direct link — shared data only if user is on **Cloud** tier (same API dataset) |
-| **Stripe** | Payment Links on frogswork.com; return URL `/account/return.html`; desktop/PWA sign-in via web token handoff |
-
-**Isolation:** Local tier PCs do **not** share data with each other or with mobile unless user migrates to Cloud.
+| **Cloud UI** | Shell navigates to Pages URL; injects host flag |
+| **Account API** | UI uses JWT; shell may send install telemetry |
+| **R2 downloads** | Update zip + setup.exe |
+| **Marketing site** | Brand URLs; optional Windows shell download |
 
 ---
 
-## 4. Mobile PWA
+## 4. Shared Cloud UI (browser + PWA + shell)
+
+**Path:** [`client_web_v2/`](../client_web_v2/)  
+**Runtime:** Vite SPA + Service Worker + IndexedDB  
 
 **Path:** [`client_web/`](../client_web/)  
 **Runtime:** Static SPA + Service Worker + IndexedDB  

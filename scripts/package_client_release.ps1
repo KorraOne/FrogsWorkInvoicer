@@ -1,4 +1,6 @@
-# Package FrogsWork for distribution — installer, update zip, marketing manifest.
+# Package FrogsWork Cloud desktop shell for distribution.
+# Builds the single Windows artifact (setup.exe + update zip) that hosts app.frogswork.com.
+# There is no separate Local-only installer channel.
 
 param(
     [Parameter(Mandatory = $true)]

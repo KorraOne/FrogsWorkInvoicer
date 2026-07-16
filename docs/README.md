@@ -17,7 +17,7 @@ Operator docs for deploy, naming, and brand.
 | **[DOCUMENT-SCHEMA.md](DOCUMENT-SCHEMA.md)** | Shared entity and sync contract (local, cloud, PWA) |
 | [naming.md](naming.md) | Folder names, product vs exe/AppData, consistent wording |
 | [brand.md](brand.md) | Visual identity and color tokens |
-| [MOBILE-PARITY.md](MOBILE-PARITY.md) | PWA v2 Cloud feature parity and element justification |
+| [MOBILE-PARITY.md](MOBILE-PARITY.md) | Client parity: PWA, browser, and desktop shell hosts |
 | [MOBILE-UX.md](MOBILE-UX.md) | PWA v2 IA, wireframes, branding checklist |
 | [MACOS-DESKTOP.md](MACOS-DESKTOP.md) | Deferred macOS packaging notes |
 

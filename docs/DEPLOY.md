@@ -128,10 +128,10 @@ Update `marketing_site/releases.json`, commit, push, then from `marketing_site/`
 #### 4. Smoke test
 
 - [ ] Download page shows correct version
-- [ ] Fresh install: sign in + subscribe required before invoicing
+- [ ] Fresh install: shell opens Cloud app; sign in + subscribe required before invoicing
 - [ ] Stripe Checkout (test card `4242…`) or coupon / subscription trial
-- [ ] Settings → Your account → subscription verified
-- [ ] In-app update from older build
+- [ ] Settings → Account → subscription verified in the Cloud UI
+- [ ] In-app update from older shell build
 
 ### Stuck on an old version after a failed update
 
