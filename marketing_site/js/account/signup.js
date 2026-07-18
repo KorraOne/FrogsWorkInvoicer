@@ -32,6 +32,7 @@ form?.addEventListener("submit", async (e) => {
   if (btn) btn.disabled = true;
   try {
     const result = await signup(email, password);
+    if (window.fwGa) window.fwGa.track("sign_up", { method: "email" });
     sessionStorage.setItem(SESSION_KEYS.signupToken, result.signup_token);
     sessionStorage.setItem(SESSION_KEYS.signupEmail, result.email || email);
     const params = new URLSearchParams(location.search);

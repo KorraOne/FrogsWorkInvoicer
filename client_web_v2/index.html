@@ -19,11 +19,46 @@
     <p id="sync-status" class="sync-status" hidden></p>
   </header>
   <main id="app" class="app-main"></main>
-  <nav id="bottom-nav" class="bottom-nav" hidden>
-    <button data-tab="home" class="active">Home</button>
-    <button data-tab="invoices">Invoices</button>
-    <button data-tab="customers">Customers</button>
-    <button data-tab="settings">Settings</button>
+  <nav id="bottom-nav" class="app-nav" hidden>
+    <div class="app-nav-tabs">
+      <button type="button" data-tab="home" class="app-nav-item active">
+        <svg class="app-nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M12 3.2 3.5 10.5V21h6.2v-6.1h4.6V21h6.2V10.5L12 3.2z"/>
+        </svg>
+        <span class="app-nav-label">Home</span>
+      </button>
+      <button type="button" data-tab="invoices" class="app-nav-item">
+        <svg class="app-nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M7 3h8l4 4v14H7V3zm8 1.5V8h3.5L15 4.5zM9 11h8v1.5H9V11zm0 3.5h8V16H9v-1.5zm0 3.5h5V19.5H9V18z"/>
+        </svg>
+        <span class="app-nav-label">Invoices</span>
+      </button>
+      <button type="button" data-tab="customers" class="app-nav-item">
+        <svg class="app-nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 1.8c-3.3 0-9 1.7-9 5V21h18v-2.2c0-3.3-5.7-5-9-5z"/>
+        </svg>
+        <span class="app-nav-label">Customers</span>
+      </button>
+      <button type="button" data-tab="settings" class="app-nav-item app-nav-item--mobile-only">
+        <svg class="app-nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M19.1 12.9a7.4 7.4 0 0 0 .1-1.8l2-1.6-1.9-3.3-2.4 1a7.2 7.2 0 0 0-1.6-.9l-.4-2.6H9.3l-.4 2.6a7.2 7.2 0 0 0-1.6.9l-2.4-1L3 9.5l2 1.6a7.4 7.4 0 0 0 0 1.8L3 14.5l1.9 3.3 2.4-1c.5.4 1 .7 1.6.9l.4 2.6h5.4l.4-2.6c.6-.2 1.1-.5 1.6-.9l2.4 1 1.9-3.3-2-1.6zM12 15.2A3.2 3.2 0 1 1 15.2 12 3.2 3.2 0 0 1 12 15.2z"/>
+        </svg>
+        <span class="app-nav-label">Settings</span>
+      </button>
+    </div>
+    <div class="app-nav-account" id="nav-account">
+      <button type="button" class="app-nav-settings" id="nav-settings-btn" title="Settings">
+        <svg class="app-nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M19.1 12.9a7.4 7.4 0 0 0 .1-1.8l2-1.6-1.9-3.3-2.4 1a7.2 7.2 0 0 0-1.6-.9l-.4-2.6H9.3l-.4 2.6a7.2 7.2 0 0 0-1.6.9l-2.4-1L3 9.5l2 1.6a7.4 7.4 0 0 0 0 1.8L3 14.5l1.9 3.3 2.4-1c.5.4 1 .7 1.6.9l.4 2.6h5.4l.4-2.6c.6-.2 1.1-.5 1.6-.9l2.4 1 1.9-3.3-2-1.6zM12 15.2A3.2 3.2 0 1 1 15.2 12 3.2 3.2 0 0 1 12 15.2z"/>
+        </svg>
+        <span class="app-nav-label">Settings</span>
+      </button>
+      <div class="app-nav-brand" id="nav-brand" aria-label="Business">
+        <span class="app-nav-avatar" id="nav-avatar" aria-hidden="true"></span>
+        <span class="app-nav-brand-name" id="nav-brand-name">FrogsWork<br>Invoicer</span>
+      </div>
+      <button type="button" class="app-nav-sign-out" id="nav-sign-out">Sign out</button>
+    </div>
   </nav>
   <button id="fab" class="fab" hidden aria-label="Add">+</button>
   <script type="module" src="/src/main.ts"></script>

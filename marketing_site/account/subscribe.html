@@ -32,25 +32,29 @@
         </div>
 
         <h1 class="section-heading" id="subscribe-heading">Subscribe to Cloud</h1>
-        <p class="section-lead" id="subscribe-lead">You will pay with the same email you used to create your account. Receipts go to that address. Have a promo code? Enter it on the Stripe checkout page.</p>
+        <p class="section-lead" id="subscribe-lead">You will pay with the same email you used to create your account. Receipts go to that address. Have a promo code? Enter it on the Stripe checkout page. New subscriptions include a 14-day trial.</p>
         <p class="account-email" id="subscribe-email" hidden>Account: <strong></strong></p>
 
-        <div class="billing-toggle" role="group" aria-label="Billing interval">
-            <button type="button" class="billing-toggle-btn billing-toggle-btn--active" data-interval="month">Monthly</button>
-            <button type="button" class="billing-toggle-btn" data-interval="year">Annual <span class="billing-toggle-hint">save vs monthly</span></button>
-        </div>
+        <ul class="subscribe-benefits">
+            <li>Same invoices on browser, phone, and Windows</li>
+            <li>Invoice email sending</li>
+            <li>Works with an active Stripe subscription</li>
+        </ul>
 
-        <div class="tier-plans">
-            <article class="tier-plan tier-plan--featured" data-tier="cloud">
-                <p class="tier-plan-badge">Cloud</p>
-                <h2 class="tier-plan-title">FrogsWork Cloud</h2>
-                <p class="tier-plan-price" data-price-cloud>…</p>
-                <ul class="tier-plan-features">
-                    <li>Same invoices on browser, phone, and Windows</li>
-                    <li>Invoice email sending</li>
-                    <li>Works with an active Stripe subscription</li>
-                </ul>
-                <button type="button" class="btn btn-primary tier-plan-btn" data-checkout-tier="cloud">Subscribe</button>
+        <div class="tier-plans billing-interval-plans">
+            <article class="tier-plan" data-interval="month">
+                <p class="tier-plan-badge">Monthly</p>
+                <h2 class="tier-plan-title">Cloud monthly</h2>
+                <p class="tier-plan-price">$14.99/mo</p>
+                <p class="tier-plan-note">Billed every month. Cancel anytime.</p>
+                <button type="button" class="btn btn-primary tier-plan-btn" data-checkout-tier="cloud" data-interval="month">Subscribe monthly</button>
+            </article>
+            <article class="tier-plan tier-plan--featured" data-interval="year">
+                <p class="tier-plan-badge">Annual · save ~$31</p>
+                <h2 class="tier-plan-title">Cloud annual</h2>
+                <p class="tier-plan-price">$149/yr</p>
+                <p class="tier-plan-note">One payment per year (vs $179.88 if billed monthly).</p>
+                <button type="button" class="btn btn-primary tier-plan-btn" data-checkout-tier="cloud" data-interval="year">Subscribe annually</button>
             </article>
         </div>
 
@@ -63,6 +67,8 @@
             <span>FrogsWork by <a href="https://korraone.com" rel="noopener noreferrer">KorraOne</a></span>
         </div>
     </footer>
+    <script src="/js/analytics-config.js"></script>
+    <script src="/js/analytics.js"></script>
     <script src="/js/site.js"></script>
     <script type="module" src="/js/account/subscribe.js"></script>
 </body>

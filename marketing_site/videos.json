@@ -6,34 +6,70 @@
     "file": "walkthrough.mp4",
     "poster": "posters/walkthrough.jpg",
     "duration_seconds": 150,
+    "device": "iphone",
     "published": false,
     "summary": [
-      "Dashboard with business, customers, and past invoices already set up",
-      "Create an invoice with line items and GST",
-      "Preview the tax invoice PDF",
-      "Mark the invoice sent and see it in Outstanding",
-      "Search and filter past invoices",
-      "Mark an invoice paid and watch the dashboard update",
-      "Review totals, overdue count, and paid vs outstanding"
+      "Home dashboard with sales this month, outstanding, and paid totals",
+      "Create an invoice: customer, line items, and payment due",
+      "Save and see the tax invoice PDF on the success screen",
+      "Send the invoice to the customer by email",
+      "Browse past invoices: search, filter, View PDF",
+      "Mark an invoice paid and return to Home to see totals update"
     ]
   },
   "tutorials": [
     {
       "id": "install",
-      "title": "Install FrogsWork",
-      "category": "getting-started",
+      "title": "Install on Windows",
+      "category": "install",
       "file": "install.mp4",
       "poster": "posters/install.jpg",
-      "duration_seconds": 35,
+      "duration_seconds": 40,
+      "device": "desktop",
       "steps": [
-        "Open frogswork.com and click Download",
-        "Wait for the installer to finish downloading",
-        "Open Downloads and run the setup file",
-        "Follow the installer steps",
+        "Open frogswork.com and go to Download",
+        "Download and run the Windows setup file",
         "Open FrogsWork from the Start menu",
-        "Complete the setup wizard"
+        "Sign in with your FrogsWork Cloud account",
+        "Confirm the app shows Home with the left navigation"
       ],
       "related_issues": ["installer-will-not-run", "update-failed"],
+      "published": false
+    },
+    {
+      "id": "install-iphone",
+      "title": "Install on iPhone",
+      "category": "install",
+      "file": "install-iphone.mp4",
+      "poster": "posters/install-iphone.jpg",
+      "duration_seconds": 35,
+      "device": "iphone",
+      "steps": [
+        "Open Safari and go to app.frogswork.com",
+        "Sign in if prompted",
+        "Tap Share, then Add to Home Screen",
+        "Open FrogsWork from the home screen",
+        "Confirm the bottom tabs: Home, Invoices, Customers, Settings"
+      ],
+      "related_issues": ["install-pwa"],
+      "published": false
+    },
+    {
+      "id": "install-android",
+      "title": "Install on Android",
+      "category": "install",
+      "file": "install-android.mp4",
+      "poster": "posters/install-android.jpg",
+      "duration_seconds": 35,
+      "device": "android",
+      "steps": [
+        "Open Chrome and go to app.frogswork.com",
+        "Sign in if prompted",
+        "Tap the browser menu, then Install app or Add to Home screen",
+        "Open FrogsWork from the home screen",
+        "Confirm the bottom tabs: Home, Invoices, Customers, Settings"
+      ],
+      "related_issues": ["install-pwa"],
       "published": false
     },
     {
@@ -42,12 +78,14 @@
       "category": "getting-started",
       "file": "setup-business.mp4",
       "poster": "posters/setup-business.jpg",
-      "duration_seconds": 35,
+      "duration_seconds": 40,
+      "device": "iphone",
       "steps": [
-        "Open Business details",
-        "Enter ABN, address, email, and phone",
-        "Upload a logo if you have one",
-        "Save and check the invoice header preview"
+        "Open Settings → Business details",
+        "Enter business name, email, phone, and address",
+        "Add ABN and set Registered for GST if needed",
+        "Upload a logo and place it in the invoice header preview",
+        "Tap Save"
       ],
       "published": false
     },
@@ -58,10 +96,12 @@
       "file": "setup-customer.mp4",
       "poster": "posters/setup-customer.jpg",
       "duration_seconds": 30,
+      "device": "iphone",
       "steps": [
         "Open Customers",
-        "Add a new customer with name and address",
-        "Save and confirm they appear in the list"
+        "Tap + to add a customer",
+        "Enter name, email, and address",
+        "Tap Save and confirm they appear in the list"
       ],
       "published": false
     },
@@ -72,11 +112,12 @@
       "file": "add-customer-inline.mp4",
       "poster": "posters/add-customer-inline.jpg",
       "duration_seconds": 30,
+      "device": "iphone",
       "steps": [
-        "Start creating an invoice",
-        "Click Add customer inline",
-        "Fill in the details and save",
-        "Confirm the new customer is selected"
+        "Open Invoices and start a new invoice",
+        "Tap + Add beside the customer field",
+        "Fill in the customer sheet and save",
+        "Confirm the new customer is selected on the invoice"
       ],
       "published": false
     },
@@ -86,12 +127,14 @@
       "category": "invoicing",
       "file": "creating-invoice.mp4",
       "poster": "posters/creating-invoice.jpg",
-      "duration_seconds": 40,
+      "duration_seconds": 45,
+      "device": "iphone",
       "steps": [
-        "Select a customer",
-        "Add line items and set the due date",
-        "Toggle GST on or off per line if needed",
-        "Save and preview the PDF"
+        "Open Invoices and tap + (or Create sales invoice on Home)",
+        "Select a customer and add line items",
+        "Adjust payment due if needed",
+        "Tap Save invoice",
+        "On the success screen, review the PDF, then Download, Send, or Done"
       ],
       "published": false
     },
@@ -101,12 +144,14 @@
       "category": "invoicing",
       "file": "managing-gst.mp4",
       "poster": "posters/managing-gst.jpg",
-      "duration_seconds": 35,
+      "duration_seconds": 40,
+      "device": "iphone",
       "steps": [
-        "Turn GST on in Business details if you are registered",
-        "Use the line-item GST toggle when creating an invoice",
-        "Check totals update on screen",
-        "Preview the PDF to confirm GST on the tax invoice"
+        "In Business details, set Registered for GST to Yes",
+        "Create an invoice and open a line item",
+        "Toggle GST applicable or GST-free on the line",
+        "Check the invoice totals update on screen",
+        "Save and confirm GST on the tax invoice PDF"
       ],
       "published": false
     },
@@ -117,11 +162,28 @@
       "file": "managing-past-invoices.mp4",
       "poster": "posters/managing-past-invoices.jpg",
       "duration_seconds": 40,
+      "device": "iphone",
       "steps": [
         "Open Invoices",
-        "Search and filter the list",
-        "Open an older invoice",
-        "Change status between draft, sent, and paid"
+        "Search or filter by Not sent, Sent, or Paid",
+        "Open View PDF on an invoice",
+        "Use Send, Mark paid, or move the status as needed"
+      ],
+      "published": false
+    },
+    {
+      "id": "send-invoice",
+      "title": "Email an invoice",
+      "category": "invoicing",
+      "file": "send-invoice.mp4",
+      "poster": "posters/send-invoice.jpg",
+      "duration_seconds": 35,
+      "device": "iphone",
+      "steps": [
+        "Open an invoice that is Not sent (or use Send on the success screen)",
+        "Tap Send / Send to customer",
+        "Wait for the status to become Sent",
+        "Optional: check Settings → General → Email sending for CC or BCC to yourself"
       ],
       "published": false
     },
@@ -131,12 +193,12 @@
       "category": "dashboard",
       "file": "dashboard.mp4",
       "poster": "posters/dashboard.jpg",
-      "duration_seconds": 35,
+      "duration_seconds": 30,
+      "device": "iphone",
       "steps": [
-        "Open the dashboard from Home",
-        "Review totals for this month",
-        "Check overdue count and paid vs outstanding",
-        "Scan recent activity"
+        "Open Home",
+        "Review Sales this month, Outstanding, and Paid all time",
+        "Tap Create sales invoice or Past invoices"
       ],
       "published": false
     },
@@ -146,62 +208,30 @@
       "category": "subscription",
       "file": "subscribing.mp4",
       "poster": "posters/subscribing.jpg",
-      "duration_seconds": 40,
+      "duration_seconds": 45,
+      "device": "desktop",
       "steps": [
-        "Open the subscription page in the app",
-        "Create your FrogsWork account",
-        "Complete Stripe checkout",
-        "Return to the app and open Manage subscription",
-        "Review cancel subscription if needed"
+        "Open frogswork.com and create an account (or open Subscribe from the app gate)",
+        "Choose Cloud monthly or annual and complete Stripe checkout",
+        "Return to the app and sign in",
+        "Open Settings → Account → Manage subscription to review or cancel"
       ],
       "related_issues": ["sign-in-problems"],
       "published": false
     },
     {
-      "id": "backup-restore",
-      "title": "Back up and restore",
-      "category": "data",
-      "file": "backup-restore.mp4",
-      "poster": "posters/backup-restore.jpg",
-      "duration_seconds": 35,
-      "steps": [
-        "Open backup settings",
-        "Create a backup file and save it somewhere safe",
-        "Use Restore from backup to load it again",
-        "Confirm your data returns"
-      ],
-      "related_issues": ["backup-restore"],
-      "published": false
-    },
-    {
-      "id": "pdf-location",
-      "title": "Change your PDF folder",
-      "category": "data",
-      "file": "pdf-location.mp4",
-      "poster": "posters/pdf-location.jpg",
-      "duration_seconds": 30,
-      "steps": [
-        "Open Settings and Data storage",
-        "Choose a new PDF save folder",
-        "Save the setting",
-        "Create or open an invoice and confirm the PDF path"
-      ],
-      "related_issues": ["pdf-location"],
-      "published": false
-    },
-    {
       "id": "uninstall",
-      "title": "Uninstall FrogsWork",
-      "category": "data",
+      "title": "Uninstall the Windows app",
+      "category": "windows",
       "file": "uninstall.mp4",
       "poster": "posters/uninstall.jpg",
-      "duration_seconds": 35,
+      "duration_seconds": 30,
+      "device": "desktop",
       "steps": [
         "Open the Windows Start menu",
         "Right-click FrogsWork and choose Uninstall",
         "Follow the uninstaller",
-        "Check Downloads for exported PDFs if prompted",
-        "Confirm AppData was removed"
+        "Confirm you can still use app.frogswork.com in a browser after uninstall"
       ],
       "published": false
     }

@@ -14,6 +14,7 @@ import {
   invoiceDueSummary,
 } from "../domain/dueDates";
 import { confirmSheet, emptyStateHtml, openSheet, showToast, wireSheetGrabDismiss } from "../components/ui";
+import { trackEvent } from "../lib/analytics";
 import { cache } from "../data/idb";
 import {
   flushQueue,
@@ -415,6 +416,7 @@ function wireListActions(
         if (action === "send") {
           showToast("Sending…", "success");
           const sendResult = await queueEmailSend(id);
+          trackEvent("send_invoice");
           await flushQueue(ctx.onSyncStatus);
           if (sendResult.finalStatus === "sent") {
             showToast("Invoice sent.", "success");
@@ -935,7 +937,7 @@ async function openInlineCustomerSheet(panel: HTMLElement, ctx: AppContext) {
       const email = String(fd.get("email") || "").trim();
       const addr = normalizeAuAddress(readAddressFromForm(fd));
       const abn = fd.get("abn") ? normalizeAbn(String(fd.get("abn"))) : "";
-      return { name, profile: { email, ...addr, abn } as Record<string, unknown> };
+      return { name, profile: { email, ...addr, abn, created_via: "inline" } as Record<string, unknown> };
     };
 
     overlay.querySelector('[data-act="once"]')?.addEventListener("click", () => {
@@ -1316,6 +1318,7 @@ async function renderSuccess(panel: HTMLElement, ctx: AppContext): Promise<void>
     try {
       showToast("Sending…", "success");
       const sendResult = await queueEmailSend(key);
+      trackEvent("send_invoice");
       await flushQueue(ctx.onSyncStatus);
       if (sendResult.finalStatus === "send_failed") {
         showToast("Send failed. Check the customer email and try again.", "error");

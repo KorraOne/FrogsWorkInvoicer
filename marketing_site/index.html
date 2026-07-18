@@ -35,8 +35,8 @@
                 <h1>FrogsWork</h1>
                 <p class="hero-lead">Create tax invoice PDFs, track sent and paid invoices, and email customers. Use the same Cloud account in the browser, on your phone, or in the Windows app.</p>
                 <div class="hero-actions">
-                    <a class="btn btn-primary" href="https://app.frogswork.com">Open app</a>
-                    <a class="btn btn-secondary" href="/account/signup.html">Create account</a>
+                    <a class="btn btn-primary" data-fw-open-app="home_hero" href="https://app.frogswork.com">Open app</a>
+                    <a class="btn btn-secondary" data-fw-signup="home" href="/account/signup.html">Create account</a>
                 </div>
             </div>
             <aside class="hero-visual" aria-label="At a glance">
@@ -59,10 +59,10 @@
             <h2 class="section-heading">Get started</h2>
             <ol class="hero-stat-list get-started-steps">
                 <li><strong>Create an account</strong> and subscribe</li>
-                <li><strong>Open the app</strong> at <a href="https://app.frogswork.com">app.frogswork.com</a> (or install the Windows shell)</li>
+                <li><strong>Open the app</strong> at <a data-fw-open-app="other" href="https://app.frogswork.com">app.frogswork.com</a> (or install the Windows shell)</li>
                 <li><strong>Add your business</strong> and create your first invoice</li>
             </ol>
-            <p class="section-lead"><a href="/account/signup.html">Create account</a> · <a href="/pricing.html">Pricing</a> · <a href="/download.html">Windows download</a></p>
+            <p class="section-lead"><a data-fw-signup="home" href="/account/signup.html">Create account</a> · <a href="/pricing.html">Pricing</a> · <a data-fw-download="home" href="/download.html">Windows download</a></p>
         </section>
 
         <section class="section">
@@ -155,6 +155,8 @@
             </div>
         </div>
     </footer>
+    <script src="/js/analytics-config.js"></script>
+    <script src="/js/analytics.js"></script>
     <script src="/js/site.js"></script>
     <script src="/js/guides.js"></script>
 </body>

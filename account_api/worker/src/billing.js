@@ -7,8 +7,33 @@ import {
   updateSubscriptionMilestones,
 } from "./telemetry.js";
 import { resolveStorageTier, storageTierFromSubscription } from "./documents.js";
-import { buildCheckoutDiscounts } from "./checkout_settings.js";
 import { sendVerificationEmail } from "./auth_email.js";
+
+async function resolvePromotionCodeId(stripe, code) {
+  const normalized = (code || "").trim();
+  if (!normalized) return null;
+  const list = await stripe.promotionCodes.list({
+    code: normalized,
+    active: true,
+    limit: 1,
+  });
+  return list.data[0]?.id || null;
+}
+
+/** Optional URL/body promo only — manage coupons in Stripe Dashboard. */
+async function buildCheckoutDiscounts(stripe, body) {
+  const urlCode = (body.promotion_code || "").trim();
+  if (urlCode && stripe) {
+    const resolved = await resolvePromotionCodeId(stripe, urlCode);
+    if (resolved) {
+      return {
+        discounts: [{ promotion_code: resolved }],
+        allow_promotion_codes: true,
+      };
+    }
+  }
+  return { discounts: undefined, allow_promotion_codes: true };
+}
 
 const SIGNUP_TTL_SEC = 24 * 60 * 60;
 const PENDING_TTL_DAYS = 7;
@@ -68,7 +93,7 @@ export async function issueSignupToken(env, userId, email) {
     .sign(secret);
 }
 
-async function decodeSignupToken(env, token) {
+export async function decodeSignupToken(env, token) {
   const secret = jwtSecretBytes(env);
   const { payload } = await jwtVerify(token, secret);
   if (payload.type !== "signup") {
@@ -241,7 +266,7 @@ export async function handleCreateCheckoutSession(
     }
   }
 
-  const discountOpts = await buildCheckoutDiscounts(env, env.DB, stripe, body);
+  const discountOpts = await buildCheckoutDiscounts(stripe, body);
   const sessionParams = {
     mode: "subscription",
     customer_email: user.email,
@@ -256,6 +281,7 @@ export async function handleCreateCheckoutSession(
     },
     subscription_data: {
       metadata: { storage_tier: tier },
+      trial_period_days: 14,
     },
   };
   if (discountOpts.discounts?.length) {

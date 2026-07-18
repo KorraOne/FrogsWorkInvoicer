@@ -1,4 +1,4 @@
-import { login, attachCheckout, mapAuthError } from "./api.js";
+import { login, attachCheckout, createHandoff, mapAuthError } from "./api.js";
 import { PWA_URL, SESSION_KEYS } from "./config.js";
 
 const params = new URLSearchParams(location.search);
@@ -10,6 +10,23 @@ const emailInput = document.getElementById("email");
 
 if (presetEmail && emailInput) {
   emailInput.value = presetEmail;
+}
+
+async function openAppWithHandoff(tokens) {
+  sessionStorage.setItem(SESSION_KEYS.accessToken, tokens.access_token);
+  if (tokens.refresh_token) {
+    sessionStorage.setItem(SESSION_KEYS.refreshToken, tokens.refresh_token);
+  }
+  try {
+    const result = await createHandoff(tokens.access_token);
+    if (!result.code) throw new Error("Handoff failed");
+    window.location.href = `${PWA_URL}/?handoff=${encodeURIComponent(result.code)}`;
+  } catch (err) {
+    if (errorEl) {
+      errorEl.textContent = mapAuthError(err.message) || "Could not open the app. Try again.";
+      errorEl.hidden = false;
+    }
+  }
 }
 
 function redirectAfterLogin(tokens, email) {
@@ -34,13 +51,12 @@ function redirectAfterLogin(tokens, email) {
       return;
     }
     if (next === "pwa" || next === "desktop" || next === "app") {
-      const q = new URLSearchParams({
-        pwa_auth: "1",
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token || "",
-      });
-      window.location.href = `${PWA_URL}/?${q}`;
+      void openAppWithHandoff(tokens);
       return;
+    }
+    sessionStorage.setItem(SESSION_KEYS.accessToken, tokens.access_token);
+    if (tokens.refresh_token) {
+      sessionStorage.setItem(SESSION_KEYS.refreshToken, tokens.refresh_token);
     }
     window.location.href = "/account/success.html?flow=login";
   };

@@ -231,6 +231,48 @@ def link_install_on_register(db, install_id, user_id, signup_snapshot):
 
 
 def update_subscription_milestones(db, user, sub):
+    if not user or not user["id"]:
+        return
+
+    now = _now_iso()
+    state = subscription_state_from_entitlements(sub)
+
+    user_row = db.execute(
+        """SELECT subscribed_at, cancel_scheduled_at, unsubscribed_at, resubscribed_at, plan_interval
+           FROM users WHERE id = ?""",
+        (user["id"],),
+    ).fetchone()
+    if user_row:
+        sets = []
+        binds = []
+        if sub.get("active") and not user_row["subscribed_at"]:
+            sets.append("subscribed_at = ?")
+            binds.append(now)
+        if sub.get("active") and sub.get("canceling") and not user_row["cancel_scheduled_at"]:
+            sets.append("cancel_scheduled_at = ?")
+            binds.append(now)
+        if (
+            not sub.get("active")
+            and user_row["subscribed_at"]
+            and not user_row["unsubscribed_at"]
+        ):
+            sets.append("unsubscribed_at = ?")
+            binds.append(now)
+        if sub.get("active") and user_row["unsubscribed_at"] and not user_row["resubscribed_at"]:
+            sets.append("resubscribed_at = ?")
+            binds.append(now)
+            sets.append("unsubscribed_at = NULL")
+            sets.append("cancel_scheduled_at = NULL")
+        if sub.get("plan_interval") and sub.get("active"):
+            sets.append("plan_interval = ?")
+            binds.append(sub["plan_interval"])
+        if sets:
+            binds.append(user["id"])
+            db.execute(
+                f"UPDATE users SET {', '.join(sets)} WHERE id = ?",
+                binds,
+            )
+
     install_id = user["install_id"] if user else None
     if not is_valid_install_id(install_id):
         return
@@ -239,8 +281,6 @@ def update_subscription_milestones(db, user, sub):
     if not row:
         return
 
-    now = _now_iso()
-    state = subscription_state_from_entitlements(sub)
     sets = ["subscription_state = ?"]
     binds = [state]
 

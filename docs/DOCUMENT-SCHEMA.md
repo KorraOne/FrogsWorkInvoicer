@@ -28,6 +28,7 @@ Keyed by customer name.
 | `phone` | string |
 | Address fields | string |
 | `due_rule_type`, `due_net_days` | optional overrides |
+| `created_via` | optional `inline` \| `list` (analytics origin) |
 
 ### Invoice (`invoices.json` / `doc_invoices`)
 

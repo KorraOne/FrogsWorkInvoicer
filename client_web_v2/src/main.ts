@@ -1,9 +1,12 @@
 import "./styles/app.css";
 import { fetchAccount } from "./api/mobile";
-import { captureAuthFromUrl, clearSession, getAccessToken, saveSession } from "./auth/session";
+import { captureAuthFromUrl, clearSession, getAccessToken } from "./auth/session";
 import { showToast } from "./components/ui";
+import { cache } from "./data/idb";
 import { pullBootstrap, flushQueue } from "./data/sync";
 import { applyHostEnvironment, watchPywebviewReady, wireExternalLinks } from "./lib/host";
+import { initCloudAnalytics, trackEvent, trackScreen } from "./lib/analytics";
+import { reportDeviceSighting } from "./lib/device";
 import { allowNavigation, rememberAllowedHash, getLastAllowedHash } from "./lib/unsaved";
 import { router, setBottomNavActive, showTabPanels } from "./router";
 import { renderWelcome } from "./screens/welcome";
@@ -21,8 +24,6 @@ wireExternalLinks(document);
 if (/^\/\/+/.test(window.location.pathname)) {
   history.replaceState(null, "", "/" + window.location.search + window.location.hash);
 }
-
-captureAuthFromUrl();
 
 const root = document.getElementById("app") as HTMLElement;
 const bottomNav = document.getElementById("bottom-nav") as HTMLElement;
@@ -56,6 +57,82 @@ function setScreen(next: Screen) {
   showChrome(next === "app");
 }
 
+const BANNER_ASPECT = 1.65;
+const FALLBACK_BRAND_NAME = "FrogsWork\nInvoicer";
+
+function toDataUrl(raw: string): string {
+  const value = raw.trim();
+  if (!value) return "";
+  return value.startsWith("data:") ? value : `data:image/png;base64,${value}`;
+}
+
+function loadImageSize(src: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.naturalWidth || 1, height: img.naturalHeight || 1 });
+    img.onerror = () => reject(new Error("logo load failed"));
+    img.src = src;
+  });
+}
+
+async function refreshNavAccount(): Promise<void> {
+  const brandEl = document.getElementById("nav-brand");
+  const avatarEl = document.getElementById("nav-avatar");
+  const nameEl = document.getElementById("nav-brand-name");
+  if (!brandEl || !avatarEl || !nameEl) return;
+
+  let businessName = "";
+  let logoRaw = "";
+  try {
+    const settings = await cache.getSettings();
+    const businesses = await cache.getBusinesses();
+    const defaultName = String(settings.default_business || Object.keys(businesses)[0] || "");
+    const profile =
+      ((defaultName && businesses[defaultName]) as Record<string, unknown> | undefined) ||
+      (Object.values(businesses)[0] as Record<string, unknown> | undefined);
+    if (profile) {
+      businessName = String(profile.business_name || defaultName || "").trim();
+      // Prefer original upload (no invoice-header placement bake).
+      logoRaw = String(profile.logo_source_b64 || profile.logo_b64 || "").trim();
+    }
+  } catch {
+    businessName = "";
+    logoRaw = "";
+  }
+
+  const displayName = businessName || FALLBACK_BRAND_NAME;
+  nameEl.textContent = displayName;
+  brandEl.classList.remove("app-nav-brand--banner", "app-nav-brand--avatar");
+
+  if (!logoRaw) {
+    brandEl.classList.add("app-nav-brand--avatar");
+    avatarEl.hidden = false;
+    nameEl.hidden = false;
+    avatarEl.innerHTML = `<img class="app-nav-brand-fallback" src="/icons/icon-192.png" alt="">`;
+    return;
+  }
+
+  const src = toDataUrl(logoRaw);
+  try {
+    const size = await loadImageSize(src);
+    const aspect = size.width / size.height;
+    if (aspect >= BANNER_ASPECT) {
+      brandEl.classList.add("app-nav-brand--banner");
+      avatarEl.hidden = false;
+      nameEl.hidden = true;
+      avatarEl.innerHTML = `<img src="${src}" alt="">`;
+      return;
+    }
+  } catch {
+    // Fall through to centered avatar treatment.
+  }
+
+  brandEl.classList.add("app-nav-brand--avatar");
+  avatarEl.hidden = false;
+  nameEl.hidden = false;
+  avatarEl.innerHTML = `<img src="${src}" alt="">`;
+}
+
 function showWelcome(message?: string, isError = false) {
   setScreen("welcome");
   renderWelcome(root, {
@@ -87,6 +164,9 @@ async function enterApp() {
     <div id="tab-customers" class="tab-panel" data-tab="customers" hidden></div>
     <div id="tab-settings" class="tab-panel" data-tab="settings" hidden></div>`;
   await pullBootstrap();
+  await refreshNavAccount();
+  void reportDeviceSighting();
+  trackEvent("login", { method: "session" });
   const flush = await flushQueue(ctx.onSyncStatus);
   if (!flush.ok) {
     showToast(flush.error || "Some changes could not sync. Will retry when online.", "error");
@@ -129,9 +209,21 @@ async function renderActive() {
   else if (tab === "invoices") await renderInvoices(panel, ctx);
   else if (tab === "customers") await renderCustomers(panel, ctx);
   else if (tab === "settings") await renderSettings(panel, ctx);
+
+  const screenName = router.sub ? `${tab}_${router.sub}` : tab;
+  trackScreen(screenName);
+  if (tab === "settings") trackEvent("open_settings");
+  if (tab === "invoices" && router.sub === "create") trackEvent("create_invoice_start");
+
+  if (tab === "settings" || tab === "home") {
+    void refreshNavAccount();
+  }
 }
 
 async function boot() {
+  await captureAuthFromUrl();
+  initCloudAnalytics();
+
   const token = getAccessToken();
   if (!token) {
     showWelcome();
@@ -156,13 +248,26 @@ async function boot() {
   }
 }
 
-document.querySelectorAll("#bottom-nav button").forEach((btn) => {
+document.querySelectorAll("#bottom-nav [data-tab]").forEach((btn) => {
   btn.addEventListener("click", async (e) => {
     e.preventDefault();
     const next = (btn as HTMLButtonElement).dataset.tab || "home";
     if (!(await allowNavigation())) return;
     router.navigate(next);
   });
+});
+
+document.getElementById("nav-settings-btn")?.addEventListener("click", async (e) => {
+  e.preventDefault();
+  if (!(await allowNavigation())) return;
+  router.navigate("settings");
+});
+
+document.getElementById("nav-sign-out")?.addEventListener("click", async (e) => {
+  e.preventDefault();
+  if (!(await allowNavigation())) return;
+  clearSession();
+  location.reload();
 });
 
 router.init();

@@ -27,7 +27,7 @@ Program files         → %LOCALAPPDATA%\Programs\FrogsWork\ (on each PC)
 
 ## First-time D1 setup (required once)
 
-R2 and the marketing Worker can work without D1, but **accounts, login, telemetry, and `/admin` need D1**. If [`account_api/worker/wrangler.toml`](../account_api/worker/wrangler.toml) still has `database_id = "00000000-0000-0000-0000-000000000000"`, D1 is not wired up.
+R2 and the marketing Worker can work without D1, but **accounts, login, documents, and metrics need D1**. If [`account_api/worker/wrangler.toml`](../account_api/worker/wrangler.toml) still has `database_id = "00000000-0000-0000-0000-000000000000"`, D1 is not wired up.
 
 **Automated (interactive terminal, after `npx wrangler login`):**
 
@@ -49,7 +49,7 @@ npx wrangler d1 execute frogswork-account --remote --file=../schema.sql
 npx wrangler secret put STRIPE_SECRET_KEY
 npx wrangler secret put STRIPE_WEBHOOK_SECRET
 npx wrangler secret put JWT_SECRET
-npx wrangler secret put ADMIN_PASSWORD
+npx wrangler secret put METRICS_TOKEN
 npm run deploy
 ```
 
@@ -67,7 +67,15 @@ npm run deploy
 curl https://api.frogswork.com/health
 ```
 
-Set **`ADMIN_PASSWORD`** for the operator analytics dashboard at `https://api.frogswork.com/admin` (HTTP Basic auth). JSON summary: `/admin/api/summary`.
+Set **`METRICS_TOKEN`** (Worker secret) for `GET /metrics/summary`. Use the local viewer in [`tools/local_metrics/`](../tools/local_metrics/) — do not expose a public admin HTML page.
+
+Apply analytics migration once after deploy:
+
+```powershell
+cd account_api\worker
+npx wrangler d1 execute frogswork-account --remote --file=..\migrations\010_analytics_rebuild.sql
+npx wrangler d1 execute frogswork-account --remote --file=..\migrations\011_user_subscription_lifecycle.sql
+```
 
 Set release metadata as Worker vars or secrets: `CLIENT_RELEASE_VERSION`, `CLIENT_RELEASE_URL`, `CLIENT_RELEASE_SHA256`, `CLIENT_RELEASE_NOTES`.
 
@@ -219,7 +227,7 @@ See also [`account_api/worker/README.md`](../account_api/worker/README.md).
 | Access | **Cloud subscribers only** — Local plans are desktop-only |
 | Offline | **Deferred** — online-first; no service worker |
 
-In-app email/password sign-in is primary. Web handoff: `frogswork.com/account/login.html?next=pwa` → `?pwa_auth=1&access_token=…`.
+In-app email/password sign-in is primary. Web handoff: `frogswork.com/account/login.html?next=pwa` → create one-time code → `app.frogswork.com/?handoff=…` → redeem for tokens (no JWTs in the URL).
 
 Deploy API worker after changing [`mobile.js`](../account_api/worker/src/mobile.js): `cd account_api\worker` then `npm run deploy`.
 
@@ -235,10 +243,13 @@ npx wrangler d1 execute frogswork-account --remote --file=..\migrations\006_chec
 npx wrangler d1 execute frogswork-account --remote --file=..\migrations\007_auth_extensions.sql
 npx wrangler d1 execute frogswork-account --remote --file=..\migrations\008_cloud_documents_tables.sql
 npx wrangler d1 execute frogswork-account --remote --file=..\migrations\009_email_outbox_invoice_key.sql
+npx wrangler d1 execute frogswork-account --remote --file=..\migrations\010_analytics_rebuild.sql
+npx wrangler d1 execute frogswork-account --remote --file=..\migrations\011_user_subscription_lifecycle.sql
+npx wrangler d1 execute frogswork-account --remote --file=..\migrations\012_auth_handoff_codes.sql
 npm run deploy
 ```
 
-Migration `008` creates `guest_workspaces`, `doc_*`, and `email_outbox` if missing (safe to re-run). Use it instead of `003` when `storage_tier` already exists.
+Migration `008` creates `guest_workspaces`, `doc_*`, and `email_outbox` if missing (safe to re-run). Use it instead of `003` when `storage_tier` already exists. Migration `010` drops user-test/promo tables and adds `account_devices`. Migration `011` adds user subscription lifecycle columns (skip if columns already exist). Migration `012` adds one-time auth handoff codes for secure frogswork.com → app.frogswork.com sign-in.
 
 ---
 
@@ -273,13 +284,9 @@ Enable in Stripe Dashboard → Settings → Customer portal. Allow customers to 
 
 ---
 
-## BETA80 auto-apply (admin)
+## Promo codes at checkout
 
-1. Create `BETA80` promotion code in Stripe (see [`STRIPE-COUPONS.md`](STRIPE-COUPONS.md)).
-2. `python account_api\dev\setup_stripe_prices.py --lookup-promo-beta80` → set `STRIPE_PROMO_BETA80` in `wrangler.toml` or `wrangler secret put`.
-3. Toggle **Auto-apply BETA80 at checkout** at `https://api.frogswork.com/admin`.
-
-Optional URL promo: `subscribe.html?promo=BETA80` (used when admin default is off).
+Create promotion codes in the Stripe Dashboard (see [`STRIPE-COUPONS.md`](STRIPE-COUPONS.md)). Checkout always allows entering a code. Optional deep link: `subscribe.html?promo=CODE`.
 
 ---
 
@@ -292,65 +299,15 @@ Optional URL promo: `subscribe.html?promo=BETA80` (used when admin default is of
 
 Binaries on R2, not in git.
 
-Unlisted remote user test: `https://frogswork.com/user-test.html` (not in nav).
+**GA4 (marketing):** set `window.FW_GA4_MARKETING_ID` in [`marketing_site/js/analytics-config.js`](../marketing_site/js/analytics-config.js) to your Marketing property Measurement ID (`G-…`). Leave empty to disable. Event wiring lives in [`marketing_site/js/analytics.js`](../marketing_site/js/analytics.js); see [marketing_site/README.md](../marketing_site/README.md#ga4-events).
 
----
+After deploy, in GA4 Admin → **Events**:
 
-## Remote user testing (optional R2 video uploads)
+1. Mark **`purchase` only** as a key event (successful paid Cloud account). Do **not** mark `sign_up` or `begin_checkout`.
+2. Confirm Realtime shows custom events (`signup_click`, `open_app_click`, etc.).
+3. Optional exploration funnel: `signup_click` → `sign_up` → `begin_checkout` → `purchase`.
 
-Tester page: **`https://frogswork.com/user-test`** (unlisted). Submissions are stored in D1; **video is optional** and uploads to R2 prefix `user-tests/` when provided. Enable/disable intake and download submissions at **`https://api.frogswork.com/admin`** → User testing section.
-
-### One-time Cloudflare setup (operator)
-
-**Secrets are not committed.** Use `wrangler secret put` or the Worker dashboard — not `client_app/production.env`.
-
-1. **Bucket** — reuse **`frogswork-invoicer-releases`** (same as installer uploads). No new bucket unless you prefer one.
-
-2. **R2 API token** — Dashboard → R2 → **Manage R2 API Tokens** → Create (Object Read & Write). Then:
-
-```powershell
-cd account_api\worker
-npx wrangler secret put R2_ACCESS_KEY_ID
-npx wrangler secret put R2_SECRET_ACCESS_KEY
-npx wrangler secret put R2_ACCOUNT_ID
-npm run deploy
-```
-
-3. **R2 CORS** (only needed if testers upload video) — bucket → Settings → CORS policy:
-
-```json
-[
-  {
-    "AllowedOrigins": ["https://frogswork.com"],
-    "AllowedMethods": ["PUT", "HEAD"],
-    "AllowedHeaders": ["Content-Type", "Content-Length"],
-    "ExposeHeaders": ["ETag"],
-    "MaxAgeSeconds": 3600
-  }
-]
-```
-
-4. **D1 migration** (once, after pulling user-test tables):
-
-```powershell
-cd account_api\worker
-npx wrangler d1 execute frogswork-account --remote --file=..\migrations\2026-07-02_user_test.sql
-```
-
-5. **Deploy** marketing + API:
-
-```powershell
-cd account_api\worker
-npm run deploy
-cd ..\..\marketing_site
-npx wrangler deploy
-```
-
-6. **Enable intake** — `https://api.frogswork.com/admin` → check **Accepting submissions**. Default is **OFF**.
-
-7. **Smoke test** — submit **answers only** (no video) and confirm in admin; optionally submit a small test video (needs R2 CORS); delete test rows.
-
-Share **`https://frogswork.com/user-test`** with testers only while intake is ON.
+**GA4 (cloud app):** set `VITE_GA4_MEASUREMENT_ID` in `client_web_v2/.env.local` before building the PWA.
 
 ---
 

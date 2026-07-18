@@ -84,6 +84,10 @@ export function attachCheckout(checkoutSessionId, accessToken) {
   );
 }
 
+export function createHandoff(accessToken) {
+  return apiRequest("POST", "/auth/handoff/create", {}, accessToken);
+}
+
 export function mapAuthError(message) {
   const text = (message || "").trim();
   if (!text) return "Something went wrong. Try again or contact support.";

@@ -69,7 +69,7 @@ export async function fileToSourceDataUrl(file: File): Promise<string> {
   if (!ctx) throw new Error("Could not process logo.");
   ctx.drawImage(bitmap, 0, 0, w, h);
   bitmap.close();
-  return canvas.toDataURL("image/png");
+  return canvas.toDataURL("image/jpeg", 0.88);
 }
 
 export function bakeLogoToHeaderSlot(sourceDataUrl: string, placement: LogoPlacement): Promise<string> {
@@ -81,7 +81,9 @@ export function bakeLogoToHeaderSlot(sourceDataUrl: string, placement: LogoPlace
       canvas.height = HEADER_CANVAS_HEIGHT;
       const ctx = canvas.getContext("2d");
       if (!ctx) return reject(new Error("Could not bake logo."));
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // White fill so JPEG has no transparent black edges in PDF.
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
       const layout = computeLogoLayout(
         img.naturalWidth,
         img.naturalHeight,
@@ -90,7 +92,7 @@ export function bakeLogoToHeaderSlot(sourceDataUrl: string, placement: LogoPlace
         clampPlacement(placement)
       );
       ctx.drawImage(img, layout.left, layout.top, layout.width, layout.height);
-      resolve(canvas.toDataURL("image/png"));
+      resolve(canvas.toDataURL("image/jpeg", 0.88));
     };
     img.onerror = () => reject(new Error("Could not load logo image."));
     img.src = sourceDataUrl;
@@ -180,8 +182,15 @@ export function wireLogoEditor(
       state.sourceB64 = await fileToSourceDataUrl(file);
       state.placement = defaultPlacement();
       state.enabled = true;
-      state.bakedB64 = await bakeLogoToHeaderSlot(state.sourceB64, state.placement);
+      // Defer bake so the editor updates immediately; Save / drag end will bake.
+      state.bakedB64 = "";
       onChange({ ...state }, "source");
+      void bakeLogoToHeaderSlot(state.sourceB64, state.placement).then((baked) => {
+        if (state.sourceB64) {
+          state.bakedB64 = baked;
+          onChange({ ...state }, "placement");
+        }
+      });
     } catch (ex) {
       showToast(ex instanceof Error ? ex.message : "Logo failed.", "error");
     }

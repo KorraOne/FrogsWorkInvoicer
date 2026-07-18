@@ -161,20 +161,17 @@ def create_checkout_session(db, user, body, jwt_secret, decode_access_token):
         "cancel_url": cancel_url,
         "client_reference_id": str(user["id"]),
         "metadata": {"user_id": str(user["id"]), "storage_tier": tier},
-        "subscription_data": {"metadata": {"storage_tier": tier}},
+        "subscription_data": {
+            "metadata": {"storage_tier": tier},
+            "trial_period_days": 14,
+        },
     }
 
-    from auth_ops import is_default_beta80_enabled
-
-    promo_id = (os.environ.get("STRIPE_PROMO_BETA80") or "").strip()
-    if is_default_beta80_enabled(db) and promo_id:
-        session_kwargs["discounts"] = [{"promotion_code": promo_id}]
-    else:
-        promo_code = (body.get("promotion_code") or "").strip()
-        if promo_code:
-            codes = stripe.PromotionCode.list(code=promo_code, active=True, limit=1)
-            if codes.data:
-                session_kwargs["discounts"] = [{"promotion_code": codes.data[0].id}]
+    promo_code = (body.get("promotion_code") or "").strip()
+    if promo_code:
+        codes = stripe.PromotionCode.list(code=promo_code, active=True, limit=1)
+        if codes.data:
+            session_kwargs["discounts"] = [{"promotion_code": codes.data[0].id}]
 
     session = stripe.checkout.Session.create(**session_kwargs)
     return {"checkout_url": session.url, "session_id": session.id}, 200

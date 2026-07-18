@@ -296,6 +296,8 @@ export async function renderClassicInvoice(invoice, business = {}, customer = {}
     const [label, val] = totals[i];
     const isGrand = i === totals.length - 1;
     if (isGrand) {
+      // Clear previous totals row before the TOTAL rule (GST-on only; GST-off has one row).
+      if (i > 0) y -= 8;
       page.drawLine({
         start: { x: PAGE_MARGIN + CONTENT_WIDTH * 0.5, y: y + 4 },
         end: { x: PAGE_MARGIN + CONTENT_WIDTH, y: y + 4 },

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Contact support · FrogsWork</title>
+    <meta name="description" content="Email FrogsWork support for help with the Cloud app.">
     <link rel="icon" href="/assets/brand/favicon.ico" sizes="any">
     <link rel="icon" type="image/png" sizes="32x32" href="/assets/brand/favicon-32.png">
     <link rel="icon" type="image/png" sizes="48x48" href="/assets/brand/favicon-48.png">
@@ -28,17 +29,18 @@
     </header>
 
     <main class="site-main prose">
-        <p class="hero-eyebrow"><a href="/support.html">Support</a> · Using FrogsWork</p>
+        <p class="hero-eyebrow"><a href="/support.html">Support</a> · Contact</p>
         <h1>Contact support</h1>
-        <p>Email <a href="mailto:crombie@korraone.com">crombie@korraone.com</a> with a short description of the problem.</p>
+        <p>Email <a data-fw-support href="mailto:crombie@korraone.com">crombie@korraone.com</a> with a short description of the problem.</p>
         <p>Include:</p>
         <ul>
-            <li>FrogsWork version (<strong>Settings → App update</strong>)</li>
-            <li>Windows version (Settings → System → About)</li>
-            <li>Whether you're signed in</li>
+            <li>Whether you use the phone app, browser at <a data-fw-open-app="other" href="https://app.frogswork.com">app.frogswork.com</a>, or the Windows desktop app</li>
+            <li>Windows version if you use the desktop app (Settings → System → About)</li>
+            <li>The email you sign in with (not your password)</li>
             <li>What you were doing when it failed</li>
         </ul>
-        <p>Don't send customer names, invoice amounts, or PDFs unless we ask. Invoice data stays on your PC.</p>
+        <p>Don't send customer names, invoice amounts, or PDFs unless we ask. Your Cloud invoices stay in your account; we only need enough detail to reproduce the issue.</p>
+        <p><a href="/issues.html">Try frequent issues first</a> · <a href="/guides.html">Video guides</a></p>
     </main>
 
     <footer class="site-footer">
@@ -51,6 +53,8 @@
             </div>
         </div>
     </footer>
+    <script src="/js/analytics-config.js"></script>
+    <script src="/js/analytics.js"></script>
     <script src="/js/site.js"></script>
 </body>
 </html>

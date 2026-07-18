@@ -34,17 +34,19 @@
 
         <h2>Quick checks</h2>
         <ol>
-            <li><strong>Open the Cloud app</strong> at <a href="https://app.frogswork.com">app.frogswork.com</a> and sign in.</li>
+            <li><strong>Open the Cloud app</strong> at <a data-fw-open-app="other" href="https://app.frogswork.com">app.frogswork.com</a> (or your Windows desktop window) and sign in.</li>
             <li><strong>Check you are online</strong> for sign-in, sync, and email send.</li>
             <li><strong>Confirm your subscription</strong> under Settings → Account in the app.</li>
             <li><strong>Sending invoices.</strong> Use Send on the invoice. Email goes through FrogsWork Cloud.</li>
         </ol>
 
         <h2 id="install-pwa">Install on your phone</h2>
-        <p>Open <a href="https://app.frogswork.com">app.frogswork.com</a> in Safari or Chrome. Use the browser menu to Add to Home Screen / Install app.</p>
+        <p>Open <a data-fw-open-app="other" href="https://app.frogswork.com">app.frogswork.com</a> in Safari (iPhone) or Chrome (Android). Use the browser menu to Add to Home Screen / Install app.</p>
+        <p class="guide-link" data-guide-link="install-iphone" data-guide-label="install on iPhone"></p>
+        <p class="guide-link" data-guide-link="install-android" data-guide-label="install on Android"></p>
 
         <h2 id="installer-will-not-run">Windows installer will not run</h2>
-        <p>Download again from <a href="/download.html">Download</a>. Windows may block files from the internet. Right-click the setup file → Properties → Unblock, then run. You need Windows 10 or 11 (64-bit).</p>
+        <p>Download again from <a href="/download.html">Download</a>. Windows may block files from the internet. Right-click the setup file → Properties → Unblock, then run. You need Windows 10 or 11 (64-bit). The Windows app opens the same Cloud UI as the browser.</p>
         <p class="guide-link" data-guide-link="install" data-guide-label="install FrogsWork"></p>
         <div class="guide-inline" data-guide-id="install"></div>
 
@@ -55,13 +57,13 @@
         <p>Sign-in, sync, and email need <code>api.frogswork.com</code>. Check your internet connection and firewall. In the app, open <strong>Settings → Account</strong> and try again.</p>
 
         <h2 id="update-failed">Windows shell update failed</h2>
-        <p>Download the latest installer from this site and run it over the existing install, or keep using the browser app.</p>
+        <p>Download the latest installer from this site and run it over the existing install, or keep using the browser app at <a data-fw-open-app="other" href="https://app.frogswork.com">app.frogswork.com</a>.</p>
 
         <h2 id="sign-in-problems">Sign-in problems</h2>
-        <p>Use <a href="/account/forgot-password.html">forgot password</a> to reset your account password by email. Promo codes and Stripe subscription trials are entered at checkout, not as an in-app free meter.</p>
+        <p>Use <a href="/account/forgot-password.html">forgot password</a> to reset your account password by email. Promo codes are entered at checkout on this site.</p>
         <p class="guide-link" data-guide-link="subscribing" data-guide-label="subscribe and manage billing"></p>
 
-        <p><a href="/contact.html">Contact support</a></p>
+        <p><a href="/contact.html">Contact support</a> · <a href="/guides.html">Video guides</a></p>
     </main>
 
     <footer class="site-footer">
@@ -74,6 +76,8 @@
             </div>
         </div>
     </footer>
+    <script src="/js/analytics-config.js"></script>
+    <script src="/js/analytics.js"></script>
     <script src="/js/site.js"></script>
     <script src="/js/guides.js"></script>
 </body>

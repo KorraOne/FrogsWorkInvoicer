@@ -103,7 +103,19 @@ async function renderCustomerForm(panel: HTMLElement, ctx: AppContext) {
       const addr = normalizeAuAddress(readAddressFromForm(fd));
       const abn = fd.get("abn") ? normalizeAbn(String(fd.get("abn"))) : "";
       const notes = String(fd.get("notes") || "").trim();
-      await upsertCustomer(custName, { email, ...addr, abn, notes });
+      const existing = editing
+        ? (await cache.getCustomers())[custName]
+        : null;
+      const createdVia =
+        (existing && typeof existing.created_via === "string" && existing.created_via) ||
+        (editing ? undefined : "list");
+      await upsertCustomer(custName, {
+        email,
+        ...addr,
+        abn,
+        notes,
+        ...(createdVia ? { created_via: createdVia } : {}),
+      });
       await flushQueue(ctx.onSyncStatus);
       guard.clear();
       showToast("Customer saved.", "success");

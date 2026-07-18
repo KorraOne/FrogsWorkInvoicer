@@ -13,7 +13,7 @@ Account creation runs on **frogswork.com** (`marketing_site/account/`). Checkout
 3. Stripe redirects to `/account/return.html?session_id=cs_…`.
 4. Return page polls `GET /checkout/session-info` until `account_status` is `active`.
 5. Webhook `checkout.session.completed` also activates the account (idempotent).
-6. Desktop/PWA sign-in: web login with `?next=desktop` or `?next=pwa` → token handoff.
+6. Desktop/PWA sign-in: web login with `?next=desktop` or `?next=pwa` → one-time handoff code (`POST /auth/handoff/create` → `app.frogswork.com/?handoff=…` → `POST /auth/handoff/redeem`). Do not put JWTs in the URL.
 
 **Upgrade (logged in):** `/account/subscribe.html?upgrade=1` → sign in → `POST /checkout/create-session` with Bearer token (subscription swap when same interval).
 
@@ -38,6 +38,11 @@ Add printed `STRIPE_PRICE_*` values to `client_app/production.env` and `account_
 | POST | `/auth/register` | No | **Legacy.** Body: `{ password, checkout_session_id, install_id? }` → tokens + `email` |
 | POST | `/auth/attach-checkout` | Bearer | Body: `{ checkout_session_id }` → `{ ok: true }` |
 | POST | `/auth/login` | No | Body: `{ email, password }` → `{ access_token, refresh_token }` (rate limited) |
+| POST | `/auth/handoff/create` | Bearer signup or access | Active/trialing account → `{ code, expires_in }` (single-use, ~60s; opaque code for app handoff) |
+| POST | `/auth/handoff/redeem` | No | Body: `{ code }` → `{ access_token, refresh_token }` (rate limited; single-use) |
+| GET | `/account/export` | Bearer | ZIP download: `frogswork-export.json` + `pdfs/*.pdf` (rate limited; permanent self-serve copy — not re-importable) |
+| POST | `/account/data/delete` | Bearer | Body `{ confirm: "DELETE DATA" }` → purge Cloud docs/PDFs/devices for user; keep login + Stripe |
+| POST | `/account/delete` | Bearer | Body `{ confirm: "DELETE ACCOUNT", password }` → cancel Stripe, purge data, delete user |
 | POST | `/auth/forgot-password` | No | Body: `{ email }` → generic success (rate limited; sends Resend email if configured) |
 | POST | `/auth/reset-password` | No | Body: `{ token, password }` → `{ ok: true }` |
 | POST | `/auth/verify-email` | No | Body: `{ token }` → `{ ok: true, verified: true }` |
@@ -51,17 +56,8 @@ Add printed `STRIPE_PRICE_*` values to `client_app/production.env` and `account_
 | GET | `/mobile/v1/invoices/:n/pdf` | Bearer | Cloud-only PDF |
 | POST | `/telemetry/heartbeat` | No | Anonymous install heartbeat + usage aggregates |
 | POST | `/telemetry/event` | No | Idempotent funnel events (`first_invoice`, `uninstall`, …) |
-| GET | `/admin` | HTTP Basic (`ADMIN_PASSWORD`) | HTML analytics dashboard + registered accounts table |
-| GET | `/admin/api/summary` | HTTP Basic | JSON funnel / churn / signup metrics |
-| GET | `/admin/api/accounts` | HTTP Basic | JSON list of registered accounts (email, plan, state, tier, Stripe id) |
-| POST | `/admin/api/user-test/enabled` | HTTP Basic | Body `{ enabled: bool }` — toggle remote user-test intake |
-| GET | `/admin/api/user-test/submissions` | HTTP Basic | List submissions + total video bytes |
-| GET | `/admin/api/user-test/submissions/:id` | HTTP Basic | Submission answers JSON |
-| GET | `/admin/api/user-test/submissions/:id/video` | HTTP Basic | Download recording from R2 |
-| DELETE | `/admin/api/user-test/submissions/:id` | HTTP Basic | Delete submission + R2 object |
-| GET | `/user-test/status` | No (CORS `frogswork.com`) | `{ enabled, maxBytes }` |
-| POST | `/user-test/submissions` | No (CORS) | Start submission; presigned PUT URL if video, else `{ uploadUrl: null }` |
-| POST | `/user-test/submissions/:id/complete` | No (CORS) | Save answers JSON (7 keys: `getting_started`, `invoice_workflow`, `confidence_trust`, `expectations_gaps`, `overall`, `pricing_trial`, `anything_else`; all required) |
+| GET | `/metrics/summary` | Bearer `METRICS_TOKEN` | Privacy-friendly product aggregates (local dashboard) |
+| POST | `/devices/upsert` | Bearer | Register device sighting (`device_id`, `platform`, `coarse_ua`) |
 | GET | `/releases/latest` | No | In-app update metadata (see below) |
 | POST | `/guest/session` | No (CORS `app.frogswork.com`, localhost:8090) | Guest cloud trial → `{ guest_id, guest_token, expires_at }` |
 | POST | `/email/invoices/:n/send` | Bearer access + active subscription | Local-tier relay send — body `{ pdf_b64, customer_email, filename?, subject?, body_text? }`; no D1/R2 persist |
@@ -71,9 +67,7 @@ Add printed `STRIPE_PRICE_*` values to `client_app/production.env` and `account_
 | GET | `/documents/invoices/:n/pdf` | Bearer access or guest | PDF as `{ filename, content_b64 }` |
 | POST | `/documents/invoices/:n/generate` | Bearer access or guest | Server PDF generation (pdf-lib) → R2 for users |
 | POST | `/documents/invoices/:n/send` | Bearer access (active sub) or guest | Cloud: queue integrated email. Guest: **403** (manual send only in PWA) |
-| POST | `/admin/api/cleanup-pending` | HTTP Basic | Delete `pending_payment` users older than 7 days |
-| POST | `/admin/api/dev-reset-seed` | HTTP Basic | Dev: Stripe-check tiers, hard-purge cloud docs + R2 `user-docs/`, seed Cloud subscribers |
-| POST | `/admin/api/checkout/default-beta80` | HTTP Basic | Body `{ enabled: bool }` — auto-apply BETA80 on new Checkout Sessions |
+| POST | `/dev/reset-seed` | Bearer `METRICS_TOKEN` + `ALLOW_DEV_RESET=1` | Dev: purge cloud docs + seed from Stripe (non-prod only) |
 | POST | `/webhooks/stripe` | Stripe signature | `checkout.session.completed` activates account; idempotent |
 
 ### Auth
@@ -81,7 +75,7 @@ Add printed `STRIPE_PRICE_*` values to `client_app/production.env` and `account_
 - Access token: `Authorization: Bearer <access_token>` (12 h).
 - Refresh token: 30 d, body field `refresh_token`.
 - Passwords: bcrypt only (`$2…` hashes).
-- Admin: HTTP Basic — any username, password = `ADMIN_PASSWORD` secret.
+- Metrics: `Authorization: Bearer <METRICS_TOKEN>` for `/metrics/summary` (and gated `/dev/reset-seed`).
 
 ### `POST /telemetry/heartbeat`
 

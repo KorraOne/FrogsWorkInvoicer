@@ -44,9 +44,13 @@ export const router = {
 const listeners = new Set<Listener>();
 
 export function setBottomNavActive(tab: string) {
-  document.querySelectorAll("#bottom-nav button").forEach((btn) => {
+  document.querySelectorAll("#bottom-nav [data-tab]").forEach((btn) => {
     btn.classList.toggle("active", (btn as HTMLButtonElement).dataset.tab === tab);
   });
+  const settingsBtn = document.getElementById("nav-settings-btn");
+  if (settingsBtn) {
+    settingsBtn.classList.toggle("active", tab === "settings");
+  }
 }
 
 export function showTabPanels(tab: string) {

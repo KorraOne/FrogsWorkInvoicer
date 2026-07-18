@@ -79,3 +79,33 @@ export async function apiRequest<T>(
 export function getBaseUrl(): string {
   return getApiBase();
 }
+
+/** Authenticated binary download (e.g. account export ZIP). */
+export async function apiDownload(path: string, retried = false): Promise<Blob> {
+  const base = getApiBase();
+  const headers: Record<string, string> = { Accept: "application/zip, application/json" };
+  const token = getAccessToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  let res: Response;
+  try {
+    res = await fetch(`${base}${path}`, { method: "GET", headers });
+  } catch {
+    throw new Error(`Cannot reach API at ${base}.`);
+  }
+  if (res.status === 401 && !retried && getRefreshToken()) {
+    const ok = await refreshTokens();
+    if (ok) return apiDownload(path, true);
+    clearSession();
+  }
+  if (!res.ok) {
+    let message = res.statusText;
+    try {
+      const data = (await res.json()) as { error?: string };
+      if (data.error) message = data.error;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(message || "Download failed.");
+  }
+  return res.blob();
+}

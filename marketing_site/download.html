@@ -30,14 +30,14 @@
 
     <main class="site-main">
         <h1 class="section-heading">Download for Windows</h1>
-        <p class="section-lead">Optional. Most people can use FrogsWork in the browser at <a href="https://app.frogswork.com">app.frogswork.com</a>. The Windows installer opens the same Cloud app in a desktop window.</p>
+        <p class="section-lead">Optional. Most people can use FrogsWork in the browser at <a data-fw-open-app="download_cloud_option" href="https://app.frogswork.com">app.frogswork.com</a>. The Windows installer opens the same Cloud app in a desktop window.</p>
 
         <div class="download-panel">
             <div class="download-cta">
-                <a id="download-btn" class="btn btn-primary btn-download" href="#" aria-disabled="true">Download for Windows</a>
+                <a id="download-btn" class="btn btn-primary btn-download" data-fw-download="download" href="#" aria-disabled="true">Download for Windows</a>
                 <p class="download-meta">Version <span id="release-version">…</span>. Windows 10 or later, 64-bit. Needs Microsoft Edge WebView2.</p>
-                <p id="download-fallback" class="download-meta">No build uploaded yet. Use <a href="https://app.frogswork.com">the browser app</a> or <a href="/support.html">contact support</a>.</p>
-                <p class="download-meta"><a class="btn btn-secondary" href="https://app.frogswork.com">Open Cloud app instead</a></p>
+                <p id="download-fallback" class="download-meta">No build uploaded yet. Use <a data-fw-open-app="download_cloud_option" href="https://app.frogswork.com">the browser app</a> or <a href="/support.html">contact support</a>.</p>
+                <p class="download-meta"><a class="btn btn-secondary" data-fw-open-app="download_cloud_option" href="https://app.frogswork.com">Open Cloud app instead</a></p>
             </div>
 
             <section class="download-section">
@@ -78,6 +78,8 @@
             </div>
         </div>
     </footer>
+    <script src="/js/analytics-config.js"></script>
+    <script src="/js/analytics.js"></script>
     <script src="/js/site.js"></script>
     <script src="/js/download.js"></script>
     <script src="/js/guides.js"></script>

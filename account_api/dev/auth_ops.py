@@ -136,24 +136,3 @@ def verify_email(db, token: str):
     )
     db.commit()
     return {"ok": True, "verified": True}, 200
-
-
-def is_default_beta80_enabled(db) -> bool:
-    row = db.execute(
-        "SELECT default_beta80_enabled FROM checkout_promo_settings WHERE id = 1"
-    ).fetchone()
-    return bool(row and row["default_beta80_enabled"])
-
-
-def set_default_beta80_enabled(db, enabled: bool):
-    now = datetime.now(timezone.utc).isoformat()
-    db.execute(
-        """INSERT INTO checkout_promo_settings (id, default_beta80_enabled, updated_at)
-           VALUES (1, ?, ?)
-           ON CONFLICT(id) DO UPDATE SET
-             default_beta80_enabled = excluded.default_beta80_enabled,
-             updated_at = excluded.updated_at""",
-        (1 if enabled else 0, now),
-    )
-    db.commit()
-    return enabled

@@ -19,15 +19,42 @@
     </header>
 
     <main class="site-main account-main account-main--narrow">
-        <h1 id="success-title" class="section-heading">Signed in</h1>
-        <p id="success-lead" class="section-lead">Open the Cloud app to continue.</p>
+        <h1 id="success-title" class="section-heading">You're all set</h1>
+        <p id="success-lead" class="section-lead">Open FrogsWork in your browser to start invoicing. Optional installs are below.</p>
+        <p id="success-email" class="account-email" hidden>Account: <strong></strong></p>
+        <p id="success-error" class="account-error" hidden></p>
 
-        <div class="account-success-actions">
-            <a id="open-pwa" class="btn btn-primary" href="https://app.frogswork.com">Open Cloud app</a>
-            <a class="btn btn-secondary" href="/download.html">Download for Windows</a>
-            <a class="btn btn-secondary" href="/account/login.html">Sign in again</a>
-            <a class="btn btn-secondary" href="/support.html">Support</a>
+        <div class="get-started-primary">
+            <button type="button" id="open-pwa" class="btn btn-primary btn-block" data-fw-open-app="success">Open FrogsWork in browser</button>
+            <p class="form-hint" id="open-pwa-hint">You will be signed in automatically. Keep this tab open until the app loads.</p>
         </div>
+
+        <section class="get-started-install" id="install-section">
+            <h2 class="get-started-heading">Install options</h2>
+            <div class="feature-grid get-started-grid">
+                <article class="feature-card">
+                    <h3>Windows</h3>
+                    <p>Optional desktop window for the same Cloud app.</p>
+                    <p class="feature-card-action">
+                        <a class="btn btn-secondary" data-fw-download="success" href="/download.html">Download for Windows</a>
+                    </p>
+                </article>
+                <article class="feature-card">
+                    <h3>iPhone / iPad</h3>
+                    <p>In Safari: Share → Add to Home Screen. Then open the icon and sign in if asked.</p>
+                </article>
+                <article class="feature-card">
+                    <h3>Android</h3>
+                    <p>In Chrome: browser menu → Install app or Add to Home screen.</p>
+                </article>
+            </div>
+        </section>
+
+        <p class="form-footer">
+            <a href="/account/login.html">Sign in again</a>
+            ·
+            <a href="/support.html">Support</a>
+        </p>
     </main>
 
     <footer class="site-footer">
@@ -35,6 +62,8 @@
             <span>FrogsWork by <a href="https://korraone.com" rel="noopener noreferrer">KorraOne</a></span>
         </div>
     </footer>
+    <script src="/js/analytics-config.js"></script>
+    <script src="/js/analytics.js"></script>
     <script type="module" src="/js/account/success.js"></script>
 </body>
 </html>

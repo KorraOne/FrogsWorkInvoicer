@@ -155,13 +155,13 @@ if (-not $SkipDeploy) {
     Write-Host "  npx wrangler secret put STRIPE_SECRET_KEY"
     Write-Host "  npx wrangler secret put STRIPE_WEBHOOK_SECRET"
     Write-Host "  npx wrangler secret put JWT_SECRET"
-    Write-Host "  npx wrangler secret put ADMIN_PASSWORD"
+    Write-Host "  npx wrangler secret put METRICS_TOKEN"
     Write-Host ""
     Invoke-WorkerDeploy
     Test-ApiHealth
     Test-TelemetryHeartbeat
     Write-Host ""
-    Write-Host "Admin dashboard: https://api.frogswork.com/admin (HTTP Basic, password = ADMIN_PASSWORD)"
+    Write-Host "Metrics: GET /metrics/summary with Bearer METRICS_TOKEN (see tools/local_metrics/)"
 }
 
 Write-Host ""

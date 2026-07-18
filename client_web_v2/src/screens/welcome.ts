@@ -27,7 +27,13 @@ export function renderWelcome(
         )}</p>
         <form id="welcome-form" class="gate-login-form" novalidate>
           <div class="field"><label for="welcome-email">Email</label><input id="welcome-email" type="email" autocomplete="username" inputmode="email"></div>
-          <div class="field"><label for="welcome-password">Password</label><input id="welcome-password" type="password" autocomplete="current-password"></div>
+          <div class="field">
+            <label for="welcome-password">Password</label>
+            <div class="pw-field">
+              <input id="welcome-password" type="password" class="pw-input" autocomplete="current-password">
+              <button type="button" class="pw-toggle" id="welcome-password-toggle" aria-controls="welcome-password" aria-pressed="false" aria-label="Show password">Show</button>
+            </div>
+          </div>
           <div class="btn-row"><button type="button" id="welcome-submit" class="btn primary btn-block">Sign in</button></div>
         </form>
         <p class="hint gate-subscribe"><a href="https://frogswork.com/account/forgot-password.html">Forgot password?</a></p>
@@ -43,6 +49,18 @@ export function renderWelcome(
 
   const msg = root.querySelector("#welcome-message") as HTMLElement;
   const submit = root.querySelector("#welcome-submit") as HTMLButtonElement;
+  const pwToggle = root.querySelector("#welcome-password-toggle") as HTMLButtonElement | null;
+  const pwInput = root.querySelector("#welcome-password") as HTMLInputElement | null;
+
+  if (pwToggle && pwInput) {
+    pwToggle.addEventListener("click", () => {
+      const show = pwInput.type === "password";
+      pwInput.type = show ? "text" : "password";
+      pwToggle.setAttribute("aria-pressed", show ? "true" : "false");
+      pwToggle.textContent = show ? "Hide" : "Show";
+      pwToggle.setAttribute("aria-label", show ? "Hide password" : "Show password");
+    });
+  }
 
   const doLogin = async () => {
     const email = (root.querySelector("#welcome-email") as HTMLInputElement).value.trim();

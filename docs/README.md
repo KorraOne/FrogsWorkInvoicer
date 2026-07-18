@@ -15,6 +15,7 @@ Operator docs for deploy, naming, and brand.
 | **[PLATFORM-ARCHITECTURE.md](PLATFORM-ARCHITECTURE.md)** | Features, architecture, and coupling — marketing, API, desktop, PWA, R2 |
 | **[DEPLOY.md](DEPLOY.md)** | Production deploy — Worker, R2 releases, marketing site |
 | **[DOCUMENT-SCHEMA.md](DOCUMENT-SCHEMA.md)** | Shared entity and sync contract (local, cloud, PWA) |
+| **[DB-SCHEMA.md](DB-SCHEMA.md)** | D1/SQLite tables, ERD, and tenant isolation |
 | [naming.md](naming.md) | Folder names, product vs exe/AppData, consistent wording |
 | [brand.md](brand.md) | Visual identity and color tokens |
 | [MOBILE-PARITY.md](MOBILE-PARITY.md) | Client parity: PWA, browser, and desktop shell hosts |

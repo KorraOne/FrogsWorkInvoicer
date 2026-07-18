@@ -28,10 +28,10 @@ npx wrangler d1 execute frogswork-account --remote --file=../schema.sql
 npx wrangler secret put STRIPE_SECRET_KEY
 npx wrangler secret put STRIPE_WEBHOOK_SECRET
 npx wrangler secret put JWT_SECRET
-npx wrangler secret put ADMIN_PASSWORD
+npx wrangler secret put METRICS_TOKEN
 ```
 
-`ADMIN_PASSWORD` protects `GET /admin` and `/admin/api/summary`.
+`METRICS_TOKEN` protects `GET /metrics/summary` (Bearer). Use [`tools/local_metrics/`](../../tools/local_metrics/) on your machine only.
 
 Optional release vars (or `[vars]` in wrangler.toml):
 

@@ -19,7 +19,7 @@ function incGst(ex) {
 }
 
 function documentsBucket(env) {
-  return env.DOCUMENTS || env.RELEASES;
+  return env.DOCUMENTS;
 }
 
 const SEED_BUSINESS = "Sam Chen — Garden & Property";

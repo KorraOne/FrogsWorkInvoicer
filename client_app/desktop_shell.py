@@ -354,14 +354,15 @@ def run_desktop_app(app_url, on_close, startup_error=None):
 
     def _navigate_when_ready():
         home_url = app_url.rstrip("/") + "/"
-        deadline = time.perf_counter() + 20
+        # Short probe so offline/local Vite still gets a quick retry; never block long.
+        deadline = time.perf_counter() + 4.0
         reachable = False
 
         while time.perf_counter() < deadline:
             if _probe_url(home_url) or _probe_url(app_url):
                 reachable = True
                 break
-            time.sleep(0.2)
+            time.sleep(0.15)
 
         _ensure_min_splash_duration()
 
@@ -369,10 +370,24 @@ def run_desktop_app(app_url, on_close, startup_error=None):
             return
 
         if not reachable:
-            # Still try to load; WebView may succeed when our probe did not (CORS/HEAD quirks).
             log.warning("Cloud app probe failed; loading %s anyway", app_url)
 
-        _main_window.load_url(app_url)
+        try:
+            _main_window.load_url(app_url)
+        except Exception:
+            log.exception("Failed to navigate splash to %s", app_url)
+            try:
+                _main_window.load_html(
+                    _splash_html(
+                        tagline="Could not open the app",
+                        error_message=(
+                            "Check your internet connection, then restart FrogsWork. "
+                            f"Tried: {app_url}"
+                        ),
+                    )
+                )
+            except Exception:
+                log.exception("Failed to show splash error state")
 
     window_opts = _initial_window_options(saved)
     create_kwargs = {

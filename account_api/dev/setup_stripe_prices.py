@@ -170,15 +170,6 @@ def tag_legacy_prices():
                 print(f"  tagged legacy price {price.id} as storage_tier={tier}")
 
 
-def lookup_promo_beta80():
-    codes = stripe.PromotionCode.list(code="BETA80", active=True, limit=1)
-    if not codes.data:
-        print("No active BETA80 promotion code found in Stripe.")
-        return
-    promo = codes.data[0]
-    print(f"STRIPE_PROMO_BETA80={promo.id}")
-
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -191,11 +182,6 @@ def main():
         action="store_true",
         help="List FrogsWork price/product IDs for Stripe coupon restrictions",
     )
-    parser.add_argument(
-        "--lookup-promo-beta80",
-        action="store_true",
-        help="Print STRIPE_PROMO_BETA80 promo_ ID for admin auto-apply toggle",
-    )
     args = parser.parse_args()
 
     key = load_stripe_key()
@@ -203,10 +189,6 @@ def main():
         print("STRIPE_SECRET_KEY required.", file=sys.stderr)
         sys.exit(1)
     stripe.api_key = key
-
-    if args.lookup_promo_beta80:
-        lookup_promo_beta80()
-        return
 
     if args.list_catalog:
         list_catalog()

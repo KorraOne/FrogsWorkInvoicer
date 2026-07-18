@@ -1,4 +1,10 @@
-import { resendVerification } from "../api/mobile";
+import {
+  deleteAccount,
+  deleteAccountData,
+  downloadAccountExport,
+  fetchAccount,
+  resendVerification,
+} from "../api/mobile";
 import {
   bankFieldsHtml,
   businessAddressFieldsHtml,
@@ -7,6 +13,7 @@ import {
   wireDueRuleToggles,
 } from "../components/forms";
 import {
+  bakeLogoToHeaderSlot,
   logoEditorHtml,
   readLogoStateFromRecord,
   refreshLogoEditorSection,
@@ -37,7 +44,10 @@ import { attachUnsavedGuard, clearLeaveGuard } from "../lib/unsaved";
 import { router } from "../router";
 import type { AppContext } from "../types";
 
-const SUPPORT_URL = "https://korraone.com/support";
+const SUPPORT_HUB_URL = "https://frogswork.com/support.html";
+const SUPPORT_ISSUES_URL = "https://frogswork.com/issues.html";
+const SUPPORT_GUIDES_URL = "https://frogswork.com/guides.html";
+const SUPPORT_CONTACT_URL = "https://frogswork.com/contact.html";
 
 export async function renderSettings(panel: HTMLElement, ctx: AppContext) {
   clearLeaveGuard();
@@ -52,6 +62,7 @@ export async function renderSettings(panel: HTMLElement, ctx: AppContext) {
   if (router.sub === "payment-terms") return renderPaymentTerms(panel, ctx);
   if (router.sub === "email-sending") return renderEmailSending(panel, ctx);
   if (router.sub === "account" || router.sub === "sync") return renderAccount(panel, ctx);
+  if (router.sub === "help") return renderHelp(panel);
 
   panel.innerHTML = `
     <h2 class="section-title">Settings</h2>
@@ -67,9 +78,9 @@ export async function renderSettings(panel: HTMLElement, ctx: AppContext) {
       <span class="nav-card-title">Account</span>
       <span class="nav-card-hint">Subscription, sync, and sign out</span>
     </a>
-    <a class="nav-card" href="${SUPPORT_URL}" target="_blank" rel="noopener">
+    <a class="nav-card" href="#settings/help">
       <span class="nav-card-title">Help &amp; support</span>
-      <span class="nav-card-hint">Guides and troubleshooting</span>
+      <span class="nav-card-hint">Guides, troubleshooting, and contact</span>
     </a>`;
 }
 
@@ -90,6 +101,32 @@ function renderGeneralHub(panel: HTMLElement) {
   );
 }
 
+function renderHelp(panel: HTMLElement) {
+  panel.innerHTML = `
+    <h2 class="section-title">Help &amp; support</h2>
+    <p class="hint">Same resources as <a href="${SUPPORT_HUB_URL}" target="_blank" rel="noopener">frogswork.com/support</a>.</p>
+    <a class="nav-card" href="${SUPPORT_ISSUES_URL}" target="_blank" rel="noopener">
+      <span class="nav-card-title">Frequent issues</span>
+      <span class="nav-card-hint">Install, sign-in, sync, and WebView2</span>
+    </a>
+    <a class="nav-card" href="${SUPPORT_GUIDES_URL}" target="_blank" rel="noopener">
+      <span class="nav-card-title">Video guides</span>
+      <span class="nav-card-hint">Short clips for setup and invoicing</span>
+    </a>
+    <a class="nav-card" href="${SUPPORT_CONTACT_URL}" target="_blank" rel="noopener">
+      <span class="nav-card-title">Contact support</span>
+      <span class="nav-card-hint">Email us if you are still stuck</span>
+    </a>
+    <a class="nav-card" href="${SUPPORT_HUB_URL}" target="_blank" rel="noopener">
+      <span class="nav-card-title">Support hub</span>
+      <span class="nav-card-hint">Open the full support page</span>
+    </a>
+    <button type="button" class="btn secondary" id="back-settings">Back</button>`;
+  panel.querySelector("#back-settings")?.addEventListener("click", () =>
+    router.navigate("settings")
+  );
+}
+
 async function renderAccount(panel: HTMLElement, ctx: AppContext) {
   const acc = ctx.account;
   const lastSync = localStorage.getItem("frogswork_last_sync");
@@ -98,26 +135,43 @@ async function renderAccount(panel: HTMLElement, ctx: AppContext) {
       <h2>Account</h2>
       <div class="preview-row"><span class="preview-label">Email</span><span>${esc(acc?.email || "")}</span></div>
       <div class="preview-row"><span class="preview-label">Subscription</span><span>${acc?.active ? "Active" : "Inactive"}</span></div>
+
+      <h3 class="settings-subhead">Subscription</h3>
+      <p class="hint">Cancel, change plan, or update billing in Stripe. FrogsWork opens the secure Customer Portal.</p>
       ${
         acc?.portal_url
           ? `<a class="btn secondary" href="${esc(acc.portal_url)}" target="_blank" rel="noopener">Manage subscription</a>`
-          : ""
+          : `<p class="hint">Subscription portal unavailable. Contact support if you need billing help.</p>`
       }
       ${
         acc && !acc.email_verified
-          ? `<button type="button" class="btn small secondary" id="resend-verify">Resend verification</button>`
+          ? `<button type="button" class="btn small secondary" id="resend-verify" style="margin-top:0.5rem">Resend verification</button>`
           : ""
       }
-      <div class="nav-card card-static" style="margin-top:1rem">
+
+      <h3 class="settings-subhead">Your data</h3>
+      <p class="hint">Download a ZIP of your Cloud data (JSON + invoice PDFs) for your own records. FrogsWork cannot restore an export into your account later.</p>
+      <div class="btn-row">
+        <button type="button" class="btn secondary" id="export-data">Download my data</button>
+      </div>
+      <p class="hint" style="margin-top:0.75rem">Delete all businesses, customers, invoices, and PDFs from FrogsWork Cloud. Your login and subscription stay. This cannot be undone and cannot be restored.</p>
+      <button type="button" class="btn danger" id="wipe-data">Delete all my data</button>
+
+      <h3 class="settings-subhead">Close account</h3>
+      <p class="hint">Cancels your Stripe subscription immediately and permanently erases your FrogsWork Cloud account and data. This cannot be undone and cannot be restored.</p>
+      <button type="button" class="btn danger" id="delete-account">Delete account</button>
+
+      <div class="nav-card card-static" style="margin-top:1.25rem">
         <span class="nav-card-title">Sync</span>
         <span class="nav-card-hint">${lastSync ? `Last sync: ${new Date(lastSync).toLocaleString()}` : "Not synced yet"}</span>
         <button type="button" class="btn small secondary" id="sync-now">Sync now</button>
       </div>
       <div class="btn-row" style="margin-top:1rem">
-        <button type="button" class="btn danger" id="sign-out">Sign out</button>
+        <button type="button" class="btn secondary" id="sign-out">Sign out</button>
         <button type="button" class="btn secondary" id="back-settings">Back</button>
       </div>
     </section>`;
+
   panel.querySelector("#back-settings")?.addEventListener("click", () =>
     router.navigate("settings")
   );
@@ -142,6 +196,152 @@ async function renderAccount(panel: HTMLElement, ctx: AppContext) {
     } catch (ex) {
       showToast(ex instanceof Error ? ex.message : "Could not send.", "error");
     }
+  });
+
+  panel.querySelector("#export-data")?.addEventListener("click", async () => {
+    const btn = panel.querySelector("#export-data") as HTMLButtonElement;
+    btn.disabled = true;
+    try {
+      const blob = await downloadAccountExport();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `frogswork-export-${new Date().toISOString().slice(0, 10)}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast("Export downloaded. Keep it somewhere safe.", "success");
+    } catch (ex) {
+      showToast(ex instanceof Error ? ex.message : "Export failed.", "error");
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  panel.querySelector("#wipe-data")?.addEventListener("click", () => {
+    void confirmWipeData(panel, ctx);
+  });
+  panel.querySelector("#delete-account")?.addEventListener("click", () => {
+    void confirmDeleteAccount();
+  });
+}
+
+async function confirmWipeData(panel: HTMLElement, ctx: AppContext) {
+  const confirmed = await openTypedConfirm({
+    title: "Delete all my data",
+    bodyHtml: `
+      <p class="hint">Removes businesses, customers, invoices, and PDFs from FrogsWork Cloud. Your login and subscription stay.</p>
+      <p class="hint"><strong>This cannot be undone and cannot be restored to FrogsWork.</strong></p>`,
+    confirmPhrase: "DELETE DATA",
+    confirmLabel: "Delete data",
+    inputId: "wipe-confirm-input",
+  });
+  if (!confirmed) return;
+  try {
+    await deleteAccountData();
+    await cache.clearAll();
+    await pullBootstrap();
+    showToast("All Cloud data deleted.", "success");
+    await renderAccount(panel, ctx);
+  } catch (ex) {
+    showToast(ex instanceof Error ? ex.message : "Could not delete data.", "error");
+  }
+}
+
+async function confirmDeleteAccount() {
+  const confirmed = await openTypedConfirm({
+    title: "Delete account",
+    bodyHtml: `
+      <p class="hint">This cancels your Stripe subscription immediately and permanently erases your FrogsWork Cloud account and data.</p>
+      <p class="hint"><strong>This cannot be undone and cannot be restored.</strong></p>
+      <div class="field" style="margin-top:0.75rem">
+        <label for="delete-account-password">Password</label>
+        <input id="delete-account-password" type="password" autocomplete="current-password" />
+      </div>`,
+    confirmPhrase: "DELETE ACCOUNT",
+    confirmLabel: "Delete account",
+    inputId: "delete-account-confirm-input",
+    requirePasswordId: "delete-account-password",
+  });
+  if (!confirmed || confirmed === true) return;
+  try {
+    await deleteAccount(confirmed.password);
+  } catch (ex) {
+    // The purge may have completed server-side even if the response failed.
+    // If the account still exists, surface the error; otherwise fall through to sign-out.
+    const stillExists = await fetchAccount().then(
+      () => true,
+      () => false
+    );
+    if (stillExists) {
+      showToast(ex instanceof Error ? ex.message : "Could not delete account.", "error");
+      return;
+    }
+  }
+  forceSignOut();
+}
+
+function forceSignOut() {
+  clearSession();
+  void cache.clearAll().catch(() => {});
+  location.replace("/");
+}
+
+async function openTypedConfirm(opts: {
+  title: string;
+  bodyHtml: string;
+  confirmPhrase: string;
+  confirmLabel: string;
+  inputId: string;
+  requirePasswordId?: string;
+}): Promise<false | true | { password: string }> {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "sheet-overlay";
+    overlay.innerHTML = `
+      <div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(opts.title)}">
+        <div class="sheet-handle" aria-hidden="true"></div>
+        <h3 class="sheet-title">${esc(opts.title)}</h3>
+        <div class="sheet-body">
+          ${opts.bodyHtml}
+          <div class="field" style="margin-top:0.75rem">
+            <label for="${opts.inputId}">Type ${esc(opts.confirmPhrase)} to confirm</label>
+            <input id="${opts.inputId}" type="text" autocomplete="off" />
+          </div>
+        </div>
+        <div class="sheet-actions">
+          <button type="button" class="btn secondary" data-action="cancel">Cancel</button>
+          <button type="button" class="btn danger" data-action="confirm">${esc(opts.confirmLabel)}</button>
+        </div>
+      </div>`;
+    const finish = (value: false | true | { password: string }) => {
+      document.body.classList.remove("sheet-open");
+      overlay.remove();
+      resolve(value);
+    };
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) finish(false);
+    });
+    overlay.querySelector('[data-action="cancel"]')?.addEventListener("click", () => finish(false));
+    overlay.querySelector('[data-action="confirm"]')?.addEventListener("click", () => {
+      const phraseEl = overlay.querySelector(`#${opts.inputId}`) as HTMLInputElement | null;
+      if ((phraseEl?.value || "").trim() !== opts.confirmPhrase) {
+        showToast(`Type ${opts.confirmPhrase} exactly to confirm.`, "error");
+        return;
+      }
+      if (opts.requirePasswordId) {
+        const pwEl = overlay.querySelector(`#${opts.requirePasswordId}`) as HTMLInputElement | null;
+        const password = pwEl?.value || "";
+        if (!password) {
+          showToast("Password is required.", "error");
+          return;
+        }
+        finish({ password });
+        return;
+      }
+      finish(true);
+    });
+    document.body.classList.add("sheet-open");
+    document.body.appendChild(overlay);
   });
 }
 
@@ -352,12 +552,20 @@ async function renderBusinessForm(
 
     panel.querySelector("#save-business")?.addEventListener("click", async () => {
       const err = panel.querySelector("#form-error") as HTMLElement;
+      const saveBtn = panel.querySelector("#save-business") as HTMLButtonElement | null;
       err.hidden = true;
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = "Saving…";
+      }
       try {
         const fd = new FormData(panel.querySelector("#business-form") as HTMLFormElement);
         const businessName = String(fd.get("business_name") || "").trim();
         if (!businessName) throw new Error("Business name is required.");
         const addr = normalizeAuAddress(readAddressFromForm(fd));
+        if (logoState.enabled && logoState.sourceB64 && !logoState.bakedB64) {
+          logoState.bakedB64 = await bakeLogoToHeaderSlot(logoState.sourceB64, logoState.placement);
+        }
         const profile: Record<string, unknown> = {
           business_name: businessName,
           email: String(fd.get("email") || "").trim(),
@@ -391,16 +599,22 @@ async function renderBusinessForm(
             due_net_days: due.due_net_days,
           });
         }
-        const flush = await flushQueue(ctx.onSyncStatus);
-        if (!flush.ok) {
-          throw new Error(flush.error || "Saved locally but sync failed. Try again when online.");
-        }
         guard?.clear();
         showToast("Business saved.", "success");
         router.navigate("settings");
+        // Sync in background so large logos don't freeze the Save click.
+        void flushQueue(ctx.onSyncStatus).then((flush) => {
+          if (!flush.ok) {
+            showToast(flush.error || "Saved locally but sync failed. Will retry when online.", "error");
+          }
+        });
       } catch (ex) {
         err.textContent = ex instanceof Error ? ex.message : "Save failed.";
         err.hidden = false;
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.textContent = "Save";
+        }
       }
     });
   };

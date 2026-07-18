@@ -203,11 +203,10 @@ export function openSheet(opts: {
     overlay.querySelectorAll("[data-sheet-action]").forEach((btn) => {
       btn.addEventListener("click", () => {
         const id = (btn as HTMLElement).dataset.sheetAction || "close";
-        const action = (opts.actions || []).find((a) => a.id === id);
-        if (!action || action.close !== false) close(id);
-        else close(id);
+        close(id);
       });
     });
+    document.body.classList.add("sheet-open");
     document.body.appendChild(overlay);
   });
 }

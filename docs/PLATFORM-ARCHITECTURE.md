@@ -94,12 +94,12 @@ Until then: no Local pricing cards, no Local-only installer messaging, and Local
 | Guides | `guides.html` + [`videos.json`](../marketing_site/videos.json) | Tutorial videos (R2-hosted) |
 | Support | `support.html`, `issues.html`, `contact.html` | Help and contact |
 | Legal | `privacy.html`, `terms.html` | Policy pages |
-| User testing | `user-test.html` (unlisted) | Remote UX test intake → Account API |
 
 ### Architecture
 
 - **No backend logic** — pure static files at site root.
 - **No user data** — does not store invoices or accounts.
+- **GA4 (marketing)** — optional Measurement ID in `js/analytics-config.js`.
 - **Release manifest** — `releases.json` points at R2 URLs for `setup.exe` and update zip (updated when you ship a release).
 - **Videos** — metadata in `videos.json`; files on `downloads.frogswork.com/videos/`.
 
@@ -108,7 +108,7 @@ Until then: no Local pricing cards, no Local-only installer messaging, and Local
 | Couples to | Direction | What |
 |------------|-----------|------|
 | **R2 / downloads** | Read | Installer, zip, video URLs in JSON manifests |
-| **Account API** | Read (browser) | `user-test.html` calls `/user-test/*` with CORS from `frogswork.com` |
+| **Account API** | Write (browser) | Account signup/checkout pages call `/auth/*` and `/checkout/*` |
 | **Windows app** | Indirect | User downloads installer; app opens Stripe return URL in dev; prod may use marketing redirect |
 | **PWA** | Link out | Upgrade/pricing links to `pricing.html` |
 
@@ -133,12 +133,11 @@ Until then: no Local pricing cards, no Local-only installer messaging, and Local
 | **Billing** | `GET /entitlements`, Stripe webhook ack | D1 + live Stripe query |
 | **Checkout helper** | `GET /checkout/session-info` | Stripe |
 | **Telemetry** | `/telemetry/heartbeat`, `/telemetry/event` | D1 `installs` |
+| **Metrics** | `GET /metrics/summary`, `POST /devices/upsert` | D1 aggregates + `account_devices` |
 | **Releases** | `GET /releases/latest` | Worker env vars → R2 zip URL |
 | **Cloud documents** | `/documents/bootstrap`, `/migrate`, `/sync`, invoice PDF/send | D1 `doc_*` + R2 `user-docs/` |
 | **Email outbox** | Chained from `/documents/invoices/:n/send` | D1 `email_outbox` → Resend (optional) |
 | **Guest trial** | `POST /guest/session` | D1 `guest_workspaces` |
-| **Admin** | `/admin`, `/admin/api/summary`, user-test admin | D1 |
-| **User test** | `/user-test/status`, submissions, complete | D1 + R2 |
 
 ### Architecture
 
@@ -149,24 +148,22 @@ flowchart TB
         Ent[entitlements plus Stripe]
         Tel[telemetry.js]
         Doc[documents.js]
-        UT[user_test.js]
-        Admin[admin.js]
+        Metrics[metrics.js plus devices.js]
     end
 
     Auth --> D1[(D1)]
     Ent --> D1
     Tel --> D1
     Doc --> D1
-    Doc --> R2[(R2 RELEASES or DOCUMENTS)]
-    UT --> D1
-    UT --> R2
+    Doc --> R2[(R2 DOCUMENTS)]
+    Metrics --> D1
     Ent --> Stripe[Stripe API]
 ```
 
-- **D1** — users, installs (telemetry aggregates), cloud document rows, email queue, guest workspaces.
-- **R2** — release binaries (existing bucket), user invoice PDFs under `user-docs/{user_id}/`, user-test videos.
+- **D1** — users, installs (legacy shell telemetry), cloud document rows, email queue, guest workspaces, account devices.
+- **R2** — release binaries (`frogswork-invoicer-releases`), user invoice PDFs in `frogswork-user-docs` under `user-docs/{user_id}/`.
 - **Stripe** — subscriptions; `storage_tier` derived from price metadata (`local` vs `cloud`).
-- **JWT** — access (12 h) and refresh (30 d) for shell, browser, and PWA.
+- **Metrics** — `GET /metrics/summary` (Bearer `METRICS_TOKEN`) for local-only operator dashboard.- **JWT** — access (12 h) and refresh (30 d) for shell, browser, and PWA.
 
 ### Coupling
 
@@ -174,7 +171,7 @@ flowchart TB
 |--------|---------------|-------------|
 | **Shared Cloud UI** | Login, entitlements, document sync, email queue | — |
 | **Windows shell** | Telemetry heartbeat; updater polls `/releases/latest` | Invoice documents (from the Cloud UI) |
-| **Marketing site** | Checkout session create, user-test endpoints | Invoice data |
+| **Marketing site** | Checkout session create | Invoice data |
 | **Stripe** | Webhook POST (ack); entitlements polled live | — |
 
 **Source of truth:**
@@ -289,10 +286,15 @@ flowchart TB
 | `FrogsWork-*-setup.exe` | Marketing `download.html` via `releases.json` |
 | `FrogsWork-*-win64.zip` | Desktop in-app updater via `GET /releases/latest` |
 | `videos/*` | Marketing `guides.html` |
-| `user-tests/*` | User-test video uploads |
+| `user-docs/{user_id}/*` | Cloud invoice PDFs |
+
+**Documents bucket:** `frogswork-user-docs` (binding `DOCUMENTS` on API Worker). Private — no public downloads hostname.
+
+| Prefix / file | Used by |
+|---------------|---------|
 | `user-docs/{user_id}/invoices/*` | Cloud invoice PDFs (document API) |
 
-Coupling is **URL-only** — consumers fetch by HTTPS; no shared code.
+Coupling for releases is **URL-only** — consumers fetch by HTTPS; no shared code. Invoice PDFs are served only through the API Worker (JWT-scoped).
 
 ---
 
@@ -302,7 +304,7 @@ These are the **stable boundaries** between segments. Change them carefully acro
 
 | Contract | Doc | Consumers |
 |----------|-----|-----------|
-| **HTTP API** | [`account_api/ROUTES.md`](../account_api/ROUTES.md) | Desktop `account/client.py`, PWA `js/api.js`, marketing user-test |
+| **HTTP API** | [`account_api/ROUTES.md`](../account_api/ROUTES.md) | Desktop `account/client.py`, Cloud UI sync, marketing account pages |
 | **Document entities** | [DOCUMENT-SCHEMA.md](DOCUMENT-SCHEMA.md) | Desktop storage, API `documents.js`, PWA IndexedDB |
 | **Entitlements shape** | ROUTES.md + `storage_tier`, `platforms` | Desktop cache, PWA gate |
 | **Sync mutations** | DOCUMENT-SCHEMA.md | Desktop `sync_queue.py`, PWA `sync.js`, API `documents.js` |
@@ -399,7 +401,7 @@ Desktop defaults `FROGSWORK_ACCOUNT_API_URL` to `http://127.0.0.1:8787`. PWA can
 | Accounts | D1 `users` | bcrypt password hash, email, Stripe ID, tier |
 | Cloud documents | D1 `doc_*` tables | Plain JSON per entity |
 | Guest trial | D1 `guest_workspaces` | Plain JSON, 30-day TTL |
-| Invoice PDFs | R2 `user-docs/{user_id}/invoices/{key}.pdf` | Raw PDF bytes |
+| Invoice PDFs | R2 bucket `frogswork-user-docs` (`user-docs/{user_id}/invoices/{key}.pdf`) | Raw PDF bytes |
 | Email queue | D1 `email_outbox` | Metadata only |
 
 **Encryption at rest:** Passwords are hashed (bcrypt). Cloud business JSON and PDFs rely on Cloudflare platform storage plus API access control (JWT, per-user SQL scope). There is no application-level field encryption of invoice or customer payloads. Desktop auth tokens in `account_auth.json` are Fernet-encrypted locally. All client↔API traffic uses HTTPS.

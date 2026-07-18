@@ -13,10 +13,10 @@ export const PWA_URL = isLocal ? "http://127.0.0.1:5173" : "https://app.frogswor
 export const TERMS_URL = "/terms.html";
 export const PRIVACY_URL = "/privacy.html";
 
-/** Legacy payment links (optional). Prefer API checkout. */
+/** Optional shareable Payment Links (manual use). Prefer API checkout. */
 export const PAYMENT_LINKS = {
-  monthly: "https://buy.stripe.com/6oUbJ28Bo1KJggFh1r8Zq02",
-  annual: "https://buy.stripe.com/dRmfZi8Boblj1lL3aB8Zq03",
+  monthly: "https://buy.stripe.com/4gM28sg3Qcpn8Od26x8Zq04",
+  annual: "https://buy.stripe.com/fZudRa6tg60Z2pPdPf8Zq05",
 };
 
 export const PLANS = {

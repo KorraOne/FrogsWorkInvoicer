@@ -1,5 +1,5 @@
 import { createCheckoutSession, mapAuthError } from "./api.js";
-import { PLANS, SESSION_KEYS, authHeader } from "./config.js";
+import { SESSION_KEYS, authHeader } from "./config.js";
 
 const params = new URLSearchParams(location.search);
 const installId = params.get("install_id");
@@ -16,29 +16,11 @@ const emailStrong = emailWrap?.querySelector("strong");
 const heading = document.getElementById("subscribe-heading");
 const lead = document.getElementById("subscribe-lead");
 
-let selectedInterval = "month";
-
 function showError(text) {
   if (!errorEl) return;
   errorEl.textContent = text;
   errorEl.hidden = !text;
 }
-
-function updatePrices() {
-  const cloudPlan = PLANS.cloud[selectedInterval === "year" ? "annual" : "monthly"];
-  const cloudEl = document.querySelector("[data-price-cloud]");
-  if (cloudEl) cloudEl.textContent = cloudPlan.display;
-}
-
-document.querySelectorAll(".billing-toggle-btn").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    selectedInterval = btn.dataset.interval === "year" ? "year" : "month";
-    document.querySelectorAll(".billing-toggle-btn").forEach((b) => {
-      b.classList.toggle("billing-toggle-btn--active", b === btn);
-    });
-    updatePrices();
-  });
-});
 
 function ensureAuth() {
   const token = authHeader();
@@ -53,7 +35,7 @@ function ensureAuth() {
   return null;
 }
 
-async function startCheckout() {
+async function startCheckout(interval) {
   const token = ensureAuth();
   if (!token) return;
   showError("");
@@ -62,14 +44,20 @@ async function startCheckout() {
     b.disabled = true;
   });
   try {
-    const interval = selectedInterval === "year" ? "year" : "month";
-    const result = await createCheckoutSession("cloud", interval, token, promoCode || undefined);
+    const billingInterval = interval === "year" ? "year" : "month";
+    const result = await createCheckoutSession("cloud", billingInterval, token, promoCode || undefined);
     if (result.upgraded) {
+      if (window.fwGa) {
+        window.fwGa.track("purchase", { tier: "cloud", interval: billingInterval, flow: "upgrade" });
+      }
       sessionStorage.removeItem(SESSION_KEYS.signupToken);
       window.location.href = `/account/success.html?flow=upgrade&tier=cloud`;
       return;
     }
     if (result.checkout_url) {
+      if (window.fwGa) {
+        window.fwGa.track("begin_checkout", { tier: "cloud", interval: billingInterval });
+      }
       window.location.href = result.checkout_url;
       return;
     }
@@ -85,7 +73,7 @@ async function startCheckout() {
 
 document.querySelectorAll("[data-checkout-tier]").forEach((btn) => {
   btn.addEventListener("click", () => {
-    startCheckout();
+    startCheckout(btn.dataset.interval === "year" ? "year" : "month");
   });
 });
 
@@ -99,11 +87,9 @@ if (isUpgrade) {
   if (heading) heading.textContent = "Upgrade to Cloud";
   if (lead) {
     lead.textContent =
-      "Cloud keeps the same invoices on browser, phone, and Windows. Checkout uses your account email.";
+      "Cloud keeps the same invoices on browser, phone, and Windows. Checkout uses your account email. New subscriptions include a 14-day trial.";
   }
 }
-
-updatePrices();
 
 if (!authHeader()) {
   ensureAuth();

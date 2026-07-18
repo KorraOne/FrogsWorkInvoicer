@@ -1,10 +1,20 @@
 ﻿{
-    "version":  "3.0.2",
-    "setup_sha256":  "58ffeaaba235736f86a8b048e72523f5f9b88572b9fdf3a9e60952de14ec2f73",
-    "published_at":  "2026-07-12",
-    "update_zip_path":  "https://downloads.frogswork.com/FrogsWork-3.0.2-win64.zip",
-    "notes":  "Cloud upgrade banner, web signup URLs, forgot password and email verification on frogswork.com, PWA polish.",
+    "version":  "3.1.1",
+    "setup_sha256":  "103f9b13f4602132bd73ddfdbf850c758986367751bfe112a7861accc33c8618",
+    "published_at":  "2026-07-16",
+    "update_zip_path":  "https://downloads.frogswork.com/FrogsWork-3.1.1-win64.zip",
+    "notes":  "Desktop nav brand logo (aspect-matched), Settings/help aligned with frogswork.com support, faster business logo save.",
     "history":  [
+                    {
+                        "published_at":  "2026-07-16",
+                        "version":  "3.1.1",
+                        "notes":  "Desktop nav brand logo (aspect-matched), Settings/help aligned with frogswork.com support, faster business logo save."
+                    },
+                    {
+                        "published_at":  "2026-07-16",
+                        "version":  "3.1.0",
+                        "notes":  "Cloud desktop shell: opens app.frogswork.com, thicker left nav with account avatar and sign out, no PDF folder installer wizard."
+                    },
                     {
                         "published_at":  "2026-07-12",
                         "version":  "3.0.2",
@@ -121,6 +131,6 @@
                         "notes":  "Replaces usage-based billing with subscription. Free trial: 20 invoices or 20000 ex GST before subscribe."
                     }
                 ],
-    "download_path":  "https://downloads.frogswork.com/FrogsWork-3.0.2-setup.exe",
-    "sha256":  "ce6185e7cd0001a8ef783c4fe5cd3c0d98dc9725c6c8e175f0247998b358d4fe"
+    "download_path":  "https://downloads.frogswork.com/FrogsWork-3.1.1-setup.exe",
+    "sha256":  "237d35f42d80dceea71548f4efc95ba4e0742e279ef7a783125f828295929504"
 }

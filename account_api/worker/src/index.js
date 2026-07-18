@@ -9,16 +9,6 @@ import {
   updateSubscriptionMilestones,
   upsertHeartbeat,
 } from "./telemetry.js";
-import { buildAdminSummary, checkAdminAuth, listAdminAccounts, renderAdminHtml } from "./admin.js";
-import {
-  deleteUserTestSubmission,
-  getUserTestSubmission,
-  getUserTestAdminContext,
-  handleUserTestComplete,
-  handleUserTestCreateSubmission,
-  handleUserTestStatus,
-  setUserTestEnabled,
-} from "./user_test.js";
 import {
   resolveStorageTier,
   storageTierFromSubscription,
@@ -39,10 +29,6 @@ import {
   activateUserFromCheckout,
 } from "./billing.js";
 import {
-  setDefaultBeta80Enabled,
-  getCheckoutPromoAdminContext,
-} from "./checkout_settings.js";
-import {
   handleForgotPassword,
   handleResetPassword,
   handleVerifyEmail,
@@ -53,6 +39,18 @@ import { checkRateLimit, clientIp, rateLimitResponse } from "./rate_limit.js";
 import { handleInvoiceRelaySend } from "./invoice_relay.js";
 import { handleMobileRoute } from "./mobile.js";
 import { purgeAndSeedFromStripe } from "./dev_seed.js";
+import { buildMetricsSummary, checkMetricsAuth } from "./metrics.js";
+import { upsertAccountDevice } from "./devices.js";
+import {
+  handleHandoffCreate,
+  handleHandoffRedeem,
+  cleanupExpiredHandoffCodes,
+} from "./handoff.js";
+import {
+  handleAccountExport,
+  handleAccountDataDelete,
+  handleAccountDelete,
+} from "./account_lifecycle.js";
 
 const ACCESS_TTL_SEC = 12 * 60 * 60;
 const REFRESH_TTL_SEC = 30 * 24 * 60 * 60;
@@ -310,6 +308,12 @@ export default {
     } catch (exc) {
       console.error("scheduled cleanup failed:", exc);
     }
+    try {
+      const handoffDeleted = await cleanupExpiredHandoffCodes(env.DB);
+      console.log(`cleanupExpiredHandoffCodes: deleted ${handoffDeleted}`);
+    } catch (exc) {
+      console.error("scheduled handoff cleanup failed:", exc);
+    }
   },
 };
 
@@ -511,6 +515,52 @@ async function handleRequest(request, env, ctx) {
       return json(tokens);
     }
 
+    if (path === "/auth/handoff/create" && request.method === "POST") {
+      const limited = await enforceRateLimit(request, env, "auth_handoff_create");
+      if (limited) return limited;
+      return handleHandoffCreate(request, env, {
+        requireUser,
+        userById,
+        subscriptionStatus,
+        getStripe,
+      });
+    }
+
+    if (path === "/auth/handoff/redeem" && request.method === "POST") {
+      const limited = await enforceRateLimit(request, env, "auth_handoff");
+      if (limited) return limited;
+      return handleHandoffRedeem(request, env, {
+        userById,
+        issueTokens,
+        subscriptionStatus,
+        getStripe,
+      });
+    }
+
+    if (path === "/account/export" && request.method === "GET") {
+      const limited = await enforceRateLimit(request, env, "account_export");
+      if (limited) return limited;
+      const auth = await requireUser(request, env);
+      if (auth.error) return auth.error;
+      return handleAccountExport(request, env, auth);
+    }
+
+    if (path === "/account/data/delete" && request.method === "POST") {
+      const limited = await enforceRateLimit(request, env, "account_data_delete");
+      if (limited) return limited;
+      const auth = await requireUser(request, env);
+      if (auth.error) return auth.error;
+      return handleAccountDataDelete(request, env, auth);
+    }
+
+    if (path === "/account/delete" && request.method === "POST") {
+      const limited = await enforceRateLimit(request, env, "account_delete");
+      if (limited) return limited;
+      const auth = await requireUser(request, env);
+      if (auth.error) return auth.error;
+      return handleAccountDelete(request, env, auth, { bcrypt, getStripe });
+    }
+
     if (path === "/auth/refresh" && request.method === "POST") {
       const body = await readJson(request);
       const token = body.refresh_token || "";
@@ -589,134 +639,26 @@ async function handleRequest(request, env, ctx) {
       }
     }
 
-    if (path === "/user-test/status") {
-      return handleUserTestStatus(request, env);
-    }
-
-    if (path === "/user-test/submissions") {
-      return handleUserTestCreateSubmission(request, env);
-    }
-
-    const completeMatch = path.match(/^\/user-test\/submissions\/([^/]+)\/complete$/);
-    if (completeMatch) {
-      return handleUserTestComplete(request, env, completeMatch[1]);
-    }
-
-    if (path === "/admin/api/checkout/default-beta80" && request.method === "POST") {
-      const auth = checkAdminAuth(request, env.ADMIN_PASSWORD);
-      if (!auth.ok) return auth.response;
-      const body = await readJson(request);
-      const enabled = Boolean(body.enabled);
-      await setDefaultBeta80Enabled(env.DB, enabled);
-      return json({ ok: true, enabled });
-    }
-
-    if (path === "/admin/api/user-test/enabled" && request.method === "POST") {
-      const auth = checkAdminAuth(request, env.ADMIN_PASSWORD);
-      if (!auth.ok) return auth.response;
-      const body = await readJson(request);
-      const enabled = Boolean(body.enabled);
-      await setUserTestEnabled(env.DB, enabled);
-      return json({ ok: true, enabled });
-    }
-
-    if (path === "/admin/api/user-test/submissions" && request.method === "GET") {
-      const auth = checkAdminAuth(request, env.ADMIN_PASSWORD);
-      if (!auth.ok) return auth.response;
-      const ctx = await getUserTestAdminContext(env.DB);
-      return json(ctx);
-    }
-
-    const adminSubmissionMatch = path.match(/^\/admin\/api\/user-test\/submissions\/([^/]+)$/);
-    if (adminSubmissionMatch && request.method === "GET") {
-      const auth = checkAdminAuth(request, env.ADMIN_PASSWORD);
-      if (!auth.ok) return auth.response;
-      const row = await getUserTestSubmission(env.DB, adminSubmissionMatch[1]);
-      if (!row) return textError("Not found", 404);
-      let answers = null;
-      try {
-        answers = row.answers_json ? JSON.parse(row.answers_json) : null;
-      } catch {
-        answers = null;
-      }
-      return json({
-        id: row.id,
-        created_at: row.created_at,
-        completed_at: row.completed_at,
-        tester_name: row.tester_name,
-        status: row.status,
-        video_bytes: row.video_bytes,
-        video_content_type: row.video_content_type,
-        answers,
-      });
-    }
-
-    const adminVideoMatch = path.match(/^\/admin\/api\/user-test\/submissions\/([^/]+)\/video$/);
-    if (adminVideoMatch && request.method === "GET") {
-      const auth = checkAdminAuth(request, env.ADMIN_PASSWORD);
-      if (!auth.ok) return auth.response;
-      const row = await getUserTestSubmission(env.DB, adminVideoMatch[1]);
-      if (!row?.video_r2_key || !env.RELEASES) {
-        return textError("Video not found", 404);
-      }
-      const object = await env.RELEASES.get(row.video_r2_key);
-      if (!object) return textError("Video not found", 404);
-      const ext = row.video_r2_key.split(".").pop() || "bin";
-      const headers = new Headers();
-      if (object.httpMetadata?.contentType) {
-        headers.set("Content-Type", object.httpMetadata.contentType);
-      } else if (row.video_content_type) {
-        headers.set("Content-Type", row.video_content_type);
-      }
-      headers.set(
-        "Content-Disposition",
-        `attachment; filename="frogswork-user-test-${row.id}.${ext}"`
-      );
-      return new Response(object.body, { headers });
-    }
-
-    if (adminSubmissionMatch && request.method === "DELETE") {
-      const auth = checkAdminAuth(request, env.ADMIN_PASSWORD);
-      if (!auth.ok) return auth.response;
-      const deleted = await deleteUserTestSubmission(env, adminSubmissionMatch[1]);
-      if (!deleted) return textError("Not found", 404);
-      return json({ ok: true });
-    }
-
-    if (path === "/admin/api/accounts" && request.method === "GET") {
-      const auth = checkAdminAuth(request, env.ADMIN_PASSWORD);
+    if (path === "/metrics/summary" && request.method === "GET") {
+      const auth = checkMetricsAuth(request, env.METRICS_TOKEN);
       if (!auth.ok) return auth.response;
       try {
-        const accounts = await listAdminAccounts(env.DB);
-        return json({ accounts });
-      } catch (exc) {
-        return textError(String(exc.message || exc), 500);
-      }
-    }
-
-    if (path === "/admin/api/summary" && request.method === "GET") {
-      const auth = checkAdminAuth(request, env.ADMIN_PASSWORD);
-      if (!auth.ok) return auth.response;
-      try {
-        const summary = await buildAdminSummary(env.DB);
+        const summary = await buildMetricsSummary(env.DB);
         return json(summary);
       } catch (exc) {
         return textError(String(exc.message || exc), 500);
       }
     }
 
-    if (path === "/admin" && request.method === "GET") {
-      const auth = checkAdminAuth(request, env.ADMIN_PASSWORD);
-      if (!auth.ok) return auth.response;
+    if (path === "/devices/upsert" && request.method === "POST") {
+      const auth = await requireUser(request, env);
+      if (auth.error) return auth.error;
+      const body = await readJson(request);
       try {
-        const summary = await buildAdminSummary(env.DB);
-        const userTest = await getUserTestAdminContext(env.DB);
-        const checkoutPromo = await getCheckoutPromoAdminContext(env.DB);
-        return new Response(renderAdminHtml(summary, userTest, checkoutPromo), {
-          headers: { "Content-Type": "text/html; charset=utf-8" },
-        });
+        await upsertAccountDevice(env.DB, auth.user.id, body);
+        return json({ ok: true });
       } catch (exc) {
-        return textError(String(exc.message || exc), 500);
+        return textError(String(exc.message || exc), 400);
       }
     }
 
@@ -782,15 +724,11 @@ async function handleRequest(request, env, ctx) {
       if (docResponse) return docResponse;
     }
 
-    if (path === "/admin/api/cleanup-pending" && request.method === "POST") {
-      const auth = checkAdminAuth(request, env.ADMIN_PASSWORD);
-      if (!auth.ok) return auth.response;
-      const deleted = await cleanupPendingUsers(env.DB);
-      return json({ ok: true, deleted });
-    }
-
-    if (path === "/admin/api/dev-reset-seed" && request.method === "POST") {
-      const auth = checkAdminAuth(request, env.ADMIN_PASSWORD);
+    if (path === "/dev/reset-seed" && request.method === "POST") {
+      if (String(env.ALLOW_DEV_RESET || "") !== "1") {
+        return textError("Not found", 404);
+      }
+      const auth = checkMetricsAuth(request, env.METRICS_TOKEN);
       if (!auth.ok) return auth.response;
       let stripe;
       try {

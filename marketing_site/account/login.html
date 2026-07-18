@@ -36,14 +36,17 @@
             </div>
             <div class="form-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" name="password" required autocomplete="current-password">
+                <div class="pw-field">
+                    <input type="password" id="password" name="password" class="pw-input" required autocomplete="current-password">
+                    <button type="button" class="pw-toggle" data-pw-toggle="password" aria-controls="password" aria-pressed="false">Show</button>
+                </div>
                 <p class="form-hint"><a href="/account/forgot-password.html">Forgot password?</a></p>
             </div>
             <p id="login-error" class="account-error" hidden></p>
             <button type="submit" class="btn btn-primary">Sign in</button>
         </form>
 
-        <p class="form-footer">No account yet? <a href="/account/signup.html">Create account</a></p>
+        <p class="form-footer">No account yet? <a data-fw-signup="login" href="/account/signup.html">Create account</a></p>
     </main>
 
     <footer class="site-footer">
@@ -56,6 +59,9 @@
             </div>
         </div>
     </footer>
+    <script src="/js/analytics-config.js"></script>
+    <script src="/js/analytics.js"></script>
+    <script src="/js/password-toggle.js"></script>
     <script src="/js/site.js"></script>
     <script type="module" src="/js/account/login.js"></script>
 </body>

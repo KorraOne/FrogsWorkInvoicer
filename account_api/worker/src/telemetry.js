@@ -247,6 +247,53 @@ export async function linkInstallOnRegister(db, installId, userId, signupSnapsho
 }
 
 export async function updateSubscriptionMilestones(db, user, sub) {
+  if (!user?.id) return;
+
+  const now = nowIso();
+  const state = subscriptionStateFromEntitlements(sub);
+
+  // First-party churn fields on users (works for cloud-only accounts without install_id)
+  const userRow = await db
+    .prepare(
+      `SELECT subscribed_at, cancel_scheduled_at, unsubscribed_at, resubscribed_at, plan_interval
+       FROM users WHERE id = ?`
+    )
+    .bind(user.id)
+    .first();
+  if (userRow) {
+    const sets = [];
+    const binds = [];
+    if (sub.active && !userRow.subscribed_at) {
+      sets.push("subscribed_at = ?");
+      binds.push(now);
+    }
+    if (sub.active && sub.canceling && !userRow.cancel_scheduled_at) {
+      sets.push("cancel_scheduled_at = ?");
+      binds.push(now);
+    }
+    if (!sub.active && userRow.subscribed_at && !userRow.unsubscribed_at) {
+      sets.push("unsubscribed_at = ?");
+      binds.push(now);
+    }
+    if (sub.active && userRow.unsubscribed_at && !userRow.resubscribed_at) {
+      sets.push("resubscribed_at = ?");
+      binds.push(now);
+      sets.push("unsubscribed_at = NULL");
+      sets.push("cancel_scheduled_at = NULL");
+    }
+    if (sub.plan_interval && sub.active) {
+      sets.push("plan_interval = ?");
+      binds.push(sub.plan_interval);
+    }
+    if (sets.length) {
+      binds.push(user.id);
+      await db
+        .prepare(`UPDATE users SET ${sets.join(", ")} WHERE id = ?`)
+        .bind(...binds)
+        .run();
+    }
+  }
+
   const installId = user.install_id;
   if (!installId || !isValidInstallId(installId)) {
     return;
@@ -260,8 +307,6 @@ export async function updateSubscriptionMilestones(db, user, sub) {
     return;
   }
 
-  const now = nowIso();
-  const state = subscriptionStateFromEntitlements(sub);
   const sets = ["subscription_state = ?"];
   const binds = [state];
 

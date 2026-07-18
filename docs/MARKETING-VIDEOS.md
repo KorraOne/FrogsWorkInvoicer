@@ -6,42 +6,47 @@ Videos play from R2 (`downloads.frogswork.com/videos/`) via [`marketing_site/vid
 
 ## Before you record
 
-- **1080p MP4**, H.264, silent with short text overlays (no narration required).
-- Slow, deliberate mouse movement.
-- **Fictional data only.** Run `python seed_marketing_demo.py --reset` from `client_app/`. Do not show real customer names, real invoices, or family data on screen.
-- **Subscribe clip:** use EARLY100 on live Stripe or a test-mode build. Do not show real card numbers.
+- **1080p MP4**, H.264, **silent** with short text overlays (no narration).
+- Slow, deliberate taps / mouse movement.
+- **Fictional data only.** Prefer the seeded marketing demo account. Do not show real customer names, real invoices, or family data on screen.
+- **Device:** use `"device": "iphone"` for PWA screen recordings; `"device": "desktop"` for Windows install, Stripe checkout, and uninstall.
+- **Subscribe clip:** use a promo on live Stripe or a test-mode build. Do not show real card numbers.
 - Generate poster JPGs and upload to R2 `videos/posters/`.
-- Keep tutorials under **40 seconds**; main walkthrough **2 to 3 minutes**.
+- Keep tutorials under **~45 seconds**; main walkthrough **2 to 3 minutes**.
 
 ## Main walkthrough
 
-**File:** `walkthrough.mp4`  
+**File:** `walkthrough.mp4` · **Device:** iPhone PWA  
 **Title on site:** See FrogsWork in under 3 minutes
 
-1. Open the app on the main dashboard. Business details set, customers populated, past invoices visible.
-2. Create an invoice: select customer, add line items, toggle GST, add customer inline if needed.
-3. Preview the invoice PDF. Show logo, totals, GST, due date.
-4. Mark the invoice sent. Show status change and Outstanding list.
-5. Open past invoices. Search and filter.
-6. Mark an invoice paid. Dashboard updates.
-7. Dashboard overview: totals, overdue count, paid vs outstanding.
+1. Home dashboard: Sales this month, Outstanding, Paid all time.
+2. Create invoice: customer, line items, payment due.
+3. Save → success screen with embedded tax invoice PDF.
+4. Send to customer by email.
+5. Past invoices: search / filter, View PDF.
+6. Mark paid → Home totals update.
 
 ## Short tutorials
 
-| ID | File | Steps (summary) |
-|----|------|-----------------|
-| `install` | `install.mp4` | Website download → run installer → setup wizard |
-| `setup-business` | `setup-business.mp4` | Business details, ABN, address, logo, save |
-| `setup-customer` | `setup-customer.mp4` | Customers → add → save |
-| `add-customer-inline` | `add-customer-inline.mp4` | New invoice → add customer inline |
-| `creating-invoice` | `creating-invoice.mp4` | Customer, lines, due date, GST, save, PDF |
-| `managing-gst` | `managing-gst.mp4` | GST in business details, line toggles, PDF |
-| `managing-past-invoices` | `managing-past-invoices.mp4` | List, search, filter, change status |
-| `dashboard` | `dashboard.mp4` | Totals, overdue, paid vs outstanding |
-| `subscribing` | `subscribing.mp4` | Subscribe, Stripe checkout, manage billing |
-| `backup-restore` | `backup-restore.mp4` | Backup file, restore, confirm data |
-| `pdf-location` | `pdf-location.mp4` | Data storage → change PDF folder |
-| `uninstall` | `uninstall.mp4` | Start menu uninstall, PDF export folder |
+| ID | Device | Category | Steps (summary) |
+|----|--------|----------|-----------------|
+| `install` | Windows | Install | frogswork.com Download → setup → Sign in → Home |
+| `install-iphone` | iPhone | Install | Safari → Add to Home Screen |
+| `install-android` | Android | Install | Chrome → Install app / Add to Home screen |
+| `setup-business` | iPhone | Getting started | Settings → Business details → logo → Save |
+| `setup-customer` | iPhone | Getting started | Customers → + → Save |
+| `add-customer-inline` | iPhone | Invoicing | New invoice → + Add customer → selected |
+| `creating-invoice` | iPhone | Invoicing | Lines → Save invoice → PDF success → Done |
+| `managing-gst` | iPhone | Invoicing | GST registered → line GST toggle → PDF |
+| `managing-past-invoices` | iPhone | Invoicing | Filter Not sent/Sent/Paid → View PDF / Mark paid |
+| `send-invoice` | iPhone | Invoicing | Send / Send to customer → Sent status |
+| `dashboard` | iPhone | Dashboard | Home totals → Create / Past invoices |
+| `subscribing` | Windows | Subscription | Signup → Stripe → Settings → Account → Manage subscription |
+| `uninstall` | Windows | Windows | Start menu uninstall; Cloud data still on app.frogswork.com |
+
+Removed (Local-era): `backup-restore`, `pdf-location`.
+
+Device hint on cards is muted copy: **Tutorial recorded on iPhone / Android / Windows**.
 
 ## Publish checklist
 
@@ -57,4 +62,4 @@ After recording the walkthrough, save a dashboard frame as `marketing_site/asset
 
 ## Copy for overlays
 
-Use plain Australian English. Match the marketing site voice: short labels, real UI names (**Business details**, **Prepare to send**, **Mark paid**). No em dashes in on-screen text.
+Use plain Australian English. Match UI labels: **Business details**, **Save invoice**, **Send to customer**, **Mark paid**, **Not sent** / **Sent** / **Paid**. No em dashes in on-screen text.

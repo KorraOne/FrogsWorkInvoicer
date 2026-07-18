@@ -99,7 +99,18 @@ async function syncMutation(type: string, payload: Record<string, unknown>) {
 
 export async function pullBootstrap() {
   const data = await fetchBootstrap();
-  if (data.businesses) await cache.saveBusinesses(data.businesses);
+  if (data.businesses) {
+    const local = await cache.getBusinesses();
+    const merged: Record<string, Record<string, unknown>> = { ...data.businesses };
+    for (const [name, remote] of Object.entries(merged)) {
+      const localRec = local[name];
+      const localSource = localRec && String(localRec.logo_source_b64 || "").trim();
+      if (localSource && !String(remote.logo_source_b64 || "").trim()) {
+        merged[name] = { ...remote, logo_source_b64: localSource };
+      }
+    }
+    await cache.saveBusinesses(merged);
+  }
   if (data.customers) await cache.saveCustomers(data.customers);
   if (data.invoices) await cache.saveInvoices(normalizeInvoicesMap(data.invoices));
   if (data.settings) await cache.saveSettings(data.settings);

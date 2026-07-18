@@ -2,6 +2,8 @@
 
 import os
 import sqlite3
+import hashlib
+import secrets
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
@@ -14,11 +16,9 @@ from flask import Flask, Response, g, jsonify, request
 from auth_ops import (
     check_rate_limit,
     forgot_password,
-    is_default_beta80_enabled,
     is_email_verified,
     reset_password,
     send_verification_email,
-    set_default_beta80_enabled,
     verify_email,
 )
 from billing_ops import (
@@ -29,6 +29,11 @@ from billing_ops import (
     decode_signup_token,
     activate_from_checkout,
     resolve_storage_tier_dev,
+)
+from account_lifecycle_ops import (
+    build_export_zip,
+    cancel_stripe_subscriptions,
+    purge_user_cloud_data,
 )
 from dev_vars import load_dev_vars
 from telemetry_ops import (
@@ -44,7 +49,7 @@ load_dev_vars()
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
 JWT_SECRET = os.environ.get("JWT_SECRET", "dev-insecure-jwt-secret")
 WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
+METRICS_TOKEN = os.environ.get("METRICS_TOKEN", "")
 ACCESS_TTL = timedelta(hours=12)
 REFRESH_TTL = timedelta(days=30)
 
@@ -102,7 +107,44 @@ def _migrate_db(db):
         )
     if "email_verified_at" not in cols:
         db.execute("ALTER TABLE users ADD COLUMN email_verified_at TEXT")
-
+    for col in (
+        "subscribed_at",
+        "cancel_scheduled_at",
+        "unsubscribed_at",
+        "resubscribed_at",
+        "plan_interval",
+    ):
+        if col not in cols:
+            db.execute(f"ALTER TABLE users ADD COLUMN {col} TEXT")
+    db.execute(
+        """CREATE TABLE IF NOT EXISTS account_devices (
+             user_id INTEGER NOT NULL,
+             device_id_hash TEXT NOT NULL,
+             platform TEXT NOT NULL,
+             coarse_ua TEXT,
+             first_seen_at TEXT NOT NULL,
+             last_seen_at TEXT NOT NULL,
+             PRIMARY KEY (user_id, device_id_hash),
+             FOREIGN KEY (user_id) REFERENCES users(id)
+           )"""
+    )
+    db.execute("DROP TABLE IF EXISTS user_test_submissions")
+    db.execute("DROP TABLE IF EXISTS user_test_settings")
+    db.execute("DROP TABLE IF EXISTS checkout_promo_settings")
+    db.execute(
+        """CREATE TABLE IF NOT EXISTS auth_handoff_codes (
+             id INTEGER PRIMARY KEY AUTOINCREMENT,
+             code_hash TEXT NOT NULL UNIQUE,
+             user_id INTEGER NOT NULL,
+             expires_at TEXT NOT NULL,
+             created_at TEXT NOT NULL,
+             used_at TEXT,
+             FOREIGN KEY (user_id) REFERENCES users(id)
+           )"""
+    )
+    db.execute(
+        "CREATE INDEX IF NOT EXISTS idx_auth_handoff_codes_hash ON auth_handoff_codes(code_hash)"
+    )
 
 def _issue_tokens(user_id, email):
     now = datetime.now(timezone.utc)
@@ -252,23 +294,6 @@ def require_auth(f):
             g.current_user = user
         except jwt.PyJWTError:
             return jsonify({"error": "Invalid token"}), 401
-        return f(*args, **kwargs)
-
-    return wrapped
-
-
-def require_admin(f):
-    @wraps(f)
-    def wrapped(*args, **kwargs):
-        if not ADMIN_PASSWORD:
-            return jsonify({"error": "Admin not configured."}), 503
-        auth = request.authorization
-        if not auth or auth.password != ADMIN_PASSWORD:
-            return Response(
-                "Unauthorized",
-                401,
-                {"WWW-Authenticate": 'Basic realm="FrogsWork Admin"'},
-            )
         return f(*args, **kwargs)
 
     return wrapped
@@ -476,6 +501,75 @@ def auth_login():
     return jsonify({"access_token": access, "refresh_token": refresh})
 
 
+def _user_is_entitled(user):
+    status = (user.get("account_status") or "active").strip()
+    if status == "pending_payment":
+        return False
+    if status == "active" and user.get("stripe_customer_id"):
+        try:
+            sub = _subscription_status(user["stripe_customer_id"])
+            return bool(sub.get("active"))
+        except Exception:
+            return True
+    return status == "active"
+
+
+@app.post("/auth/handoff/create")
+def auth_handoff_create():
+    ip = request.headers.get("X-Forwarded-For", request.remote_addr) or "unknown"
+    if not check_rate_limit(get_db(), f"auth_handoff_create:{ip}"):
+        return jsonify({"error": "Too many requests. Try again later."}), 429
+    user, _kind = _auth_user_from_request()
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    if not _user_is_entitled(user):
+        return jsonify({"error": "An active subscription is required."}), 403
+    code = secrets.token_hex(32)
+    code_hash = hashlib.sha256(code.encode("utf-8")).hexdigest()
+    now = datetime.now(timezone.utc)
+    expires_at = (now + timedelta(seconds=60)).isoformat()
+    created_at = now.isoformat()
+    db = get_db()
+    db.execute(
+        """INSERT INTO auth_handoff_codes (code_hash, user_id, expires_at, created_at)
+           VALUES (?, ?, ?, ?)""",
+        (code_hash, user["id"], expires_at, created_at),
+    )
+    db.commit()
+    return jsonify({"code": code, "expires_in": 60})
+
+
+@app.post("/auth/handoff/redeem")
+def auth_handoff_redeem():
+    ip = request.headers.get("X-Forwarded-For", request.remote_addr) or "unknown"
+    if not check_rate_limit(get_db(), f"auth_handoff:{ip}"):
+        return jsonify({"error": "Too many requests. Try again later."}), 429
+    body = request.get_json(force=True, silent=True) or {}
+    code = (body.get("code") or "").strip()
+    if not code or len(code) < 32 or len(code) > 128:
+        return jsonify({"error": "Invalid handoff code."}), 400
+    code_hash = hashlib.sha256(code.encode("utf-8")).hexdigest()
+    now = datetime.now(timezone.utc).isoformat()
+    db = get_db()
+    row = db.execute(
+        """UPDATE auth_handoff_codes
+           SET used_at = ?
+           WHERE code_hash = ? AND used_at IS NULL AND expires_at > ?
+           RETURNING user_id""",
+        (now, code_hash, now),
+    ).fetchone()
+    db.commit()
+    if not row:
+        return jsonify({"error": "Handoff code is invalid or expired."}), 401
+    user = _user_by_id(row["user_id"])
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    if not _user_is_entitled(user):
+        return jsonify({"error": "An active subscription is required."}), 403
+    access, refresh = _issue_tokens(user["id"], user["email"])
+    return jsonify({"access_token": access, "refresh_token": refresh})
+
+
 @app.post("/auth/refresh")
 def auth_refresh():
     body = request.get_json(force=True, silent=True) or {}
@@ -489,6 +583,66 @@ def auth_refresh():
         return jsonify({"access_token": access, "refresh_token": refresh})
     except jwt.PyJWTError:
         return jsonify({"error": "Invalid refresh token."}), 401
+
+
+@app.get("/account/export")
+@require_auth
+def account_export():
+    ip = request.headers.get("X-Forwarded-For", request.remote_addr) or "unknown"
+    if not check_rate_limit(get_db(), f"account_export:{ip}"):
+        return jsonify({"error": "Too many requests. Try again later."}), 429
+    user = g.current_user
+    data = build_export_zip(get_db(), dict(user))
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    return Response(
+        data,
+        mimetype="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="frogswork-export-{stamp}.zip"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+@app.post("/account/data/delete")
+@require_auth
+def account_data_delete():
+    ip = request.headers.get("X-Forwarded-For", request.remote_addr) or "unknown"
+    if not check_rate_limit(get_db(), f"account_data_delete:{ip}"):
+        return jsonify({"error": "Too many requests. Try again later."}), 429
+    body = request.get_json(force=True, silent=True) or {}
+    if (body.get("confirm") or "").strip() != "DELETE DATA":
+        return jsonify({"error": "Type DELETE DATA exactly to confirm."}), 400
+    counts = purge_user_cloud_data(get_db(), g.current_user["id"])
+    return jsonify({"ok": True, "counts": counts})
+
+
+@app.post("/account/delete")
+@require_auth
+def account_delete():
+    ip = request.headers.get("X-Forwarded-For", request.remote_addr) or "unknown"
+    if not check_rate_limit(get_db(), f"account_delete:{ip}"):
+        return jsonify({"error": "Too many requests. Try again later."}), 429
+    body = request.get_json(force=True, silent=True) or {}
+    if (body.get("confirm") or "").strip() != "DELETE ACCOUNT":
+        return jsonify({"error": "Type DELETE ACCOUNT exactly to confirm."}), 400
+    password = body.get("password") or ""
+    if not password:
+        return jsonify({"error": "Password is required."}), 400
+    user = g.current_user
+    if not _check_password(password, user["password_hash"]):
+        return jsonify({"error": "Wrong password."}), 401
+    stripe_cancel = {"cancelled": 0}
+    try:
+        stripe_cancel = cancel_stripe_subscriptions(stripe, user["stripe_customer_id"])
+    except Exception as exc:
+        print("account delete stripe cancel:", exc)
+    counts = purge_user_cloud_data(get_db(), user["id"])
+    db = get_db()
+    db.execute("UPDATE installs SET user_id = NULL WHERE user_id = ?", (user["id"],))
+    db.execute("DELETE FROM users WHERE id = ?", (user["id"],))
+    db.commit()
+    return jsonify({"ok": True, "stripe": stripe_cancel, "counts": counts})
 
 
 @app.post("/auth/forgot-password")
@@ -570,33 +724,17 @@ def telemetry_event():
         return jsonify({"error": str(exc)}), 400
 
 
-@app.get("/admin/api/accounts")
-@require_admin
-def admin_api_accounts():
-    return jsonify({"accounts": list_admin_accounts(get_db())})
+@app.get("/metrics/summary")
+def metrics_summary():
+    if not METRICS_TOKEN:
+        return jsonify({"error": "Metrics not configured."}), 503
+    auth = request.headers.get("Authorization") or ""
+    token = auth[7:].strip() if auth.lower().startswith("bearer ") else ""
+    if token != METRICS_TOKEN:
+        return jsonify({"error": "Unauthorized"}), 401
+    from metrics_summary import build_metrics_summary
 
-
-@app.get("/admin/api/summary")
-@require_admin
-def admin_api_summary():
-    return jsonify(build_admin_summary(get_db()))
-
-
-@app.post("/admin/api/checkout/default-beta80")
-@require_admin
-def admin_checkout_beta80():
-    body = request.get_json(force=True, silent=True) or {}
-    enabled = set_default_beta80_enabled(get_db(), bool(body.get("enabled")))
-    return jsonify({"ok": True, "enabled": enabled})
-
-
-@app.get("/admin")
-@require_admin
-def admin_dashboard():
-    summary = build_admin_summary(get_db())
-    promo = {"default_beta80_enabled": is_default_beta80_enabled(get_db())}
-    html = render_admin_html(summary, promo_context=promo)
-    return Response(html, mimetype="text/html; charset=utf-8")
+    return jsonify(build_metrics_summary(get_db()))
 
 
 @app.get("/releases/latest")
@@ -612,13 +750,6 @@ def releases_latest():
             "notes": (os.environ.get("CLIENT_RELEASE_NOTES") or "").strip(),
         }
     )
-
-
-@app.post("/admin/api/cleanup-pending")
-@require_admin
-def admin_cleanup_pending():
-    deleted = cleanup_pending_users(get_db())
-    return jsonify({"ok": True, "deleted": deleted})
 
 
 @app.post("/webhooks/stripe")

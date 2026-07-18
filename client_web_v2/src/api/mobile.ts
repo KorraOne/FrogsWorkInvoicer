@@ -1,4 +1,4 @@
-import { apiRequest } from "./client";
+import { apiDownload, apiRequest } from "./client";
 import type { MobileAccount, SessionTokens } from "../types";
 
 export interface SessionResponse extends SessionTokens {
@@ -45,4 +45,26 @@ export function fetchInvoicePdf(invoiceId: string) {
 
 export function resendVerification() {
   return apiRequest("POST", "/auth/resend-verification", {}, true);
+}
+
+export function downloadAccountExport() {
+  return apiDownload("/account/export");
+}
+
+export function deleteAccountData() {
+  return apiRequest<{ ok: boolean }>(
+    "POST",
+    "/account/data/delete",
+    { confirm: "DELETE DATA" },
+    true
+  );
+}
+
+export function deleteAccount(password: string) {
+  return apiRequest<{ ok: boolean }>(
+    "POST",
+    "/account/delete",
+    { confirm: "DELETE ACCOUNT", password },
+    true
+  );
 }

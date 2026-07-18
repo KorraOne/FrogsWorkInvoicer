@@ -45,20 +45,30 @@
         <h2>Desktop shell</h2>
         <p>The Windows installer is a thin shell around the Cloud app. It may keep window size, update state, and an install identifier under <code>%APPDATA%\FrogsWork\</code>. It does not replace Cloud storage for invoices.</p>
 
-        <h2 id="usage-statistics">Anonymous usage statistics</h2>
-        <p>The desktop shell may send anonymous usage information to our servers, for example that the app was installed, aggregate invoice counts (not invoice content), app version, and whether a subscription is active. We use a pseudonymous install identifier until you sign in. After you create an account, we may link that identifier to your email for support and billing only.</p>
+        <h2 id="usage-statistics">Analytics</h2>
+        <p>We use Google Analytics 4 (GA4) on <strong>frogswork.com</strong> (marketing) and in the Cloud app to understand aggregate usage: which pages are viewed, which signup steps convert, and which app screens are used. Events do not include invoice content, customer names, emails, or ABNs.</p>
+        <p>Separately, the Cloud API stores privacy-friendly product aggregates for our own metrics (for example average invoices per account, due-date rule mix, logo adoption, and device counts). Device registration uses an opaque local identifier hashed on our servers — not advertising IDs.</p>
 
         <h2>What we do not do</h2>
         <ul>
             <li>We do not sell your personal information.</li>
-            <li>We do not use third-party advertising trackers in the Cloud app or desktop shell.</li>
+            <li>We do not use third-party advertising or remarketing trackers.</li>
+            <li>We do not send invoice or customer document contents to Google Analytics.</li>
         </ul>
 
         <h2>Updates and downloads</h2>
         <p>Clients contact <code>api.frogswork.com</code> for sign-in, entitlements, documents, and email. Installers download from <code>downloads.frogswork.com</code> over HTTPS.</p>
 
         <h2>Retention and rights</h2>
-        <p>We keep account and Cloud document data while your account is active and as needed for billing and legal obligations. For access, correction, or deletion requests, contact us via <a href="/contact.html">FrogsWork support</a>.</p>
+        <p>We keep account and Cloud document data while your account is active and as needed for billing and legal obligations.</p>
+        <p>In the Cloud app under <strong>Settings → Account</strong> you can:</p>
+        <ul>
+            <li><strong>Download my data</strong> — a ZIP of your Cloud JSON and invoice PDFs for your own records (FrogsWork cannot restore an export into your account).</li>
+            <li><strong>Delete all my data</strong> — permanently erase your Cloud businesses, customers, invoices, and PDFs while keeping your login and subscription.</li>
+            <li><strong>Delete account</strong> — cancel billing and permanently erase your account and Cloud data.</li>
+            <li><strong>Manage subscription</strong> — cancel or change plan in Stripe’s Customer Portal.</li>
+        </ul>
+        <p>Data deletion from FrogsWork Cloud is permanent and cannot be restored. For help with these controls, contact <a href="/contact.html">FrogsWork support</a>.</p>
     </main>
 
     <footer class="site-footer">
@@ -71,6 +81,8 @@
             </div>
         </div>
     </footer>
+    <script src="/js/analytics-config.js"></script>
+    <script src="/js/analytics.js"></script>
     <script src="/js/site.js"></script>
 </body>
 </html>

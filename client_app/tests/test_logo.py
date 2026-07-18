@@ -138,12 +138,8 @@ def test_preview_and_pdf_width_match_for_wide_logo():
 
     path = os.path.join(
         os.path.dirname(__file__),
-        "..",
-        "..",
-        "marketing_site",
-        "assets",
-        "user-test",
-        "greenfield-cafe-logo.png",
+        "fixtures",
+        "sample-logo.png",
     )
     if not os.path.isfile(path):
         pytest.skip("sample logo missing")

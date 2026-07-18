@@ -41,17 +41,17 @@
                 <li>Invoice email sending</li>
                 <li>Promo codes and Stripe subscription trials at checkout when offered</li>
             </ul>
-            <p><a class="btn btn-primary" href="/account/signup.html">Create account</a></p>
+            <p><a class="btn btn-primary" data-fw-signup="pricing" href="/account/signup.html">Create account</a></p>
         </article>
 
         <section class="panel">
             <h2>How billing works</h2>
             <ol class="hero-stat-list">
-                <li><strong><a href="/account/signup.html">Create your account</a></strong> (email + password)</li>
+                <li><strong><a data-fw-signup="pricing" href="/account/signup.html">Create your account</a></strong> (email + password)</li>
                 <li><strong>Subscribe</strong> monthly or annually via Stripe</li>
-                <li><strong>Open the app</strong> at <a href="https://app.frogswork.com">app.frogswork.com</a></li>
+                <li><strong>Open the app</strong> at <a data-fw-open-app="pricing" href="https://app.frogswork.com">app.frogswork.com</a></li>
             </ol>
-            <p class="form-hint">Already subscribed? <a href="/account/login.html">Sign in</a> · Prefer a desktop window? <a href="/download.html">Download for Windows</a></p>
+            <p class="form-hint">Already subscribed? <a href="/account/login.html">Sign in</a> · Prefer a desktop window? <a data-fw-download="pricing" href="/download.html">Download for Windows</a></p>
         </section>
     </main>
 
@@ -65,6 +65,8 @@
             </div>
         </div>
     </footer>
+    <script src="/js/analytics-config.js"></script>
+    <script src="/js/analytics.js"></script>
     <script src="/js/site.js"></script>
 </body>
 </html>

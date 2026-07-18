@@ -62,9 +62,9 @@ Create **separate coupons** for dev vs beta vs future campaigns. Each gets its o
 ## What FrogsWork does not do (by design)
 
 - No coupon field on frogswork.com (Stripe Checkout handles it).
-- Admin can auto-apply **BETA80** via `https://api.frogswork.com/admin` when `STRIPE_PROMO_BETA80` is set.
-- Optional URL: `subscribe.html?promo=BETA80` passes `promotion_code` to checkout (when admin default is off).
+- Optional URL: `subscribe.html?promo=BETA80` passes `promotion_code` to checkout.
 - Coupons on **subscription upgrade** (swap price via API) are separate from Checkout; use Portal or a dedicated flow if needed.
+- Auto-apply of a default promo from the old admin panel was removed — manage discounts in Stripe.
 
 ## Verify
 

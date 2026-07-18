@@ -76,58 +76,6 @@ Type: filesandordirs; Name: "{userappdata}\FrogsWork"
 [Code]
 var
   DeveloperLink: TNewStaticText;
-  PdfFolderPage: TInputDirWizardPage;
-
-function JsonEscapePath(const S: String): String;
-var
-  I: Integer;
-begin
-  Result := '';
-  for I := 1 to Length(S) do
-  begin
-    if S[I] = '\' then
-      Result := Result + '\\'
-    else if S[I] = '"' then
-      Result := Result + '\"'
-    else
-      Result := Result + S[I];
-  end;
-end;
-
-function BootstrapNeedsPdfFolder(const BootstrapPath: String): Boolean;
-var
-  Content: AnsiString;
-begin
-  if not FileExists(BootstrapPath) then
-  begin
-    Result := True;
-    Exit;
-  end;
-  if LoadStringFromFile(BootstrapPath, Content) then
-  begin
-    Result :=
-      (Pos('"pdf_folder": ""', Content) > 0) or
-      (Pos('"pdf_folder":""', Content) > 0) or
-      (Pos('"pdf_folder":', Content) = 0);
-    Exit;
-  end;
-  Result := True;
-end;
-
-procedure WriteBootstrapPdfFolder(const PdfFolder: String);
-var
-  AppDataDir, BootstrapPath, JsonContent: String;
-begin
-  AppDataDir := ExpandConstant('{userappdata}\FrogsWork');
-  ForceDirectories(AppDataDir);
-  BootstrapPath := AppDataDir + '\bootstrap.json';
-  if not BootstrapNeedsPdfFolder(BootstrapPath) then
-    Exit;
-  JsonContent := '{' + #13#10 +
-    '  "pdf_folder": "' + JsonEscapePath(PdfFolder) + '"' + #13#10 +
-    '}';
-  SaveStringToFile(BootstrapPath, JsonContent, False);
-end;
 
 procedure DeveloperLinkClick(Sender: TObject);
 var
@@ -138,14 +86,6 @@ end;
 
 procedure InitializeWizard();
 begin
-  PdfFolderPage := CreateInputDirPage(wpSelectDir,
-    'Invoice PDF folder',
-    'Where should FrogsWork save invoice PDFs?',
-    'A "pdfs" subfolder will be created inside the location you choose. You can edit the path below to remove "\pdfs" if you prefer. Change this later in Settings.',
-    False, 'New Folder');
-  PdfFolderPage.Add('');
-  PdfFolderPage.Values[0] := ExpandConstant('{userdocs}');
-
   DeveloperLink := TNewStaticText.Create(WizardForm);
   DeveloperLink.Parent := WizardForm.FinishedPage;
   DeveloperLink.Caption := 'Developed by {#AppPublisher} ({#AppPublisherURL})';
@@ -159,31 +99,6 @@ begin
   DeveloperLink.Font.Color := clNavy;
   DeveloperLink.Cursor := crHand;
   DeveloperLink.OnClick := @DeveloperLinkClick;
-end;
-
-procedure CurStepChanged(CurStep: TSetupStep);
-var
-  PdfParent, PdfFolder, BaseName: String;
-begin
-  if CurStep <> ssPostInstall then
-    Exit;
-
-  PdfParent := PdfFolderPage.Values[0];
-  if PdfParent = '' then
-    Exit;
-
-  BaseName := ExtractFileName(RemoveBackslashUnlessRoot(PdfParent));
-  if (CompareText(BaseName, 'pdfs') = 0) or (CompareText(BaseName, 'pdf') = 0) then
-    PdfFolder := PdfParent
-  else
-    PdfFolder := AddBackslash(PdfParent) + 'pdfs';
-
-  ForceDirectories(PdfFolder);
-  SaveStringToFile(
-    AddBackslash(PdfFolder) + '\.frogswork-pdfs',
-    'FrogsWork PDF folder marker.' + #13#10,
-    False);
-  WriteBootstrapPdfFolder(PdfFolder);
 end;
 
 procedure StopFrogsWorkProcesses();
@@ -253,5 +168,5 @@ begin
 end;
 
 [Messages]
-WelcomeLabel2=This will install [name/ver] on your computer.%n%n{#AppTagline}%n%nFrogsWork is developed by {#AppPublisher} ({#AppPublisherURL}).%n%nYour invoices and settings are stored separately in AppData and can be exported to Downloads when you uninstall.
+WelcomeLabel2=This will install [name/ver] on your computer.%n%n{#AppTagline}%n%nFrogsWork is developed by {#AppPublisher} ({#AppPublisherURL}).%n%nThis Windows app opens your FrogsWork Cloud account in a desktop window. Your invoices stay in the cloud with your subscription.
 FinishedLabel=FrogsWork [version] is ready to use.%n%nProduct site: {#AppURL}%nSupport: https://korraone.com/support

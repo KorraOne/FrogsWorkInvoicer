@@ -55,6 +55,13 @@ export const cache = {
     ),
   saveQueue: (v: Array<{ id: string; type: string; payload: Record<string, unknown>; created_at?: string }>) =>
     putJson("sync_queue", v),
+  clearAll: async () => {
+    await putJson("businesses", {});
+    await putJson("customers", {});
+    await putJson("invoices", {});
+    await putJson("settings", {});
+    await putJson("sync_queue", []);
+  },
 };
 
 export async function enqueue(type: string, payload: Record<string, unknown>) {

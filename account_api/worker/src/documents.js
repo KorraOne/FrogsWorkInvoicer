@@ -159,7 +159,7 @@ async function requireCloudUser(auth, env, stripe) {
 }
 
 function documentsBucket(env) {
-  return env.DOCUMENTS || env.RELEASES;
+  return env.DOCUMENTS;
 }
 
 function pdfR2Key(userId, invoiceKeyStr) {

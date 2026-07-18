@@ -47,3 +47,8 @@ client_app/production.env
 !.dev.vars.example
 .env*
 !.env.example
+
+# Local metrics dashboard (secrets + generated HTML)
+tools/local_metrics/.env
+tools/local_metrics/dashboard.html
+tools/local_metrics/last-summary.json

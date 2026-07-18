@@ -7,7 +7,12 @@ CREATE TABLE IF NOT EXISTS users (
   account_status TEXT NOT NULL DEFAULT 'active',
   email_verified_at TEXT,
   install_id TEXT,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  subscribed_at TEXT,
+  cancel_scheduled_at TEXT,
+  unsubscribed_at TEXT,
+  resubscribed_at TEXT,
+  plan_interval TEXT
 );
 
 CREATE TABLE IF NOT EXISTS installs (
@@ -57,33 +62,19 @@ CREATE INDEX IF NOT EXISTS idx_installs_user_id ON installs(user_id);
 CREATE INDEX IF NOT EXISTS idx_installs_last_seen ON installs(last_seen_at);
 CREATE INDEX IF NOT EXISTS idx_users_install_id ON users(install_id);
 
-CREATE TABLE IF NOT EXISTS user_test_settings (
-  id INTEGER PRIMARY KEY CHECK (id = 1),
-  enabled INTEGER NOT NULL DEFAULT 0,
-  updated_at TEXT NOT NULL
+CREATE TABLE IF NOT EXISTS account_devices (
+  user_id INTEGER NOT NULL,
+  device_id_hash TEXT NOT NULL,
+  platform TEXT NOT NULL,
+  coarse_ua TEXT,
+  first_seen_at TEXT NOT NULL,
+  last_seen_at TEXT NOT NULL,
+  PRIMARY KEY (user_id, device_id_hash),
+  FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
-INSERT OR IGNORE INTO user_test_settings (id, enabled, updated_at)
-  VALUES (1, 0, datetime('now'));
-
-CREATE TABLE IF NOT EXISTS user_test_submissions (
-  id TEXT PRIMARY KEY,
-  created_at TEXT NOT NULL,
-  completed_at TEXT,
-  tester_name TEXT,
-  answers_json TEXT,
-  video_r2_key TEXT,
-  video_bytes INTEGER,
-  video_content_type TEXT,
-  client_ip_hash TEXT,
-  status TEXT NOT NULL DEFAULT 'pending_upload'
-);
-
-CREATE INDEX IF NOT EXISTS idx_user_test_submissions_created
-  ON user_test_submissions(created_at);
-
-CREATE INDEX IF NOT EXISTS idx_user_test_submissions_ip_created
-  ON user_test_submissions(client_ip_hash, created_at);
+CREATE INDEX IF NOT EXISTS idx_account_devices_platform ON account_devices(platform);
+CREATE INDEX IF NOT EXISTS idx_account_devices_last_seen ON account_devices(last_seen_at);
 
 CREATE TABLE IF NOT EXISTS doc_businesses (
   user_id INTEGER NOT NULL,
@@ -153,15 +144,6 @@ CREATE TABLE IF NOT EXISTS doc_settings (
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
-CREATE TABLE IF NOT EXISTS checkout_promo_settings (
-  id INTEGER PRIMARY KEY CHECK (id = 1),
-  default_beta80_enabled INTEGER NOT NULL DEFAULT 0,
-  updated_at TEXT NOT NULL
-);
-
-INSERT OR IGNORE INTO checkout_promo_settings (id, default_beta80_enabled, updated_at)
-  VALUES (1, 0, datetime('now'));
-
 CREATE TABLE IF NOT EXISTS password_reset_tokens (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
@@ -193,3 +175,19 @@ CREATE TABLE IF NOT EXISTS rate_limit_buckets (
   window_start TEXT NOT NULL,
   count INTEGER NOT NULL DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS auth_handoff_codes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  code_hash TEXT NOT NULL UNIQUE,
+  user_id INTEGER NOT NULL,
+  expires_at TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  used_at TEXT,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_handoff_codes_hash
+  ON auth_handoff_codes(code_hash);
+
+CREATE INDEX IF NOT EXISTS idx_auth_handoff_codes_expires
+  ON auth_handoff_codes(expires_at);

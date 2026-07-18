@@ -51,15 +51,20 @@ function Patch-AppConfigLine {
 
 if ($AccountApiUrl) {
     $configBackup = Get-Content $ConfigFile -Raw
-    $updated = $configBackup
-    $escaped = [regex]::Escape("http://127.0.0.1:8787")
-    $updated = $updated -replace $escaped, $AccountApiUrl
-    if ($updated -eq $configBackup) {
-        throw "Could not patch app_config.py with AccountApiUrl. Check DEFAULT_ACCOUNT_API_URL default."
+    if ($configBackup.Contains($AccountApiUrl)) {
+        Write-Host "Account API URL already set: $AccountApiUrl"
+    } else {
+        $updated = $configBackup -replace "http://127\.0\.0\.1:8787", $AccountApiUrl
+        if ($updated -eq $configBackup) {
+            $updated = $configBackup -replace 'https://api\.frogswork\.com', $AccountApiUrl
+        }
+        if ($updated -eq $configBackup) {
+            throw "Could not patch app_config.py with AccountApiUrl. Check DEFAULT_ACCOUNT_API_URL / CLOUD_API_URL defaults."
+        }
+        Write-Host "Using account API URL for this build: $AccountApiUrl"
+        Set-Content -Path $ConfigFile -Value $updated -NoNewline
+        $needsRestore = $true
     }
-    Write-Host "Using account API URL for this build: $AccountApiUrl"
-    Set-Content -Path $ConfigFile -Value $updated -NoNewline
-    $needsRestore = $true
 }
 
 try {
