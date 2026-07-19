@@ -1,6 +1,6 @@
 # PWA v2 audit (v1 baseline)
 
-Audit of [`client_web/`](../client_web/) and cloud API usage before [`client_web_v2/`](../client_web_v2/) rebuild.
+Historical audit of the deleted v1 `client_web/` implementation and cloud API usage before the [`client_web_v2/`](../client_web_v2/) rebuild.
 
 ## Feature matrix
 
@@ -66,6 +66,6 @@ From [`DOCUMENT-SCHEMA.md`](DOCUMENT-SCHEMA.md):
 | `/mobile/v1/*` namespace | **Add** (PWA-first slice) |
 | Guest workspaces | **Defer** worker cleanup |
 | Local relay `/email/invoices/:n/send` | **Defer** (desktop) |
-| v1 `client_web/` | **Archive** → `client_web_legacy/` after cutover |
+| v1 `client_web/` | **Deleted** after the v2 cutover; recoverable from Git history |
 | Service worker | **Drop** in v2 |
 | Hash auth callback | **Drop** as primary |

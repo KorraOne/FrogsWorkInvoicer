@@ -228,39 +228,30 @@ flowchart TB
 ## 4. Shared Cloud UI (browser + PWA + shell)
 
 **Path:** [`client_web_v2/`](../client_web_v2/)  
-**Runtime:** Vite SPA + Service Worker + IndexedDB  
-
-**Path:** [`client_web/`](../client_web/)  
-**Runtime:** Static SPA + Service Worker + IndexedDB  
+**Runtime:** Vite + TypeScript SPA with IndexedDB; online-first, no service worker
 **URL:** https://app.frogswork.com
 
 ### Features
 
 | Feature | Implementation |
 |---------|----------------|
-| **Guest cloud trial** | `POST /guest/session` → guest JWT |
-| **Cloud subscriber app** | JWT from desktop login (token in localStorage) + `GET /entitlements` |
-| **Local tier gate** | Blocks full app; links to pricing |
-| **Offline cache** | IndexedDB: businesses, customers, invoices, settings |
-| **Sync queue** | FIFO mutations replayed via `POST /documents/sync` |
-| **Offline UI** | Invoice list, customer/business tabs (read cached; write queues) |
-| **Server PDFs** | No on-device PDF — `pdf_status: pending` until API generates |
+| **Subscriber app** | In-app login or one-time web handoff; active subscription required |
+| **Account state** | `GET /mobile/v1/account` |
+| **Document bootstrap** | `GET /mobile/v1/bootstrap` cached in IndexedDB |
+| **Document mutations** | `POST /mobile/v1/sync` |
+| **Server PDFs** | `GET /mobile/v1/invoices/:id/pdf` |
 
 ### Architecture
 
 ```mermaid
 flowchart TB
-    UI[index.html plus app.js]
+    UI[Vite TypeScript SPA]
     IDB[(IndexedDB)]
-    Queue[sync queue in IDB]
-    SW[Service Worker cache]
     API[api.frogswork.com]
 
     UI --> IDB
-    UI --> Queue
-    Queue -->|online| API
+    UI -->|mobile/v1| API
     API --> IDB
-    SW --> UI
 ```
 
 ### Coupling
@@ -270,7 +261,7 @@ flowchart TB
 | **Account API** | **Hard dependency** for all cloud data and auth |
 | **Marketing site** | Pricing/upgrade links only |
 | **Windows app** | Shared Cloud dataset via API; no peer-to-peer sync |
-| **Desktop Local tier** | No shared data — PWA shows upgrade gate |
+| **Desktop app** | Uses the same account and Cloud dataset |
 
 **Does not couple to:** desktop AppData, ReportLab, or pywebview.
 
@@ -388,9 +379,9 @@ sequenceDiagram
 | Account API (Flask) | 8787 | `account_api/dev/` |
 | Desktop app (Flask) | 5000 | `client_app/` |
 | Marketing (optional) | 8088 | `python -m http.server` in `marketing_site/` |
-| PWA (optional) | 8090 | static server in `client_web/` |
+| Cloud app (optional) | 8090 | Vite dev server in `client_web_v2/` |
 
-Desktop defaults `FROGSWORK_ACCOUNT_API_URL` to `http://127.0.0.1:8787`. PWA can set `localStorage.frogswork_api` for the same.
+Desktop defaults `FROGSWORK_ACCOUNT_API_URL` to `http://127.0.0.1:8787`. The cloud app can set `localStorage.frogswork_api` to the same URL.
 
 ---
 
@@ -423,7 +414,7 @@ GrandparentsInvoicer/
 │   ├── dev/            → 127.0.0.1:8787 (dev only)
 │   └── worker/         → api.frogswork.com
 ├── client_app/         → FrogsWork.exe (user PC)
-├── client_web/         → app.frogswork.com
+├── client_web_v2/      → app.frogswork.com
 ├── scripts/            → release and dev orchestration
 └── docs/               → operator documentation (this file)
 ```
