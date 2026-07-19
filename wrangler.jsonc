@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "frogswork-invoicer",
+  "compatibility_date": "2026-07-19",
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "directory": "client_web_v2"
+  },
+  "compatibility_flags": [
+    "nodejs_compat"
+  ]
+}
