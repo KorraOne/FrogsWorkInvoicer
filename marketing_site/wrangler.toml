@@ -1,5 +1,6 @@
 # Cloudflare Workers static assets — marketing site (frogswork.com)
-# Deploy: cd marketing_site && npx wrangler deploy
+# Deploy prod: cd marketing_site && npx wrangler deploy
+# Preview (separate Worker, not frogswork.com): npx wrangler deploy --env preview
 # Dashboard project: frogswork-invoicer
 
 name = "frogswork-invoicer"
@@ -14,6 +15,20 @@ enabled = true
 directory = "."
 binding = "ASSETS"
 # Do not treat the site as an SPA (avoids serving a stale index for missing paths).
+html_handling = "auto-trailing-slash"
+not_found_handling = "404-page"
+run_worker_first = false
+
+# Review-only Worker — does not bind custom domains / frogswork.com
+[env.preview]
+name = "frogswork-invoicer-preview"
+
+[env.preview.observability]
+enabled = true
+
+[env.preview.assets]
+directory = "."
+binding = "ASSETS"
 html_handling = "auto-trailing-slash"
 not_found_handling = "404-page"
 run_worker_first = false

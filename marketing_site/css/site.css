@@ -1170,3 +1170,197 @@ img {
         grid-template-columns: 1fr;
     }
 }
+
+/* SEO niche landings + blog */
+.seo-hero {
+    padding: 2rem 0 1.25rem;
+}
+
+.seo-hero h1 {
+    margin: 0 0 0.75rem;
+    font-size: clamp(1.85rem, 4vw, 2.5rem);
+    line-height: 1.2;
+    color: var(--fw-green-900);
+}
+
+.seo-pitch {
+    margin: 0 0 1.5rem;
+    max-width: 40rem;
+    font-size: 1.2rem;
+    color: var(--fw-text-muted);
+}
+
+.seo-checklist {
+    margin: 0 0 1.75rem;
+    padding: 0;
+    list-style: none;
+    max-width: 40rem;
+}
+
+.seo-checklist li {
+    position: relative;
+    padding: 0.55rem 0 0.55rem 1.75rem;
+    border-bottom: 1px solid var(--fw-border);
+}
+
+.seo-checklist li:last-child {
+    border-bottom: none;
+}
+
+.seo-checklist li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.95rem;
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 50%;
+    background: var(--fw-green-500);
+}
+
+.seo-cta {
+    margin: 1.75rem 0 2rem;
+    padding: 1.25rem 1.35rem;
+    max-width: 40rem;
+    background: var(--fw-surface);
+    border: 1px solid var(--fw-border);
+    border-radius: 0.75rem;
+    box-shadow: 0 8px 24px var(--fw-shadow);
+}
+
+.seo-cta p {
+    margin: 0 0 1rem;
+}
+
+.seo-cta .btn {
+    margin-right: 0.5rem;
+    margin-bottom: 0.35rem;
+}
+
+.seo-timeline {
+    display: grid;
+    gap: 0.85rem;
+    margin: 0 0 1.75rem;
+    padding: 0;
+    list-style: none;
+    counter-reset: seo-step;
+    max-width: 40rem;
+}
+
+.seo-timeline li {
+    counter-increment: seo-step;
+    position: relative;
+    padding: 1rem 1rem 1rem 3.25rem;
+    background: var(--fw-surface);
+    border: 1px solid var(--fw-border);
+    border-radius: 0.75rem;
+}
+
+.seo-timeline li::before {
+    content: counter(seo-step);
+    position: absolute;
+    left: 0.9rem;
+    top: 1rem;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
+    background: var(--fw-green-600);
+    color: #fff;
+    font-size: 0.9rem;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
+}
+
+.seo-timeline strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: var(--fw-green-900);
+}
+
+.seo-related {
+    margin: 2rem 0 1rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--fw-border);
+}
+
+.seo-related h2 {
+    margin: 0 0 0.75rem;
+    font-size: 1.25rem;
+    color: var(--fw-green-900);
+}
+
+.seo-related ul {
+    margin: 0;
+    padding-left: 1.2rem;
+}
+
+.seo-related li {
+    margin-bottom: 0.4rem;
+}
+
+.seo-note {
+    margin: 1.25rem 0;
+    padding: 0.85rem 1rem;
+    max-width: 40rem;
+    font-size: 0.95rem;
+    color: var(--fw-text-muted);
+    background: var(--fw-surface-muted);
+    border-left: 3px solid var(--fw-green-500);
+}
+
+.blog-index {
+    display: grid;
+    gap: 1rem;
+    margin: 1.5rem 0 2rem;
+}
+
+.blog-index-card {
+    padding: 1.1rem 1.25rem;
+    background: var(--fw-surface);
+    border: 1px solid var(--fw-border);
+    border-radius: 0.75rem;
+}
+
+.blog-index-card h2 {
+    margin: 0 0 0.35rem;
+    font-size: 1.2rem;
+}
+
+.blog-index-card h2 a {
+    text-decoration: none;
+    color: var(--fw-green-900);
+}
+
+.blog-index-card h2 a:hover {
+    color: var(--fw-green-700);
+}
+
+.blog-meta {
+    margin: 0 0 0.5rem;
+    font-size: 0.9rem;
+    color: var(--fw-text-muted);
+}
+
+.blog-prose {
+    max-width: 42rem;
+}
+
+.blog-prose h2 {
+    margin: 1.75rem 0 0.65rem;
+    font-size: 1.35rem;
+    color: var(--fw-green-900);
+}
+
+.blog-prose p,
+.blog-prose ul {
+    margin: 0 0 1rem;
+}
+
+.blog-prose ul {
+    padding-left: 1.25rem;
+}
+
+.blog-prose li {
+    margin-bottom: 0.35rem;
+}
