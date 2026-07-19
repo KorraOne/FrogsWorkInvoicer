@@ -1336,6 +1336,30 @@ img {
     color: var(--fw-green-700);
 }
 
+.blog-index-card > p {
+    margin: 0 0 0.5rem;
+}
+
+.blog-feature-note {
+    margin: 0 0 0.5rem;
+    font-size: 0.95rem;
+    color: var(--fw-green-800);
+}
+
+.blog-read-more {
+    margin: 0.35rem 0 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.blog-read-more a {
+    text-decoration: none;
+}
+
+.blog-read-more a:hover {
+    text-decoration: underline;
+}
+
 .blog-meta {
     margin: 0 0 0.5rem;
     font-size: 0.9rem;
