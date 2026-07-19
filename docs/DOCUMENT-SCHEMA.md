@@ -46,8 +46,11 @@ Keyed by `invoice_key` = zero-padded 8-digit number.
 | `filename` | string | PDF filename when ready |
 | `pdf_status` | `pending` \| `ready` (cloud) |
 | `status` | `not_sent` \| `send_queued` \| `send_failed` \| `sent` \| `paid` |
+| `sent_date` | ISO date | set when sent |
+| `paid_date` | ISO date | set when status becomes `paid` (cleared if moved back) |
 | `due_date`, `due_rule_type`, `due_net_days` | optional |
 | `deleted_at` | ISO datetime if soft-deleted |
+| `source_quote_id`, `source_quote_number` | optional | set when created from a quote |
 
 ### Quote / price estimate (`doc_quotes`)
 

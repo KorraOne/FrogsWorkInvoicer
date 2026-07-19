@@ -207,6 +207,220 @@ def build_export_zip(db, user) -> bytes:
     return buf.getvalue()
 
 
+def parse_au_financial_year(fy_raw: str | None = None):
+    from datetime import date
+
+    raw = (fy_raw or "").strip()
+    if not raw:
+        today = date.today()
+        start_year = today.year if today.month >= 7 else today.year - 1
+        raw = f"{start_year}-{(start_year + 1) % 100:02d}"
+    m = __import__("re").match(r"^(\d{4})[-/](\d{2})$", raw)
+    if not m:
+        return None
+    start_year = int(m.group(1))
+    end_yy = int(m.group(2))
+    if end_yy != (start_year + 1) % 100:
+        return None
+    end_year = start_year + 1
+    return {
+        "token": f"{start_year}-{end_yy:02d}",
+        "start": f"{start_year}-07-01",
+        "end": f"{end_year}-06-30",
+        "display": f"{start_year}–{str(end_year)[2:]}",
+        "file_slug": f"FY{str(start_year)[2:]}_{str(end_year)[2:]}",
+    }
+
+
+def _iso_in_range(iso, start: str, end: str) -> bool:
+    d = str(iso or "")[:10]
+    if len(d) != 10:
+        return False
+    return start <= d <= end
+
+
+def _pad_invoice_num(n) -> str:
+    try:
+        return f"{max(0, int(n)):08d}"
+    except Exception:
+        return "00000000"
+
+
+def _format_au_date(iso) -> str:
+    d = str(iso or "")[:10]
+    if len(d) != 10:
+        return ""
+    return f"{d[8:10]}/{d[5:7]}/{d[0:4]}"
+
+
+def _include_tax_invoice(inv: dict, fy: dict, business_filter: str) -> bool:
+    if inv.get("deleted_at"):
+        return False
+    if business_filter and str(inv.get("business_name") or "") != business_filter:
+        return False
+    status = str(inv.get("status") or "not_sent")
+    if status == "paid":
+        if inv.get("paid_date") and _iso_in_range(inv.get("paid_date"), fy["start"], fy["end"]):
+            return True
+        if not inv.get("paid_date") and _iso_in_range(inv.get("invoice_date"), fy["start"], fy["end"]):
+            return True
+        return False
+    if status in ("not_sent", "send_queued", "send_failed", "sent"):
+        return _iso_in_range(inv.get("invoice_date"), fy["start"], fy["end"])
+    return False
+
+
+def build_tax_export_zip(db, user, fy_raw: str | None = None, business: str | None = None) -> bytes:
+    fy = parse_au_financial_year(fy_raw)
+    if not fy:
+        raise ValueError("Invalid financial year")
+    business_filter = (business or "").strip()
+    user_id = user["id"]
+
+    businesses = {}
+    for row in db.execute(
+        "SELECT name, data_json FROM doc_businesses WHERE user_id = ?", (user_id,)
+    ).fetchall():
+        try:
+            businesses[row["name"]] = json.loads(row["data_json"] or "{}")
+        except Exception:
+            businesses[row["name"]] = {}
+    if business_filter and business_filter not in businesses:
+        raise ValueError("Business not found")
+
+    invoices = {}
+    for row in db.execute(
+        "SELECT invoice_key, invoice_number, data_json FROM doc_invoices WHERE user_id = ?",
+        (user_id,),
+    ).fetchall():
+        try:
+            data = json.loads(row["data_json"] or "{}")
+        except Exception:
+            data = {}
+        invoices[row["invoice_key"]] = {
+            **data,
+            "invoice_key": row["invoice_key"],
+            "invoice_number": row["invoice_number"],
+        }
+
+    rows = [
+        (key, inv)
+        for key, inv in invoices.items()
+        if _include_tax_invoice(inv, fy, business_filter)
+    ]
+    rows.sort(
+        key=lambda item: (
+            str(item[1].get("invoice_date") or ""),
+            int(item[1].get("invoice_number") or 0),
+        )
+    )
+
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    root = f"frogswork_tax_export_{fy['file_slug']}_{stamp}"
+    ledger_name = f"income_ledger_{fy['file_slug']}.csv"
+
+    def esc(v):
+        s = str(v if v is not None else "")
+        if any(c in s for c in '",\n\r'):
+            return '"' + s.replace('"', '""') + '"'
+        return s
+
+    header = [
+        "Invoice Date",
+        "Invoice Number",
+        "Business Name",
+        "Customer Name",
+        "Customer ABN",
+        "Gross Amount (Inc. GST)",
+        "GST Amount",
+        "Net Amount (Ex. GST)",
+        "Status",
+        "Date Paid",
+    ]
+    csv_lines = [",".join(esc(h) for h in header)]
+    total_ex = total_gst = total_inc = 0.0
+    paid_count = unpaid_count = 0
+    for _key, inv in rows:
+        status = "Paid" if str(inv.get("status") or "") == "paid" else "Unpaid"
+        if status == "Paid":
+            paid_count += 1
+        else:
+            unpaid_count += 1
+        ex = float(inv.get("amount_ex_gst") or 0) or 0.0
+        gst = float(inv.get("gst_amount") or 0) or 0.0
+        inc = float(inv.get("total_inc_gst") or 0) or 0.0
+        total_ex += ex
+        total_gst += gst
+        total_inc += inc
+        csv_lines.append(
+            ",".join(
+                esc(x)
+                for x in [
+                    _format_au_date(inv.get("invoice_date")),
+                    _pad_invoice_num(inv.get("invoice_number")),
+                    inv.get("business_name") or "",
+                    inv.get("customer_name") or "",
+                    inv.get("customer_abn") or "",
+                    f"{inc:.2f}",
+                    f"{gst:.2f}",
+                    f"{ex:.2f}",
+                    status,
+                    _format_au_date(inv.get("paid_date")),
+                ]
+            )
+        )
+
+    biz_names = (
+        [business_filter]
+        if business_filter
+        else sorted(
+            {
+                str(inv.get("business_name") or "").strip()
+                for _k, inv in rows
+                if str(inv.get("business_name") or "").strip()
+            }
+            or businesses.keys()
+        )
+    )
+    biz_lines = []
+    for name in biz_names:
+        b = businesses.get(name) or {}
+        abn = str(b.get("business_abn") or b.get("abn") or "").strip()
+        biz_lines.append(f"{name} (ABN {abn})" if abn else (name or "(unnamed business)"))
+
+    readme = "\n".join(
+        [
+            "FrogsWork tax-time export",
+            "",
+            f"Business: {'; '.join(biz_lines) or '(none)'}",
+            f"Financial year: {fy['display']} ({_format_au_date(fy['start'])} to {_format_au_date(fy['end'])})",
+            f"Generated: {stamp}",
+            "",
+            "Generated via FrogsWork Invoicing. This package contains a complete income ledger.",
+            "(Local/dev export may omit PDFs; production Cloud export includes invoice_pdfs/.)",
+        ]
+    )
+    summary = "\n".join(
+        [
+            "FrogsWork tax-time summary",
+            "",
+            f"Financial year: {fy['display']}",
+            f"Invoice rows: {len(rows)} ({paid_count} paid, {unpaid_count} unpaid)",
+            f"Total Revenue (Ex. GST): ${total_ex:.2f}",
+            f"Total GST Collected: ${total_gst:.2f}",
+            f"Total Gross Revenue: ${total_inc:.2f}",
+        ]
+    )
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr(f"{root}/README.txt", readme)
+        zf.writestr(f"{root}/summary.txt", summary)
+        zf.writestr(f"{root}/{ledger_name}", "\r\n".join(csv_lines) + "\r\n")
+        zf.writestr(f"{root}/invoice_pdfs/.keep", "")
+    return buf.getvalue()
+
+
 def cancel_stripe_subscriptions(stripe_mod, customer_id: str) -> dict:
     if not customer_id:
         return {"cancelled": 0}

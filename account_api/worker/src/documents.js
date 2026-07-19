@@ -398,6 +398,16 @@ async function updateInvoiceStatus(db, userId, payload, status) {
   const inv = JSON.parse(row.data_json);
   inv.invoice_id = String(inv.invoice_id || key);
   inv.status = status;
+  if (status === "paid") {
+    const fromPayload = String(payload?.paid_date || "").slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(fromPayload)) {
+      inv.paid_date = fromPayload;
+    } else if (!inv.paid_date) {
+      inv.paid_date = nowIso().slice(0, 10);
+    }
+  } else if (["not_sent", "sent", "send_queued", "send_failed"].includes(status)) {
+    delete inv.paid_date;
+  }
   const ts = nowIso();
   await db
     .prepare(

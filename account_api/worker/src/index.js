@@ -48,6 +48,7 @@ import {
 } from "./handoff.js";
 import {
   handleAccountExport,
+  handleAccountTaxExport,
   handleAccountDataDelete,
   handleAccountDelete,
 } from "./account_lifecycle.js";
@@ -542,6 +543,14 @@ async function handleRequest(request, env, ctx) {
       const auth = await requireUser(request, env);
       if (auth.error) return auth.error;
       return handleAccountExport(request, env, auth);
+    }
+
+    if (path === "/account/tax-export" && request.method === "GET") {
+      const limited = await enforceRateLimit(request, env, "account_tax_export");
+      if (limited) return limited;
+      const auth = await requireUser(request, env);
+      if (auth.error) return auth.error;
+      return handleAccountTaxExport(request, env, auth);
     }
 
     if (path === "/account/data/delete" && request.method === "POST") {

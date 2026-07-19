@@ -62,6 +62,14 @@ export function downloadAccountExport() {
   return apiDownload("/account/export");
 }
 
+export function downloadTaxExport(opts: { fy: string; business?: string }) {
+  const params = new URLSearchParams();
+  params.set("fy", String(opts.fy || "").trim());
+  const business = String(opts.business || "").trim();
+  if (business) params.set("business", business);
+  return apiDownload(`/account/tax-export?${params.toString()}`);
+}
+
 export function deleteAccountData() {
   return apiRequest<{ ok: boolean }>(
     "POST",

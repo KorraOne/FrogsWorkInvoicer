@@ -336,8 +336,9 @@ export async function renderClassicInvoice(invoice, business = {}, customer = {}
     const bsb = business.bsb || "";
     const acc = business.acc || "";
     if (accountName || bsb || acc || dueFmt) {
-      ensure(100);
-      const boxH = 14 * (4 + (dueFmt ? 1 : 0) + 1) + 16;
+      ensure(120);
+      const lineCount = 1 + (accountName ? 1 : 0) + (bsb ? 1 : 0) + (acc ? 1 : 0) + (dueFmt ? 1 : 0) + 2;
+      const boxH = 14 * lineCount + 16;
       page.drawRectangle({
         x: PAGE_MARGIN,
         y: y - boxH,
@@ -366,7 +367,9 @@ export async function renderClassicInvoice(invoice, business = {}, customer = {}
         drawText(`Payment due: ${dueFmt}`, PAGE_MARGIN + 12, py, 10);
         py -= 14;
       }
-      drawText(`Reference: Invoice #${invNum}`, PAGE_MARGIN + 12, py, 10);
+      drawText(`Please use this reference: ${invNum}`, PAGE_MARGIN + 12, py, 10, true);
+      py -= 14;
+      drawText(`Invoice #${invNum}`, PAGE_MARGIN + 12, py, 10);
       y -= boxH + 12;
     }
   }

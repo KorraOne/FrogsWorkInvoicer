@@ -468,6 +468,259 @@ export async function handleAccountExport(request, env, auth) {
   });
 }
 
+/** Parse AU financial year token like 2025-26 → 1 Jul 2025 .. 30 Jun 2026. */
+export function parseAuFinancialYear(fyRaw, today = new Date()) {
+  let raw = String(fyRaw || "").trim();
+  if (!raw) {
+    const y = today.getUTCFullYear();
+    const m = today.getUTCMonth() + 1; // 1-12
+    const startYear = m >= 7 ? y : y - 1;
+    raw = `${startYear}-${String((startYear + 1) % 100).padStart(2, "0")}`;
+  }
+  const m = raw.match(/^(\d{4})[-/](\d{2})$/);
+  if (!m) return null;
+  const startYear = Number(m[1]);
+  const endYy = Number(m[2]);
+  const expectedEnd = (startYear + 1) % 100;
+  if (!Number.isFinite(startYear) || endYy !== expectedEnd) return null;
+  const endYear = startYear + 1;
+  return {
+    token: `${startYear}-${String(endYy).padStart(2, "0")}`,
+    start: `${startYear}-07-01`,
+    end: `${endYear}-06-30`,
+    display: `${startYear}–${String(endYear).slice(2)}`,
+    slug: `FY${String(startYear).slice(2)}${String(endYear).slice(2)}`,
+    fileSlug: `FY${String(startYear).slice(2)}_${String(endYear).slice(2)}`,
+  };
+}
+
+function isoInRange(iso, start, end) {
+  const d = String(iso || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
+  return d >= start && d <= end;
+}
+
+function padInvoiceNum(n) {
+  return String(Math.max(0, parseInt(String(n), 10) || 0)).padStart(8, "0");
+}
+
+function formatAuDate(iso) {
+  const d = String(iso || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return "";
+  return `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
+}
+
+function formatMoneyCsv(n) {
+  const v = Number(n);
+  if (!Number.isFinite(v)) return "0.00";
+  return v.toFixed(2);
+}
+
+function csvEscape(value) {
+  const s = String(value ?? "");
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+function sanitizeFilenamePart(raw, maxLen = 40) {
+  return String(raw || "unknown")
+    .replace(/[^\w.\-]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "")
+    .slice(0, maxLen) || "unknown";
+}
+
+function includeInvoiceForTaxExport(inv, fy, businessFilter) {
+  if (inv?.deleted_at) return false;
+  if (businessFilter && String(inv.business_name || "") !== businessFilter) return false;
+  const status = String(inv.status || "not_sent");
+  if (status === "paid") {
+    if (inv.paid_date && isoInRange(inv.paid_date, fy.start, fy.end)) return true;
+    // Legacy Cloud invoices marked paid before paid_date was persisted.
+    if (!inv.paid_date && isoInRange(inv.invoice_date, fy.start, fy.end)) return true;
+    return false;
+  }
+  if (["not_sent", "send_queued", "send_failed", "sent"].includes(status)) {
+    return isoInRange(inv.invoice_date, fy.start, fy.end);
+  }
+  return false;
+}
+
+/**
+ * GET /account/tax-export?fy=2025-26&business=OptionalName
+ */
+export async function handleAccountTaxExport(request, env, auth) {
+  const url = new URL(request.url);
+  const fy = parseAuFinancialYear(url.searchParams.get("fy") || "");
+  if (!fy) {
+    return textError("Invalid financial year. Use e.g. fy=2025-26.", 400);
+  }
+  const businessFilter = String(url.searchParams.get("business") || "").trim();
+
+  const snapshot = await loadExportSnapshot(env.DB, auth.user);
+  const businesses = snapshot.businesses || {};
+  if (businessFilter && !businesses[businessFilter]) {
+    return textError("Business not found.", 404);
+  }
+
+  const rows = [];
+  for (const [key, inv] of Object.entries(snapshot.invoices || {})) {
+    if (!includeInvoiceForTaxExport(inv, fy, businessFilter || "")) continue;
+    rows.push({ key, inv });
+  }
+  rows.sort((a, b) => {
+    const da = String(a.inv.invoice_date || "");
+    const db = String(b.inv.invoice_date || "");
+    if (da !== db) return da.localeCompare(db);
+    return Number(a.inv.invoice_number || 0) - Number(b.inv.invoice_number || 0);
+  });
+
+  const multiBiz = Object.keys(businesses).length > 1;
+  const stamp = new Date().toISOString().slice(0, 10);
+  const root = `frogswork_tax_export_${fy.fileSlug}_${stamp}`;
+  const encoder = new TextEncoder();
+  const files = [];
+
+  const bizNames = businessFilter
+    ? [businessFilter]
+    : [...new Set(rows.map((r) => String(r.inv.business_name || "").trim()).filter(Boolean))];
+  const bizLines = (bizNames.length ? bizNames : Object.keys(businesses)).map((name) => {
+    const b = businesses[name] || {};
+    const abn = String(b.business_abn || b.abn || "").trim();
+    return abn ? `${name} (ABN ${abn})` : name || "(unnamed business)";
+  });
+
+  const header = [
+    "Invoice Date",
+    "Invoice Number",
+    "Business Name",
+    "Customer Name",
+    "Customer ABN",
+    "Gross Amount (Inc. GST)",
+    "GST Amount",
+    "Net Amount (Ex. GST)",
+    "Status",
+    "Date Paid",
+  ];
+  const csvLines = [header.map(csvEscape).join(",")];
+  let totalEx = 0;
+  let totalGst = 0;
+  let totalInc = 0;
+  let paidCount = 0;
+  let unpaidCount = 0;
+
+  for (const { inv } of rows) {
+    const status = String(inv.status || "") === "paid" ? "Paid" : "Unpaid";
+    if (status === "Paid") paidCount += 1;
+    else unpaidCount += 1;
+    const ex = Number(inv.amount_ex_gst || 0) || 0;
+    const gst = Number(inv.gst_amount || 0) || 0;
+    const inc = Number(inv.total_inc_gst || 0) || 0;
+    totalEx += ex;
+    totalGst += gst;
+    totalInc += inc;
+    csvLines.push(
+      [
+        formatAuDate(inv.invoice_date),
+        padInvoiceNum(inv.invoice_number),
+        inv.business_name || "",
+        inv.customer_name || "",
+        inv.customer_abn || "",
+        formatMoneyCsv(inc),
+        formatMoneyCsv(gst),
+        formatMoneyCsv(ex),
+        status,
+        formatAuDate(inv.paid_date),
+      ]
+        .map(csvEscape)
+        .join(",")
+    );
+  }
+
+  const ledgerName = `income_ledger_${fy.fileSlug}.csv`;
+  files.push({
+    name: `${root}/${ledgerName}`,
+    data: encoder.encode(csvLines.join("\r\n") + "\r\n"),
+  });
+
+  const readme = [
+    "FrogsWork tax-time export",
+    "",
+    `Business: ${bizLines.join("; ") || "(none)"}`,
+    `Financial year: ${fy.display} (${formatAuDate(fy.start)} to ${formatAuDate(fy.end)})`,
+    `Generated: ${stamp}`,
+    "",
+    "Generated via FrogsWork Invoicing. This package contains a complete income ledger and matching PDF tax invoices.",
+    "",
+    `${ledgerName}     — income ledger (importable CSV; no totals in the data rows)`,
+    "summary.txt               — totals and counts for a quick check",
+    "invoice_pdfs/             — tax invoice PDFs for the ledger rows (when available)",
+    "",
+    "Inclusion: paid invoices by payment date in the FY (cash basis), plus unpaid invoices",
+    "dated in the FY. Quotes and soft-deleted invoices are not included.",
+  ].join("\n");
+  files.push({ name: `${root}/README.txt`, data: encoder.encode(readme) });
+
+  const summary = [
+    "FrogsWork tax-time summary",
+    "",
+    `Financial year: ${fy.display}`,
+    `Date range: ${formatAuDate(fy.start)} to ${formatAuDate(fy.end)}`,
+    `Business: ${bizLines.join("; ") || "(none)"}`,
+    "",
+    `Invoice rows: ${rows.length} (${paidCount} paid, ${unpaidCount} unpaid)`,
+    `Total Revenue (Ex. GST): $${formatMoneyCsv(totalEx)}`,
+    `Total GST Collected: $${formatMoneyCsv(totalGst)}`,
+    `Total Gross Revenue: $${formatMoneyCsv(totalInc)}`,
+  ].join("\n");
+  files.push({ name: `${root}/summary.txt`, data: encoder.encode(summary) });
+
+  const bucket = documentsBucket(env);
+  let pdfCount = 0;
+  let totalBytes = files.reduce((n, f) => n + f.data.length, 0);
+
+  for (const { key, inv } of rows) {
+    const r2Key = inv._pdf_r2_key;
+    if (!r2Key || !bucket) continue;
+    if (pdfCount >= MAX_EXPORT_PDFS) {
+      return textError(
+        "Export is too large (too many PDFs). Contact support if you need a full archive.",
+        413
+      );
+    }
+    const obj = await bucket.get(r2Key);
+    if (!obj) continue;
+    const buf = new Uint8Array(await obj.arrayBuffer());
+    totalBytes += buf.length;
+    if (totalBytes > MAX_EXPORT_BYTES) {
+      return textError(
+        "Export is too large. Contact support if you need a full archive.",
+        413
+      );
+    }
+    const datePart = String(inv.invoice_date || "nodate").slice(0, 10).replace(/-/g, "") || "nodate";
+    const numPart = padInvoiceNum(inv.invoice_number);
+    const custPart = sanitizeFilenamePart(inv.customer_name);
+    const bizPart = multiBiz ? `_${sanitizeFilenamePart(inv.business_name, 24)}` : "";
+    const pdfName = `${datePart}_${numPart}_${custPart}${bizPart}.pdf`;
+    files.push({
+      name: `${root}/invoice_pdfs/${pdfName}`,
+      data: buf,
+    });
+    pdfCount += 1;
+  }
+
+  const zip = buildZip(files);
+  return new Response(zip, {
+    status: 200,
+    headers: {
+      "Content-Type": "application/zip",
+      "Content-Disposition": `attachment; filename="frogswork-tax-export-${fy.fileSlug}-${stamp}.zip"`,
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
 /**
  * POST /account/data/delete  body: { confirm: "DELETE DATA" }
  */

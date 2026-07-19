@@ -2,6 +2,7 @@ import {
   deleteAccount,
   deleteAccountData,
   downloadAccountExport,
+  downloadTaxExport,
   fetchAccount,
   resendVerification,
 } from "../api/mobile";
@@ -29,6 +30,7 @@ import {
   upsertBusiness,
   upsertSettings,
 } from "../data/sync";
+import { listAuFinancialYearOptions } from "../domain/taxExport";
 import {
   formatAddressMultiline,
   normalizeAbn,
@@ -153,6 +155,11 @@ function renderHelp(panel: HTMLElement) {
 async function renderAccount(panel: HTMLElement, ctx: AppContext) {
   const acc = ctx.account;
   const lastSync = localStorage.getItem("frogswork_last_sync");
+  const businesses = await cache.getBusinesses();
+  const bizNames = Object.keys(businesses).sort();
+  const fyOptions = listAuFinancialYearOptions();
+  const defaultFy = fyOptions[0]?.token || "";
+
   panel.innerHTML = `
     <section class="panel">
       <h2>Account</h2>
@@ -173,10 +180,37 @@ async function renderAccount(panel: HTMLElement, ctx: AppContext) {
       }
 
       <h3 class="settings-subhead">Your data</h3>
-      <p class="hint">Download a ZIP of your Cloud data (JSON + invoice PDFs) for your own records. FrogsWork cannot restore an export into your account later.</p>
+      <p class="hint">Download a ZIP of your Cloud data (JSON + invoice/quote PDFs) for your own records. FrogsWork cannot restore an export into your account later.</p>
       <div class="btn-row">
         <button type="button" class="btn secondary" id="export-data">Download my data</button>
       </div>
+
+      <h3 class="settings-subhead">Tax time export</h3>
+      <p class="hint">Income ledger CSV plus matching tax invoice PDFs for your accountant (Australian financial year). Separate from the full backup above.</p>
+      <div class="field"><label>Financial year</label>
+        <select id="tax-fy">
+          ${fyOptions
+            .map(
+              (fy) =>
+                `<option value="${esc(fy.token)}" ${fy.token === defaultFy ? "selected" : ""}>${esc(fy.display)}</option>`
+            )
+            .join("")}
+        </select>
+      </div>
+      ${
+        bizNames.length > 1
+          ? `<div class="field"><label>Business</label>
+              <select id="tax-business">
+                <option value="">All businesses</option>
+                ${bizNames.map((n) => `<option value="${esc(n)}">${esc(n)}</option>`).join("")}
+              </select>
+            </div>`
+          : ""
+      }
+      <div class="btn-row">
+        <button type="button" class="btn secondary" id="tax-export">Download tax pack</button>
+      </div>
+
       <p class="hint" style="margin-top:0.75rem">Delete all businesses, customers, invoices, and PDFs from FrogsWork Cloud. Your login and subscription stay. This cannot be undone and cannot be restored.</p>
       <button type="button" class="btn danger" id="wipe-data">Delete all my data</button>
 
@@ -235,6 +269,35 @@ async function renderAccount(panel: HTMLElement, ctx: AppContext) {
       showToast("Export downloaded. Keep it somewhere safe.", "success");
     } catch (ex) {
       showToast(ex instanceof Error ? ex.message : "Export failed.", "error");
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  panel.querySelector("#tax-export")?.addEventListener("click", async () => {
+    const btn = panel.querySelector("#tax-export") as HTMLButtonElement;
+    const fyEl = panel.querySelector("#tax-fy") as HTMLSelectElement | null;
+    const bizEl = panel.querySelector("#tax-business") as HTMLSelectElement | null;
+    const fy = String(fyEl?.value || "").trim();
+    if (!fy) {
+      showToast("Choose a financial year.", "error");
+      return;
+    }
+    btn.disabled = true;
+    try {
+      const blob = await downloadTaxExport({
+        fy,
+        business: String(bizEl?.value || "").trim() || undefined,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `frogswork-tax-export-${fy}-${new Date().toISOString().slice(0, 10)}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast("Tax pack downloaded.", "success");
+    } catch (ex) {
+      showToast(ex instanceof Error ? ex.message : "Tax export failed.", "error");
     } finally {
       btn.disabled = false;
     }

@@ -32,6 +32,7 @@ from billing_ops import (
 )
 from account_lifecycle_ops import (
     build_export_zip,
+    build_tax_export_zip,
     cancel_stripe_subscriptions,
     purge_user_cloud_data,
 )
@@ -625,6 +626,30 @@ def account_export():
         mimetype="application/zip",
         headers={
             "Content-Disposition": f'attachment; filename="frogswork-export-{stamp}.zip"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+@app.get("/account/tax-export")
+@require_auth
+def account_tax_export():
+    ip = request.headers.get("X-Forwarded-For", request.remote_addr) or "unknown"
+    if not check_rate_limit(get_db(), f"account_tax_export:{ip}"):
+        return jsonify({"error": "Too many requests. Try again later."}), 429
+    fy = (request.args.get("fy") or "").strip()
+    business = (request.args.get("business") or "").strip()
+    try:
+        data = build_tax_export_zip(get_db(), dict(g.current_user), fy or None, business or None)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    fy_slug = fy.replace("/", "-") if fy else "FY"
+    return Response(
+        data,
+        mimetype="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="frogswork-tax-export-{fy_slug}-{stamp}.zip"',
             "Cache-Control": "no-store",
         },
     )

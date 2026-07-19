@@ -95,7 +95,8 @@ export function buildInvoiceEmailContent({
   ];
 
   if (!isQuoteDoc) {
-    lines.push("", `Payment reference: Invoice #${invNum}`);
+    lines.push("", `Please use this payment reference: ${invNum}`);
+    lines.push(`(Invoice #${invNum})`);
     if (dueFmt) {
       lines.push(`Payment due: ${dueFmt}`);
     } else if (String(settings?.payment_terms || "").trim()) {

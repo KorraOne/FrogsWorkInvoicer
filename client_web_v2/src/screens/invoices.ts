@@ -1356,6 +1356,7 @@ async function renderSuccess(panel: HTMLElement, ctx: AppContext): Promise<void>
         <button type="button" class="btn secondary" id="success-download" disabled>Download PDF</button>
         <button type="button" class="btn primary" id="success-send" ${!hasEmail || !canSend ? "disabled" : ""}>Send to customer</button>
         ${!hasEmail ? `<p class="hint">Add an email to send this invoice automatically.</p>` : ""}
+        <p class="hint">Ask them to use invoice number <strong>${formatInvoiceNumber(n)}</strong> as the bank transfer reference.</p>
         <button type="button" class="btn ghost" id="success-done">Done</button>
       </div>
     </section>`;

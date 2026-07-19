@@ -251,6 +251,9 @@ export async function updateInvoiceStatus(invoiceId: string, status: string) {
   if (inv) {
     inv.status = status;
     if (status === "paid") inv.paid_date = new Date().toISOString().slice(0, 10);
+    else if (["not_sent", "sent", "send_queued", "send_failed"].includes(status)) {
+      delete inv.paid_date;
+    }
     if (status === "sent") inv.sent_date = new Date().toISOString().slice(0, 10);
     await cache.saveInvoices(invoices);
   }
@@ -258,6 +261,7 @@ export async function updateInvoiceStatus(invoiceId: string, status: string) {
     invoice_id: key,
     invoice_number: inv ? Number(inv.invoice_number) : undefined,
     status,
+    paid_date: status === "paid" && inv ? inv.paid_date : undefined,
   });
 }
 
