@@ -1366,6 +1366,16 @@ img {
     color: var(--fw-text-muted);
 }
 
+.blog-freshness {
+    display: inline-block;
+    padding: 0.1rem 0.45rem;
+    border-radius: 0.35rem;
+    background: var(--fw-surface-muted);
+    color: var(--fw-green-800);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
 .blog-prose {
     max-width: 42rem;
 }
