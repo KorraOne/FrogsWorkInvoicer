@@ -19,6 +19,7 @@ import { renderUpgrade } from "./screens/upgrade";
 import { renderDashboard } from "./screens/dashboard";
 import { renderCustomers } from "./screens/customers";
 import { renderInvoices } from "./screens/invoices";
+import { renderQuotes } from "./screens/quotes";
 import { renderSettings } from "./screens/settings";
 import type { AppContext, MobileAccount, Screen } from "./types";
 
@@ -191,10 +192,13 @@ async function enterApp() {
   setScreen("app");
   root.innerHTML = `
     <div id="tab-home" class="tab-panel" data-tab="home"></div>
+    <div id="tab-quotes" class="tab-panel" data-tab="quotes" hidden></div>
     <div id="tab-invoices" class="tab-panel" data-tab="invoices" hidden></div>
     <div id="tab-customers" class="tab-panel" data-tab="customers" hidden></div>
     <div id="tab-settings" class="tab-panel" data-tab="settings" hidden></div>`;
   await pullBootstrap();
+  const settings = await cache.getSettings();
+  updateQuotesNavVisibility(settings);
   await refreshNavAccount();
   void reportDeviceSighting();
   trackEvent("login", { method: "session" });
@@ -208,13 +212,31 @@ async function enterApp() {
   await maybePromptBusinessSetup();
 }
 
+function updateQuotesNavVisibility(settings: Record<string, unknown>) {
+  const enabled = Boolean(settings.quotes_enabled);
+  const nav = document.getElementById("nav-quotes") as HTMLElement | null;
+  if (nav) nav.hidden = !enabled;
+  return enabled;
+}
+
 async function renderActive() {
+  const settings = await cache.getSettings();
+  const quotesEnabled = updateQuotesNavVisibility(settings);
+  if (router.tab === "quotes" && !quotesEnabled) {
+    showToast("Enable Quotes in Settings → General.", "error");
+    router.tab = "home";
+    router.sub = null;
+    router.params = {};
+    history.replaceState(null, "", "#home");
+    rememberAllowedHash("#home");
+  }
+
   const tab = router.tab === "create" ? "invoices" : router.tab;
   setBottomNavActive(tab);
   showTabPanels(tab);
 
   const immersive =
-    tab === "invoices" &&
+    (tab === "invoices" || tab === "quotes") &&
     (router.sub === "create" || router.sub === "success");
   if (screen === "app") {
     bottomNav.hidden = immersive;
@@ -227,17 +249,23 @@ async function renderActive() {
     Boolean(router.sub) ||
     tab === "home";
   if (tab === "invoices" && !router.sub) fab.hidden = false;
+  if (tab === "quotes" && !router.sub) fab.hidden = false;
   if (tab === "customers" && !router.sub) fab.hidden = false;
   fab.textContent = "+";
-  fab.setAttribute("aria-label", tab === "customers" ? "Add customer" : "Create invoice");
+  fab.setAttribute(
+    "aria-label",
+    tab === "customers" ? "Add customer" : tab === "quotes" ? "Create quote" : "Create invoice"
+  );
   fab.onclick = () => {
     if (tab === "invoices") router.navigate("invoices", "create");
+    else if (tab === "quotes") router.navigate("quotes", "create");
     else if (tab === "customers") router.navigate("customers", "add");
   };
 
   const panel = document.getElementById(`tab-${tab}`) as HTMLElement;
   if (!panel) return;
   if (tab === "home") await renderDashboard(panel, ctx);
+  else if (tab === "quotes") await renderQuotes(panel, ctx);
   else if (tab === "invoices") await renderInvoices(panel, ctx);
   else if (tab === "customers") await renderCustomers(panel, ctx);
   else if (tab === "settings") await renderSettings(panel, ctx);
@@ -246,6 +274,7 @@ async function renderActive() {
   trackScreen(screenName);
   if (tab === "settings") trackEvent("open_settings");
   if (tab === "invoices" && router.sub === "create") trackEvent("create_invoice_start");
+  if (tab === "quotes" && router.sub === "create") trackEvent("create_quote_start");
 
   if (tab === "settings" || tab === "home") {
     void refreshNavAccount();

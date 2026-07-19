@@ -1,4 +1,4 @@
-# Start PWA static server + API worker for local mobile testing.
+# Start the Vite cloud app + API worker for local mobile testing.
 param(
     [int]$PwaPort = 8090,
     [int]$ApiPort = 8787
@@ -6,7 +6,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
-$pwa = Join-Path $root "client_web"
+$pwa = Join-Path $root "client_web_v2"
 $worker = Join-Path $root "account_api\worker"
 $schema = Join-Path $root "account_api\schema.sql"
 $devVars = Join-Path $worker ".dev.vars"
@@ -29,7 +29,8 @@ function Stop-PortListener {
 Write-Host "PWA:  http://127.0.0.1:$PwaPort"
 Write-Host "API:  http://127.0.0.1:$ApiPort (Cloudflare Worker via wrangler dev)"
 Write-Host ""
-Write-Host "The PWA auto-uses http://127.0.0.1:$ApiPort when opened on localhost."
+Write-Host "To use the local API, run this once in the browser console:"
+Write-Host "localStorage.setItem('frogswork_api','http://127.0.0.1:$ApiPort'); location.reload()"
 Write-Host ""
 
 Push-Location $worker
@@ -71,10 +72,7 @@ if (-not $ready) {
 }
 
 Push-Location $pwa
-if (-not (Test-Path "icons\icon-192.png")) {
-    New-Item -ItemType Directory -Force -Path "icons" | Out-Null
-    $src = Join-Path $root "marketing_site\assets\brand\favicon-48.png"
-    Copy-Item $src "icons\icon-192.png" -Force
-    Copy-Item $src "icons\icon-512.png" -Force
+if (-not (Test-Path "node_modules")) {
+    npm install
 }
-python -m http.server $PwaPort
+npm run dev -- --host 127.0.0.1 --port $PwaPort

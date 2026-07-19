@@ -23,6 +23,7 @@ erDiagram
   users ||--o{ doc_businesses : "user_id"
   users ||--o{ doc_customers : "user_id"
   users ||--o{ doc_invoices : "user_id"
+  users ||--o{ doc_quotes : "user_id"
   users ||--o| doc_settings : "user_id"
   users ||--o{ email_outbox : "user_id"
   users ||--o{ password_reset_tokens : "user_id"
@@ -70,6 +71,14 @@ erDiagram
     text pdf_status
     text pdf_r2_key
   }
+  doc_quotes {
+    integer user_id PK
+    text quote_key PK
+    integer quote_number
+    text data_json
+    text pdf_status
+    text pdf_r2_key
+  }
   doc_settings {
     integer user_id PK
     text data_json
@@ -107,6 +116,8 @@ erDiagram
     integer user_id FK
     text guest_id
     integer invoice_number
+    text invoice_key
+    text doc_type
     text status
     integer attempts
   }
@@ -162,9 +173,11 @@ All cloud document rows are tenant-owned:
 - **`doc_customers`** — composite key `(user_id, name)`.
 - **`doc_invoices`** — composite key `(user_id, invoice_key)`, with a
   per-user invoice-number index and PDF status/R2-key columns.
+- **`doc_quotes`** — composite key `(user_id, quote_key)`, same PDF columns;
+  optional Quotes feature (see `quotes_enabled` in settings).
 - **`doc_settings`** — one row per user because `user_id` is its primary key.
 
-The business, customer, invoice, and settings payloads live in `data_json`.
+The business, customer, invoice, quote, and settings payloads live in `data_json`.
 Rows also carry `revision` and `updated_at` for synchronization. Relational
 columns provide tenant ownership, stable lookup keys, and selected operational
 metadata; they do not normalize the full document payload.
@@ -173,9 +186,10 @@ metadata; they do not normalize the full document payload.
 
 - **`guest_workspaces`** stores an expiring JSON workspace keyed by
   `guest_id`.
-- **`email_outbox`** tracks queued invoice email delivery, attempts, errors,
-  and status. A row can be associated with an authenticated `user_id` or a
-  logical `guest_id`; only `user_id` has a SQL foreign key.
+- **`email_outbox`** tracks queued invoice/quote email delivery, attempts, errors,
+  and status. `doc_type` is `invoice` (default) or `quote`. A row can be associated
+  with an authenticated `user_id` or a logical `guest_id`; only `user_id` has a SQL
+  foreign key.
 
 ## Tenant isolation
 
@@ -184,9 +198,9 @@ Worker by scoping cloud-document queries and mutations with `user_id`; D1 does
 not provide database row-level security for these tables. Composite document
 keys include `user_id` so names and invoice keys can repeat across accounts.
 
-Generated invoice PDFs are stored outside SQL in the private R2 bucket
-`frogswork-user-docs` under `user-docs/{user_id}/invoices/...`. The SQL invoice
-row keeps the corresponding `pdf_r2_key`.
+Generated PDFs are stored outside SQL in the private R2 bucket
+`frogswork-user-docs` under `user-docs/{user_id}/invoices/...` and
+`user-docs/{user_id}/quotes/...`. The SQL row keeps the corresponding `pdf_r2_key`.
 
 ## What is not represented relationally
 

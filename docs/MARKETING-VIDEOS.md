@@ -38,6 +38,7 @@ Videos play from R2 (`downloads.frogswork.com/videos/`) via [`marketing_site/vid
 | `add-customer-inline` | iPhone | Invoicing | New invoice → + Add customer → selected |
 | `creating-invoice` | iPhone | Invoicing | Lines → Save invoice → PDF success → Done |
 | `managing-gst` | iPhone | Invoicing | GST registered → line GST toggle → PDF |
+| `quotes` | iPhone | Quotes | Settings → Enable quotes → Quotes tab → send → Create invoice |
 | `managing-past-invoices` | iPhone | Invoicing | Filter Not sent/Sent/Paid → View PDF / Mark paid |
 | `send-invoice` | iPhone | Invoicing | Send / Send to customer → Sent status |
 | `dashboard` | iPhone | Dashboard | Home totals → Create / Past invoices |

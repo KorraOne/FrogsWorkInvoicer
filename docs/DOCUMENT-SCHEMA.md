@@ -16,6 +16,7 @@ Keyed by business name (string).
 | `gst_registered` | boolean | |
 | `account_name`, `bsb`, `acc` | string | Bank details |
 | `invoice_counter` | integer | Per-business numbering |
+| `quote_counter` | integer | Per-business quote numbering (when Quotes enabled) |
 | `logo_*` | various | Logo paths (local only until cloud asset upload) |
 
 ### Customer (`customers.json` / `doc_customers`)
@@ -48,12 +49,35 @@ Keyed by `invoice_key` = zero-padded 8-digit number.
 | `due_date`, `due_rule_type`, `due_net_days` | optional |
 | `deleted_at` | ISO datetime if soft-deleted |
 
+### Quote / price estimate (`doc_quotes`)
+
+Keyed by `quote_key` (stable UUID / storage key). Optional feature via settings `quotes_enabled`.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `quote_number` | integer | |
+| `doc_kind` | `quote` \| `estimate` | PDF/email label |
+| `quote_date` | ISO date | |
+| `customer_name`, `business_name` | string | |
+| Line items / GST totals | same shape as invoices | |
+| `status` | `not_sent` \| `send_queued` \| `send_failed` \| `sent` \| `closed` \| `converted` | |
+| `sent_date` | ISO datetime | set on successful send |
+| `converted_invoice_id` | string | when converted to an invoice |
+| `converted_invoice_number` | integer | denormalized for list display / filter links |
+| `pdf_status` | `pending` \| `ready` | |
+| `deleted_at` | ISO datetime if soft-deleted | |
+
+Converted invoices also store `source_quote_id` and `source_quote_number` on the invoice JSON.
+
+No due-date / how-to-pay fields on the PDF or email.
+
 ### Settings (`settings.json` / `doc_settings`)
 
 | Field | Type |
 |-------|------|
 | `default_business` | string |
 | `due_rule_type`, `due_net_days` | defaults |
+| `quotes_enabled` | boolean | off by default; shows Quotes tab |
 | `storage_mode` | `local` \| `cloud` (desktop only) |
 | `welcome_complete` | boolean |
 
@@ -67,6 +91,11 @@ FIFO replay via `POST /documents/sync`:
 - `create_invoice` — `{ invoice }`
 - `update_invoice_status` — `{ invoice_number, status }`
 - `delete_invoice` — `{ invoice_number }` (soft delete via `deleted_at`)
+- `create_quote` — `{ quote, prepare_pdf? }`
+- `update_quote_status` — `{ quote_id, status, … }`
+- `delete_quote` — soft delete
+- `enqueue_quote_email` — queue quote PDF email
+- `convert_quote_to_invoice` — `{ quote_id, invoice, prepare_pdf? }`
 - `upsert_settings` — `{ settings: { ... } }` (merged into existing)
 - `enqueue_email_send` — `{ invoice_number }` (chains PDF generate → email)
 
@@ -74,10 +103,11 @@ FIFO replay via `POST /documents/sync`:
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/documents/bootstrap` | Full cache snapshot |
+| GET | `/documents/bootstrap` | Full cache snapshot (includes `quotes`) |
 | POST | `/documents/migrate` | Local → cloud import |
 | POST | `/documents/sync` | Apply mutation batch |
-| GET | `/documents/invoices/{n}/pdf` | Download PDF (base64 JSON) |
+| GET | `/documents/invoices/{n}/pdf` | Download invoice PDF (base64 JSON) |
+| GET | `/documents/quotes/{id}/pdf` | Download quote PDF (base64 JSON) |
 | POST | `/documents/invoices/{n}/generate` | Server PDF generation |
 | POST | `/documents/invoices/{n}/send` | Queue integrated email |
 | POST | `/guest/session` | Guest cloud trial token |

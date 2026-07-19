@@ -9,6 +9,7 @@ export interface BootstrapData {
   businesses: Record<string, Record<string, unknown>>;
   customers: Record<string, Record<string, unknown>>;
   invoices: Record<string, Record<string, unknown>>;
+  quotes?: Record<string, Record<string, unknown>>;
   settings: Record<string, unknown>;
 }
 
@@ -38,6 +39,16 @@ export function fetchInvoicePdf(invoiceId: string) {
   return apiRequest<{ filename: string; content_b64: string; invoice_key?: string }>(
     "GET",
     `/mobile/v1/invoices/${id}/pdf`,
+    undefined,
+    true
+  );
+}
+
+export function fetchQuotePdf(quoteId: string) {
+  const id = encodeURIComponent(String(quoteId || "").trim());
+  return apiRequest<{ filename: string; content_b64: string; quote_key?: string }>(
+    "GET",
+    `/mobile/v1/quotes/${id}/pdf`,
     undefined,
     true
   );

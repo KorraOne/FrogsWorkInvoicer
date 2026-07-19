@@ -40,8 +40,10 @@ async function requireCloudActive(env, auth, stripe) {
 function mapMobileToDocumentsPath(path) {
   if (path === "/mobile/v1/bootstrap") return "/documents/bootstrap";
   if (path === "/mobile/v1/sync") return "/documents/sync";
-  const pdfMatch = path.match(/^\/mobile\/v1\/invoices\/([^/]+)\/pdf$/);
-  if (pdfMatch) return `/documents/invoices/${pdfMatch[1]}/pdf`;
+  const invoicePdfMatch = path.match(/^\/mobile\/v1\/invoices\/([^/]+)\/pdf$/);
+  if (invoicePdfMatch) return `/documents/invoices/${invoicePdfMatch[1]}/pdf`;
+  const quotePdfMatch = path.match(/^\/mobile\/v1\/quotes\/([^/]+)\/pdf$/);
+  if (quotePdfMatch) return `/documents/quotes/${quotePdfMatch[1]}/pdf`;
   return null;
 }
 

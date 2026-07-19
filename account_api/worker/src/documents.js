@@ -3,6 +3,7 @@ import { jwtSecretBytes } from "./jwt_secret.js";
 import { buildInvoicePdf } from "./invoice_pdf.js";
 import {
   buildInvoiceEmailContent,
+  buildQuoteEmailContent,
   emailCopyPrefsFromSettings,
   selfCopyEmailFromBusiness,
 } from "./invoice_email.js";
@@ -61,6 +62,24 @@ function mutationInvoiceKey(payload) {
     return invoiceKey(Number(payload.invoice_number));
   }
   throw new Error("invoice_id or invoice_number required");
+}
+
+/** Storage key: quote_id when present; else legacy padded quote_number. */
+function storageKeyFromQuote(quote) {
+  const id = String(quote?.quote_id || "").trim();
+  if (id) return id;
+  const number = Number(quote?.quote_number);
+  if (!Number.isFinite(number) || number < 1) throw new Error("Invalid quote number");
+  return invoiceKey(number);
+}
+
+function mutationQuoteKey(payload) {
+  const id = String(payload?.quote_id || "").trim();
+  if (id) return id;
+  if (payload?.quote_number != null && payload.quote_number !== "") {
+    return invoiceKey(Number(payload.quote_number));
+  }
+  throw new Error("quote_id or quote_number required");
 }
 
 async function resolveInvoiceLookup(db, userId, pathSeg) {
@@ -148,8 +167,9 @@ function documentsBucket(env) {
   return env.DOCUMENTS;
 }
 
-function pdfR2Key(userId, invoiceKeyStr) {
-  return `user-docs/${userId}/invoices/${invoiceKeyStr}.pdf`;
+function pdfR2Key(userId, docKeyStr, kind = "invoice") {
+  const folder = kind === "quote" ? "quotes" : "invoices";
+  return `user-docs/${userId}/${folder}/${docKeyStr}.pdf`;
 }
 
 async function loadBusinessesMap(db, userId) {
@@ -226,6 +246,32 @@ async function loadInvoicesMap(db, userId) {
     }
   }
   return out;
+}
+
+async function loadQuotesMap(db, userId) {
+  try {
+    const rows = await db
+      .prepare(
+        "SELECT quote_key, data_json, pdf_status, pdf_r2_key, revision, updated_at FROM doc_quotes WHERE user_id = ?"
+      )
+      .bind(userId)
+      .all();
+    const out = {};
+    for (const row of rows.results || []) {
+      try {
+        const quote = JSON.parse(row.data_json);
+        quote.quote_id = String(quote.quote_id || row.quote_key);
+        quote.pdf_status = row.pdf_status || quote.pdf_status || "pending";
+        quote.pdf_r2_key = row.pdf_r2_key;
+        out[row.quote_key] = quote;
+      } catch {
+        /* skip */
+      }
+    }
+    return out;
+  } catch {
+    return {};
+  }
 }
 
 async function loadSettings(db, userId) {
@@ -362,6 +408,118 @@ async function updateInvoiceStatus(db, userId, payload, status) {
   return true;
 }
 
+async function softDeleteQuote(db, userId, payload) {
+  const key = mutationQuoteKey(payload);
+  const row = await dbQuote(db, userId, key);
+  if (!row) throw new Error("Quote not found");
+  const quote = JSON.parse(row.data_json);
+  quote.quote_id = String(quote.quote_id || key);
+  quote.deleted_at = nowIso();
+  const ts = nowIso();
+  await db
+    .prepare(
+      `UPDATE doc_quotes SET data_json = ?, revision = revision + 1, updated_at = ? WHERE user_id = ? AND quote_key = ?`
+    )
+    .bind(JSON.stringify(quote), ts, userId, key)
+    .run();
+}
+
+async function upsertQuote(db, userId, quote) {
+  const number = Number(quote.quote_number);
+  if (!Number.isFinite(number) || number < 1) throw new Error("Invalid quote number");
+  const key = storageKeyFromQuote(quote);
+  const payload = {
+    ...quote,
+    quote_id: key,
+    quote_number: number,
+    pdf_status: "pending",
+  };
+  delete payload.pdf_r2_key;
+  const ts = nowIso();
+  await db
+    .prepare(
+      `INSERT INTO doc_quotes (user_id, quote_key, quote_number, data_json, revision, updated_at, pdf_status, pdf_r2_key)
+       VALUES (?, ?, ?, ?, 1, ?, 'pending', NULL)
+       ON CONFLICT(user_id, quote_key) DO UPDATE SET
+         data_json = excluded.data_json,
+         quote_number = excluded.quote_number,
+         revision = revision + 1,
+         updated_at = excluded.updated_at,
+         pdf_status = 'pending',
+         pdf_r2_key = NULL`
+    )
+    .bind(userId, key, number, JSON.stringify(payload), ts)
+    .run();
+  return key;
+}
+
+async function updateQuoteStatus(db, userId, payload, status, extra = {}) {
+  const key = mutationQuoteKey(
+    typeof payload === "object" && payload !== null
+      ? payload
+      : { quote_number: payload }
+  );
+  const row = await db
+    .prepare("SELECT data_json FROM doc_quotes WHERE user_id = ? AND quote_key = ?")
+    .bind(userId, key)
+    .first();
+  if (!row) return false;
+  const quote = JSON.parse(row.data_json);
+  quote.quote_id = String(quote.quote_id || key);
+  quote.status = status;
+  if (status === "sent" && !quote.sent_date) {
+    quote.sent_date = nowIso();
+  }
+  Object.assign(quote, extra || {});
+  const ts = nowIso();
+  await db
+    .prepare(
+      `UPDATE doc_quotes SET data_json = ?, revision = revision + 1, updated_at = ? WHERE user_id = ? AND quote_key = ?`
+    )
+    .bind(JSON.stringify(quote), ts, userId, key)
+    .run();
+  return true;
+}
+
+async function dbQuote(db, userId, key) {
+  return db
+    .prepare("SELECT * FROM doc_quotes WHERE user_id = ? AND quote_key = ?")
+    .bind(userId, key)
+    .first();
+}
+
+async function resolveQuoteLookup(db, userId, pathSeg) {
+  const seg = String(pathSeg || "").trim();
+  if (!seg) return null;
+  let row = await dbQuote(db, userId, seg);
+  if (row) return { key: seg, row };
+  if (/^\d+$/.test(seg)) {
+    const padded = invoiceKey(Number(seg));
+    if (padded !== seg) {
+      row = await dbQuote(db, userId, padded);
+      if (row) return { key: padded, row };
+    }
+    const map = await loadQuotesMap(db, userId);
+    let best = null;
+    for (const [key, quote] of Object.entries(map)) {
+      if (Number(quote.quote_number) !== Number(seg)) continue;
+      if (quote.deleted_at) continue;
+      if (
+        !best ||
+        String(quote.updated_at || quote.quote_date || "") >
+          String(best.quote.updated_at || best.quote.quote_date || "")
+      ) {
+        best = { key, quote };
+      }
+    }
+    if (best) {
+      row = await dbQuote(db, userId, best.key);
+      if (row) return { key: best.key, row };
+    }
+  }
+  return null;
+}
+
 /** Generate invoice PDF bytes (pdf-lib). */
 async function buildInvoicePdfBytes(invoice, business = {}, customer = {}) {
   return buildInvoicePdf(invoice, business, customer);
@@ -407,6 +565,51 @@ export async function generateInvoicePdf(env, userId, invoiceRef) {
     .bind(JSON.stringify(invoice), r2Key, ts, userId, key)
     .run();
   return { filename, r2Key, invoice_key: key };
+}
+
+export async function generateQuotePdf(env, userId, quoteRef) {
+  let key;
+  let row;
+  if (typeof quoteRef === "object" && quoteRef !== null) {
+    key = mutationQuoteKey(quoteRef);
+    row = await dbQuote(env.DB, userId, key);
+  } else if (typeof quoteRef === "string" && !/^\d+$/.test(quoteRef)) {
+    key = quoteRef;
+    row = await dbQuote(env.DB, userId, key);
+  } else {
+    const looked = await resolveQuoteLookup(env.DB, userId, String(quoteRef));
+    if (!looked) throw new Error("Quote not found");
+    key = looked.key;
+    row = looked.row;
+  }
+  if (!row) throw new Error("Quote not found");
+  const quote = JSON.parse(row.data_json);
+  quote.quote_id = String(quote.quote_id || key);
+  const businesses = await loadBusinessesMap(env.DB, userId);
+  const customers = await loadCustomersMap(env.DB, userId);
+  const business = businesses[quote.business_name] || {};
+  const customer = customerForInvoice(quote, customers);
+  const bucket = documentsBucket(env);
+  if (!bucket) throw new Error("Document storage not configured");
+  const r2Key = pdfR2Key(userId, key, "quote");
+  const docKind =
+    String(quote.doc_kind || "quote").toLowerCase() === "estimate" ? "estimate" : "quote";
+  const bytes = await buildInvoicePdf(quote, business, customer, { docKind });
+  await bucket.put(r2Key, bytes, {
+    httpMetadata: { contentType: "application/pdf" },
+  });
+  const numPad = invoiceKey(Number(quote.quote_number) || 0);
+  const dateStamp = String(quote.quote_date || quote.invoice_date || "draft").slice(0, 10);
+  const filename = `Quote_${numPad}_${dateStamp}.pdf`;
+  quote.filename = filename;
+  quote.pdf_status = "ready";
+  const ts = nowIso();
+  await env.DB.prepare(
+    `UPDATE doc_quotes SET data_json = ?, pdf_status = 'ready', pdf_r2_key = ?, updated_at = ? WHERE user_id = ? AND quote_key = ?`
+  )
+    .bind(JSON.stringify(quote), r2Key, ts, userId, key)
+    .run();
+  return { filename, r2Key, quote_key: key };
 }
 
 async function dbInvoice(db, userId, key) {
@@ -477,6 +680,76 @@ export async function enqueueEmailSend(env, userId, invoiceRef, userEmail) {
   };
 }
 
+export async function enqueueQuoteEmail(env, userId, quoteRef, userEmail) {
+  const payload =
+    typeof quoteRef === "object" && quoteRef !== null
+      ? quoteRef
+      : { quote_number: quoteRef };
+  const key = mutationQuoteKey(payload);
+  const row = await dbQuote(env.DB, userId, key);
+  if (!row) throw new Error("Quote not found");
+  const quote = JSON.parse(row.data_json);
+  const quoteNumber = Number(quote.quote_number || payload.quote_number);
+  const id = crypto.randomUUID();
+  const ts = nowIso();
+  try {
+    await env.DB.prepare(
+      `INSERT INTO email_outbox (id, user_id, invoice_number, invoice_key, doc_type, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'quote', 'pending', ?, ?)`
+    )
+      .bind(id, userId, quoteNumber, key, ts, ts)
+      .run();
+  } catch {
+    try {
+      await env.DB.prepare(
+        `INSERT INTO email_outbox (id, user_id, invoice_number, invoice_key, status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, 'pending', ?, ?)`
+      )
+        .bind(id, userId, quoteNumber, key, ts, ts)
+        .run();
+    } catch {
+      await env.DB.prepare(
+        `INSERT INTO email_outbox (id, user_id, invoice_number, status, created_at, updated_at)
+         VALUES (?, ?, ?, 'pending', ?, ?)`
+      )
+        .bind(id, userId, quoteNumber, ts, ts)
+        .run();
+    }
+  }
+  await updateQuoteStatus(env.DB, userId, { quote_id: key, quote_number: quoteNumber }, "send_queued");
+
+  const runOutbox = () =>
+    processEmailOutbox(env, userId, userEmail).catch((err) => {
+      console.log(
+        JSON.stringify({
+          action: "processEmailOutbox.bg_error",
+          error: String(err?.message || err),
+        })
+      );
+    });
+
+  if (env._executionCtx?.waitUntil) {
+    env._executionCtx.waitUntil(runOutbox());
+    return {
+      id,
+      status: "send_queued",
+      quote_key: key,
+      quote_number: quoteNumber,
+      async: true,
+    };
+  }
+
+  const processed = await processEmailOutbox(env, userId, userEmail);
+  const forThis =
+    (processed.items || []).find((item) => item.outbox_id === id) || processed.items?.[0] || null;
+  return {
+    id,
+    status: forThis?.final_status || "send_queued",
+    quote_key: key,
+    quote_number: quoteNumber,
+  };
+}
+
 export async function processEmailOutbox(env, userId, userEmail) {
   const rows = await env.DB.prepare(
     `SELECT * FROM email_outbox WHERE user_id = ? AND status IN ('pending', 'generating_pdf', 'failed') ORDER BY created_at LIMIT 10`
@@ -493,8 +766,10 @@ export async function processEmailOutbox(env, userId, userEmail) {
   const items = [];
   for (const row of rows.results || []) {
     const ts = nowIso();
+    const isQuote = String(row.doc_type || "invoice").toLowerCase() === "quote";
     const item = {
       outbox_id: row.id,
+      doc_type: isQuote ? "quote" : "invoice",
       invoice_number: row.invoice_number,
       invoice_key: row.invoice_key || null,
       branch: null,
@@ -509,51 +784,78 @@ export async function processEmailOutbox(env, userId, userEmail) {
     };
     try {
       let key = String(row.invoice_key || "").trim();
-      let invRow = key ? await dbInvoice(env.DB, userId, key) : null;
-      if (!invRow) {
-        const looked = await resolveInvoiceLookup(env.DB, userId, String(row.invoice_number));
-        if (!looked) {
-          item.branch = "invoice_not_found";
-          item.final_status = "skipped";
-          items.push(item);
-          continue;
+      let docRow = null;
+      if (isQuote) {
+        docRow = key ? await dbQuote(env.DB, userId, key) : null;
+        if (!docRow) {
+          const looked = await resolveQuoteLookup(env.DB, userId, String(row.invoice_number));
+          if (!looked) {
+            item.branch = "quote_not_found";
+            item.final_status = "skipped";
+            items.push(item);
+            continue;
+          }
+          key = looked.key;
+          docRow = looked.row;
         }
-        key = looked.key;
-        invRow = looked.row;
+      } else {
+        docRow = key ? await dbInvoice(env.DB, userId, key) : null;
+        if (!docRow) {
+          const looked = await resolveInvoiceLookup(env.DB, userId, String(row.invoice_number));
+          if (!looked) {
+            item.branch = "invoice_not_found";
+            item.final_status = "skipped";
+            items.push(item);
+            continue;
+          }
+          key = looked.key;
+          docRow = looked.row;
+        }
       }
       item.invoice_key = key;
-      item.pdf_was_ready = invRow.pdf_status === "ready";
-      if (invRow.pdf_status !== "ready") {
+      item.pdf_was_ready = docRow.pdf_status === "ready";
+      if (docRow.pdf_status !== "ready") {
         await env.DB.prepare(`UPDATE email_outbox SET status = 'generating_pdf', updated_at = ? WHERE id = ?`)
           .bind(ts, row.id)
           .run();
         const tPdf = Date.now();
-        await generateInvoicePdf(env, userId, { invoice_id: key });
+        if (isQuote) {
+          await generateQuotePdf(env, userId, { quote_id: key });
+          docRow = await dbQuote(env.DB, userId, key);
+        } else {
+          await generateInvoicePdf(env, userId, { invoice_id: key });
+          docRow = await dbInvoice(env.DB, userId, key);
+        }
         item.pdf_generate_ms = Date.now() - tPdf;
-        invRow = await dbInvoice(env.DB, userId, key);
       } else {
         item.pdf_generate_ms = 0;
       }
-      const invoice = JSON.parse(invRow.data_json);
-      const customer = customerForInvoice(invoice, customers);
-      const customerEmail = String(
-        invoice.customer_email || customer.email || ""
-      ).trim();
+      const doc = JSON.parse(docRow.data_json);
+      const customer = customerForInvoice(doc, customers);
+      const customerEmail = String(doc.customer_email || customer.email || "").trim();
       item.has_customer_email = Boolean(customerEmail);
       if (!customerEmail && provider !== "log") {
         throw new Error("Customer email required");
       }
-      const composed = buildInvoiceEmailContent({
-        invoice,
-        customer,
-        settings,
-        businesses,
-      });
+      const composed = isQuote
+        ? buildQuoteEmailContent({
+            quote: doc,
+            customer,
+            settings,
+            businesses,
+            docKind: doc.doc_kind,
+          })
+        : buildInvoiceEmailContent({
+            invoice: doc,
+            customer,
+            settings,
+            businesses,
+          });
       const bucket = documentsBucket(env);
-      const pdfObj = invRow.pdf_r2_key ? await bucket.get(invRow.pdf_r2_key) : null;
+      const pdfObj = docRow.pdf_r2_key ? await bucket.get(docRow.pdf_r2_key) : null;
       const pdfBytes = pdfObj ? await pdfObj.arrayBuffer() : null;
       const selfEmail = selfCopyEmailFromBusiness({
-        invoice,
+        invoice: doc,
         businesses,
         settings,
         fallbackUserEmail: userEmail,
@@ -565,7 +867,7 @@ export async function processEmailOutbox(env, userId, userEmail) {
         item.resend_ms = 0;
         console.log(
           JSON.stringify({
-            action: "send_invoice_email",
+            action: isQuote ? "send_quote_email" : "send_invoice_email",
             to: customerEmail || "(missing)",
             cc,
             bcc,
@@ -586,7 +888,12 @@ export async function processEmailOutbox(env, userId, userEmail) {
           text: composed.text,
           html: composed.html,
           attachments: b64
-            ? [{ filename: composed.filename || "invoice.pdf", content: b64 }]
+            ? [
+                {
+                  filename: composed.filename || (isQuote ? "quote.pdf" : "invoice.pdf"),
+                  content: b64,
+                },
+              ]
             : [],
         };
         if (cc.length) payload.cc = cc;
@@ -619,12 +926,22 @@ export async function processEmailOutbox(env, userId, userEmail) {
       )
         .bind(ts, row.id)
         .run();
-      await updateInvoiceStatus(
-        env.DB,
-        userId,
-        { invoice_id: key, invoice_number: row.invoice_number },
-        "sent"
-      );
+      if (isQuote) {
+        await updateQuoteStatus(
+          env.DB,
+          userId,
+          { quote_id: key, quote_number: row.invoice_number },
+          "sent",
+          { sent_date: ts }
+        );
+      } else {
+        await updateInvoiceStatus(
+          env.DB,
+          userId,
+          { invoice_id: key, invoice_number: row.invoice_number },
+          "sent"
+        );
+      }
       item.final_status = "sent";
     } catch (exc) {
       item.error = String(exc.message || exc).slice(0, 300);
@@ -635,12 +952,21 @@ export async function processEmailOutbox(env, userId, userEmail) {
         .bind(String(exc.message || exc), ts, row.id)
         .run();
       const failKey = String(row.invoice_key || "").trim() || invoiceKey(row.invoice_number);
-      await updateInvoiceStatus(
-        env.DB,
-        userId,
-        { invoice_id: failKey, invoice_number: row.invoice_number },
-        "send_failed"
-      );
+      if (isQuote) {
+        await updateQuoteStatus(
+          env.DB,
+          userId,
+          { quote_id: failKey, quote_number: row.invoice_number },
+          "send_failed"
+        );
+      } else {
+        await updateInvoiceStatus(
+          env.DB,
+          userId,
+          { invoice_id: failKey, invoice_number: row.invoice_number },
+          "send_failed"
+        );
+      }
     }
     items.push(item);
   }
@@ -686,6 +1012,63 @@ async function applyMutation(db, userId, mutation, env, userEmail) {
       return { ok: true };
     case "enqueue_email_send":
       return enqueueEmailSend(env, userId, payload, userEmail);
+    case "create_quote": {
+      const key = await upsertQuote(db, userId, payload.quote);
+      if (payload.prepare_pdf && env?._executionCtx?.waitUntil) {
+        env._executionCtx.waitUntil(
+          generateQuotePdf(env, userId, { quote_id: key }).catch((err) => {
+            console.log(
+              JSON.stringify({
+                action: "prepare_quote_pdf.bg_error",
+                error: String(err?.message || err),
+              })
+            );
+          })
+        );
+      }
+      return { ok: true, quote_key: key };
+    }
+    case "update_quote_status":
+      await updateQuoteStatus(db, userId, payload, payload.status);
+      return { ok: true };
+    case "delete_quote":
+      await softDeleteQuote(db, userId, payload);
+      return { ok: true };
+    case "enqueue_quote_email":
+      return enqueueQuoteEmail(env, userId, payload, userEmail);
+    case "convert_quote_to_invoice": {
+      const quoteKey = mutationQuoteKey(payload);
+      const quoteRow = await dbQuote(db, userId, quoteKey);
+      if (!quoteRow) throw new Error("Quote not found");
+      if (!payload.invoice) throw new Error("invoice payload required");
+      const invoiceKey = await upsertInvoice(db, userId, payload.invoice);
+      await updateQuoteStatus(
+        db,
+        userId,
+        { quote_id: quoteKey, quote_number: payload.quote_number },
+        "converted",
+        {
+          converted_invoice_id: invoiceKey,
+          converted_invoice_number:
+            payload.converted_invoice_number ??
+            payload.invoice?.invoice_number ??
+            null,
+        }
+      );
+      if (payload.prepare_pdf && env?._executionCtx?.waitUntil) {
+        env._executionCtx.waitUntil(
+          generateInvoicePdf(env, userId, { invoice_id: invoiceKey }).catch((err) => {
+            console.log(
+              JSON.stringify({
+                action: "prepare_pdf.bg_error",
+                error: String(err?.message || err),
+              })
+            );
+          })
+        );
+      }
+      return { ok: true, quote_key: quoteKey, invoice_key: invoiceKey };
+    }
     default:
       return { ok: false, error: `Unknown mutation: ${type}` };
   }
@@ -709,8 +1092,9 @@ export async function handleDocumentsRoute(
     const businesses = await loadBusinessesMap(env.DB, userId);
     const customers = await loadCustomersMap(env.DB, userId);
     const invoices = await loadInvoicesMap(env.DB, userId);
+    const quotes = await loadQuotesMap(env.DB, userId);
     const settings = await loadSettings(env.DB, userId);
-    return json({ businesses, customers, invoices, settings });
+    return json({ businesses, customers, invoices, quotes, settings });
   }
 
   if (path === "/documents/migrate" && request.method === "POST") {
@@ -725,6 +1109,11 @@ export async function handleDocumentsRoute(
     if (body.invoices) {
       for (const inv of Object.values(body.invoices)) {
         await upsertInvoice(env.DB, userId, inv);
+      }
+    }
+    if (body.quotes) {
+      for (const quote of Object.values(body.quotes)) {
+        await upsertQuote(env.DB, userId, quote);
       }
     }
     if (body.settings) {
@@ -743,6 +1132,7 @@ export async function handleDocumentsRoute(
         businesses: Object.keys(body.businesses || {}).length,
         customers: Object.keys(body.customers || {}).length,
         invoices: Object.keys(body.invoices || {}).length,
+        quotes: Object.keys(body.quotes || {}).length,
       },
     });
   }
@@ -761,7 +1151,7 @@ export async function handleDocumentsRoute(
     let subActive =
       typeof auth.cloudAccess?.active === "boolean" ? auth.cloudAccess.active : null;
     for (const mutation of mutations) {
-      if (mutation.type === "enqueue_email_send") {
+      if (mutation.type === "enqueue_email_send" || mutation.type === "enqueue_quote_email") {
         if (subActive === null) {
           const sub = await subscriptionStatus(stripe, auth.user.stripe_customer_id);
           subActive = sub.active;
@@ -807,6 +1197,25 @@ export async function handleDocumentsRoute(
     const inv = JSON.parse(row.data_json);
     const b64 = bytesToBase64(buf);
     return json({ filename: inv.filename, content_b64: b64, invoice_key: key });
+  }
+
+  const quotePdfMatch = path.match(/^\/documents\/quotes\/([^/]+)\/pdf$/);
+  if (quotePdfMatch && request.method === "GET") {
+    const looked = await resolveQuoteLookup(env.DB, userId, quotePdfMatch[1]);
+    if (!looked) return textError("Quote not found", 404);
+    let { key, row } = looked;
+    if (row.pdf_status !== "ready") {
+      await generateQuotePdf(env, userId, { quote_id: key });
+      row = await dbQuote(env.DB, userId, key);
+    }
+    const bucket = documentsBucket(env);
+    if (!row?.pdf_r2_key || !bucket) return textError("PDF not available", 404);
+    const obj = await bucket.get(row.pdf_r2_key);
+    if (!obj) return textError("PDF not found", 404);
+    const buf = await obj.arrayBuffer();
+    const quote = JSON.parse(row.data_json);
+    const b64 = bytesToBase64(buf);
+    return json({ filename: quote.filename, content_b64: b64, quote_key: key });
   }
 
   const sendMatch = path.match(/^\/documents\/invoices\/([^/]+)\/send$/);
@@ -863,7 +1272,7 @@ export async function handleDocumentsRoute(
 }
 
 function emptyGuestWorkspace() {
-  return { businesses: {}, customers: {}, invoices: {}, settings: {} };
+  return { businesses: {}, customers: {}, invoices: {}, quotes: {}, settings: {} };
 }
 
 async function loadGuestWorkspace(db, guestId) {
@@ -937,6 +1346,12 @@ function applyGuestMutation(workspace, mutation) {
       }
       return { ok: true, status: "sent", note: "Guest trial — email not sent. Upgrade to Cloud." };
     }
+    case "create_quote":
+    case "update_quote_status":
+    case "delete_quote":
+    case "enqueue_quote_email":
+    case "convert_quote_to_invoice":
+      return { ok: true, skipped: true, note: "Quotes require a Cloud account." };
     default:
       return { ok: false, error: `Unknown mutation: ${type}` };
   }
@@ -949,6 +1364,7 @@ export async function handleGuestDocumentsRoute(request, env, path, guestId) {
       businesses: ws.businesses,
       customers: ws.customers,
       invoices: ws.invoices,
+      quotes: ws.quotes || {},
       settings: ws.settings,
     });
   }

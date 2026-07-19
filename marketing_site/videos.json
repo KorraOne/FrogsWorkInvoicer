@@ -188,6 +188,25 @@
       "published": false
     },
     {
+      "id": "quotes",
+      "title": "Send a quote or price estimate",
+      "category": "quotes",
+      "file": "quotes.mp4",
+      "poster": "posters/quotes.jpg",
+      "duration_seconds": 45,
+      "device": "iphone",
+      "steps": [
+        "Open Settings → General and turn on Enable quotes",
+        "Open the Quotes tab between Home and Invoices",
+        "Create a quote or price estimate with customer and line items",
+        "Send it by email (the PDF has no How to pay block)",
+        "When they accept, open the sent quote and choose Create invoice",
+        "Optional: use the From quote / Converted to invoice links to jump between the two"
+      ],
+      "related_issues": ["how-to-send-quotes"],
+      "published": false
+    },
+    {
       "id": "dashboard",
       "title": "Use the dashboard",
       "category": "dashboard",

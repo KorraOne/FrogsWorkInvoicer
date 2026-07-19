@@ -112,6 +112,22 @@ CREATE TABLE IF NOT EXISTS doc_invoices (
 CREATE INDEX IF NOT EXISTS idx_doc_invoices_user_number
   ON doc_invoices(user_id, invoice_number);
 
+CREATE TABLE IF NOT EXISTS doc_quotes (
+  user_id INTEGER NOT NULL,
+  quote_key TEXT NOT NULL,
+  quote_number INTEGER NOT NULL,
+  data_json TEXT NOT NULL,
+  revision INTEGER NOT NULL DEFAULT 1,
+  updated_at TEXT NOT NULL,
+  pdf_status TEXT NOT NULL DEFAULT 'pending',
+  pdf_r2_key TEXT,
+  PRIMARY KEY (user_id, quote_key),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_doc_quotes_user_number
+  ON doc_quotes(user_id, quote_number);
+
 CREATE TABLE IF NOT EXISTS guest_workspaces (
   guest_id TEXT PRIMARY KEY,
   created_at TEXT NOT NULL,
@@ -125,6 +141,7 @@ CREATE TABLE IF NOT EXISTS email_outbox (
   guest_id TEXT,
   invoice_number INTEGER NOT NULL,
   invoice_key TEXT,
+  doc_type TEXT NOT NULL DEFAULT 'invoice',
   status TEXT NOT NULL DEFAULT 'pending',
   attempts INTEGER NOT NULL DEFAULT 0,
   last_error TEXT,

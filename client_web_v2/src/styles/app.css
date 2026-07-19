@@ -296,6 +296,21 @@ body.app-flow-immersive {
 }
 .card strong { font-size: 1.05rem; }
 .card .meta { font-size: 0.9rem; color: var(--fw-text-muted); margin-top: 0.25rem; }
+.card .meta-link {
+  display: inline-block;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--fw-green-800);
+  background: var(--fw-surface-muted);
+  border: 1px solid var(--fw-border);
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  margin-top: 0.15rem;
+  cursor: pointer;
+  text-align: left;
+}
+.card .meta-link:active { background: var(--fw-surface-hover); }
 .card .actions { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.6rem; }
 
 .badge {
@@ -668,6 +683,11 @@ fieldset.field { border: 1px solid var(--fw-border); border-radius: 8px; padding
 .badge-send_queued, .badge-send_failed { background: #fef3c7; color: #92400e; }
 .badge-sent { background: #dbeafe; color: #1e40af; }
 .badge-paid { background: #dcfce7; color: #166534; }
+.badge-closed { background: #f1f5f9; color: #475569; }
+.badge-converted { background: #dcfce7; color: #166534; }
+
+.quote-stats .preview-section { margin-top: 0.35rem; }
+.quote-stats .preview-row { padding: 0.25rem 0; }
 
 .classic-title {
   font-size: 1.25rem;

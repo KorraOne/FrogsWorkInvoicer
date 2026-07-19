@@ -72,7 +72,7 @@ export async function renderSettings(panel: HTMLElement, ctx: AppContext) {
     </a>
     <a class="nav-card" href="#settings/general">
       <span class="nav-card-title">General</span>
-      <span class="nav-card-hint">Payment terms and email sending</span>
+      <span class="nav-card-hint">Payment terms, email, and quotes</span>
     </a>
     <a class="nav-card" href="#settings/account">
       <span class="nav-card-title">Account</span>
@@ -84,7 +84,9 @@ export async function renderSettings(panel: HTMLElement, ctx: AppContext) {
     </a>`;
 }
 
-function renderGeneralHub(panel: HTMLElement) {
+async function renderGeneralHub(panel: HTMLElement) {
+  const settings = await cache.getSettings();
+  const quotesEnabled = Boolean(settings.quotes_enabled);
   panel.innerHTML = `
     <h2 class="section-title">General</h2>
     <a class="nav-card" href="#settings/payment-terms">
@@ -95,16 +97,37 @@ function renderGeneralHub(panel: HTMLElement) {
       <span class="nav-card-title">Email sending</span>
       <span class="nav-card-hint">CC, BCC, or no copy to you</span>
     </a>
+    <section class="panel" style="margin-top:0.75rem">
+      <h3 class="settings-subhead" style="margin-top:0">Quotes</h3>
+      <p class="hint">Show a Quotes tab for quotes and price estimates. Off by default.</p>
+      <label class="checkbox">
+        <input type="checkbox" id="quotes-enabled" ${quotesEnabled ? "checked" : ""}>
+        Enable quotes
+      </label>
+    </section>
     <button type="button" class="btn secondary" id="back-settings">Back</button>`;
   panel.querySelector("#back-settings")?.addEventListener("click", () =>
     router.navigate("settings")
   );
+  panel.querySelector("#quotes-enabled")?.addEventListener("change", async (e) => {
+    const checked = (e.target as HTMLInputElement).checked;
+    try {
+      await upsertSettings({ quotes_enabled: checked });
+      const nav = document.getElementById("nav-quotes") as HTMLElement | null;
+      if (nav) nav.hidden = !checked;
+      showToast(checked ? "Quotes enabled." : "Quotes hidden.", "success");
+    } catch (ex) {
+      showToast(ex instanceof Error ? ex.message : "Could not save.", "error");
+      (e.target as HTMLInputElement).checked = !checked;
+    }
+  });
 }
 
 function renderHelp(panel: HTMLElement) {
   panel.innerHTML = `
     <h2 class="section-title">Help &amp; support</h2>
     <p class="hint">Same resources as <a href="${SUPPORT_HUB_URL}" target="_blank" rel="noopener">frogswork.com/support</a>.</p>
+    <p class="hint">To send quotes or price estimates, turn on <strong>Enable quotes</strong> under Settings → General.</p>
     <a class="nav-card" href="${SUPPORT_ISSUES_URL}" target="_blank" rel="noopener">
       <span class="nav-card-title">Frequent issues</span>
       <span class="nav-card-hint">Install, sign-in, sync, and WebView2</span>

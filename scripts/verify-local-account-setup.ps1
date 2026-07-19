@@ -153,22 +153,22 @@ try {
     Pop-Location
 }
 
-# PWA domain tests if node available
+# Cloud app tests if Node is available
 $node = Get-Command node -ErrorAction SilentlyContinue
 if ($node) {
-    Push-Location (Join-Path $Root "client_web")
+    Push-Location (Join-Path $Root "client_web_v2")
     try {
-        & node --test js/domain/domain.test.js 2>&1 | Out-Null
+        & npm test 2>&1 | Out-Null
         if ($LASTEXITCODE -eq 0) {
-            Pass "PWA domain unit tests (node)"
+            Pass "Cloud app unit tests (Vitest)"
         } else {
-            Fail "PWA domain unit tests failed"
+            Fail "Cloud app unit tests failed"
         }
     } finally {
         Pop-Location
     }
 } else {
-    Write-Host "[SKIP] Node not found - PWA domain tests" -ForegroundColor Yellow
+    Write-Host "[SKIP] Node not found - cloud app tests" -ForegroundColor Yellow
 }
 
 if ($marketingProc) {
@@ -196,5 +196,5 @@ Write-Host "  3. Set STRIPE_PRICE_* in account_api/dev/.dev.vars (run setup_stri
 Write-Host "  4. Terminal C: .\scripts\start-dev.ps1  (desktop on :5000)"
 Write-Host "  5. Signup: $MarketingUrl/account/signup.html -> choose plan -> Stripe test card 4242..."
 Write-Host "  6. Desktop Sign in -> web login -> should return to http://127.0.0.1:5000/account/auth/callback"
-Write-Host "  7. PWA: http://127.0.0.1:8090 -> Sign in (Cloud) or Upgrade to Cloud"
+Write-Host "  7. Cloud app: http://127.0.0.1:8090 -> Sign in with an active subscription"
 exit 0

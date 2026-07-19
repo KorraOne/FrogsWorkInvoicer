@@ -151,6 +151,7 @@ export async function purgeUserCloudData(env, userId) {
   const counts = {};
   for (const [label, sql] of [
     ["doc_invoices", "DELETE FROM doc_invoices WHERE user_id = ?"],
+    ["doc_quotes", "DELETE FROM doc_quotes WHERE user_id = ?"],
     ["doc_businesses", "DELETE FROM doc_businesses WHERE user_id = ?"],
     ["doc_customers", "DELETE FROM doc_customers WHERE user_id = ?"],
     ["doc_settings", "DELETE FROM doc_settings WHERE user_id = ?"],
@@ -223,6 +224,33 @@ async function loadExportSnapshot(db, user) {
     };
   }
 
+  const quotes = {};
+  try {
+    const quoteRows = await db
+      .prepare(
+        "SELECT quote_key, quote_number, data_json, pdf_status, pdf_r2_key FROM doc_quotes WHERE user_id = ?"
+      )
+      .bind(userId)
+      .all();
+    for (const row of quoteRows.results || []) {
+      let data = {};
+      try {
+        data = JSON.parse(row.data_json || "{}");
+      } catch {
+        data = {};
+      }
+      quotes[row.quote_key] = {
+        ...data,
+        quote_key: row.quote_key,
+        quote_number: row.quote_number,
+        pdf_status: row.pdf_status || null,
+        _pdf_r2_key: row.pdf_r2_key || null,
+      };
+    }
+  } catch {
+    /* table may not exist yet */
+  }
+
   let settings = {};
   const settingsRow = await db
     .prepare("SELECT data_json FROM doc_settings WHERE user_id = ?")
@@ -242,8 +270,41 @@ async function loadExportSnapshot(db, user) {
     businesses,
     customers,
     invoices,
+    quotes,
     settings,
   };
+}
+
+function invoiceExportBucket(inv) {
+  if (inv.deleted_at) return "_deleted";
+  const status = String(inv.status || "not_sent").toLowerCase();
+  if (status === "paid") return "paid";
+  if (status === "sent") return "sent_not_paid";
+  return "not_sent";
+}
+
+function quoteExportBucket(quote) {
+  if (quote.deleted_at) return "_deleted";
+  const status = String(quote.status || "not_sent").toLowerCase();
+  if (status === "sent") return "sent";
+  if (status === "closed") return "closed";
+  if (status === "converted") return "converted";
+  return "not_sent";
+}
+
+function safeExportBaseName(prefix, number, date, key) {
+  const num = number != null ? String(number) : "unknown";
+  const datePart = String(date || "nodate").slice(0, 10).replace(/[^\w.-]+/g, "_");
+  const keySuffix = String(key || "")
+    .replace(/[^\w.-]+/g, "_")
+    .slice(0, 12);
+  const safeNum = num.replace(/[^\w.-]+/g, "_");
+  return `${prefix}_${safeNum}_${datePart}_${keySuffix}`;
+}
+
+function stripPdfKey(doc) {
+  const { _pdf_r2_key, ...rest } = doc;
+  return rest;
 }
 
 async function cancelStripeSubscriptions(stripe, customerId) {
@@ -270,58 +331,133 @@ export async function handleAccountExport(request, env, auth) {
   const snapshot = await loadExportSnapshot(env.DB, auth.user);
   const files = [];
   const encoder = new TextEncoder();
+  const stamp = new Date().toISOString().slice(0, 10);
+  const root = `frogswork_data_export_${stamp}`;
 
-  const invoicesForJson = {};
-  for (const [key, inv] of Object.entries(snapshot.invoices)) {
-    const { _pdf_r2_key, ...rest } = inv;
-    invoicesForJson[key] = rest;
-  }
-  const exportJson = {
-    exported_at: snapshot.exported_at,
-    email: snapshot.email,
-    businesses: snapshot.businesses,
-    customers: snapshot.customers,
-    invoices: invoicesForJson,
-    settings: snapshot.settings,
-    note: "This file is for your records. FrogsWork cannot restore it into your Cloud account.",
-  };
+  const readme = [
+    "FrogsWork Cloud data export",
+    "",
+    "This archive is for your records. It cannot be re-imported into FrogsWork.",
+    "",
+    "account.json       — account email / export metadata",
+    "businesses.json    — business profiles",
+    "customers.json     — customers",
+    "settings.json      — app settings",
+    "invoices/          — invoices grouped by status",
+    "  not_sent/        — draft / send_queued / send_failed",
+    "  sent_not_paid/   — sent, awaiting payment",
+    "  paid/            — paid",
+    "  _deleted/        — soft-deleted invoices",
+    "quotes/            — quotes / price estimates grouped by status",
+    "  not_sent/        — draft / send_queued / send_failed",
+    "  sent/            — sent, awaiting reply",
+    "  closed/          — closed (not accepted)",
+    "  converted/       — converted to an invoice (see converted_invoice_id)",
+    "  _deleted/        — soft-deleted quotes",
+    "",
+    "Each document folder contains paired .json and .pdf files when a PDF was stored.",
+  ].join("\n");
+
+  files.push({ name: `${root}/README.txt`, data: encoder.encode(readme) });
   files.push({
-    name: "frogswork-export.json",
-    data: encoder.encode(JSON.stringify(exportJson, null, 2)),
+    name: `${root}/account.json`,
+    data: encoder.encode(
+      JSON.stringify(
+        {
+          exported_at: snapshot.exported_at,
+          email: snapshot.email,
+          note: "This archive is for your records. FrogsWork cannot restore it into your Cloud account.",
+        },
+        null,
+        2
+      )
+    ),
+  });
+  files.push({
+    name: `${root}/businesses.json`,
+    data: encoder.encode(JSON.stringify(snapshot.businesses, null, 2)),
+  });
+  files.push({
+    name: `${root}/customers.json`,
+    data: encoder.encode(JSON.stringify(snapshot.customers, null, 2)),
+  });
+  files.push({
+    name: `${root}/settings.json`,
+    data: encoder.encode(JSON.stringify(snapshot.settings, null, 2)),
   });
 
   const bucket = documentsBucket(env);
   let pdfCount = 0;
-  let totalBytes = files[0].data.length;
-  if (bucket) {
-    for (const inv of Object.values(snapshot.invoices)) {
-      const r2Key = inv._pdf_r2_key;
-      if (!r2Key) continue;
-      if (pdfCount >= MAX_EXPORT_PDFS) {
-        return textError(
-          "Export is too large (too many PDFs). Contact support if you need a full archive.",
-          413
-        );
-      }
-      const obj = await bucket.get(r2Key);
-      if (!obj) continue;
-      const buf = new Uint8Array(await obj.arrayBuffer());
-      totalBytes += buf.length;
-      if (totalBytes > MAX_EXPORT_BYTES) {
-        return textError(
-          "Export is too large. Contact support if you need a full archive.",
-          413
-        );
-      }
-      const num = inv.invoice_number != null ? String(inv.invoice_number) : inv.invoice_key;
-      const safe = String(num).replace(/[^\w.-]+/g, "_");
-      files.push({ name: `pdfs/${safe}.pdf`, data: buf });
-      pdfCount += 1;
+  let totalBytes = files.reduce((n, f) => n + f.data.length, 0);
+
+  async function addDocPair(folderKind, bucketName, baseName, doc) {
+    const jsonBytes = encoder.encode(JSON.stringify(stripPdfKey(doc), null, 2));
+    totalBytes += jsonBytes.length;
+    if (totalBytes > MAX_EXPORT_BYTES) {
+      throw new Error("EXPORT_TOO_LARGE");
     }
+    files.push({
+      name: `${root}/${folderKind}/${bucketName}/${baseName}.json`,
+      data: jsonBytes,
+    });
+
+    const r2Key = doc._pdf_r2_key;
+    if (!r2Key || !bucket) return;
+    if (pdfCount >= MAX_EXPORT_PDFS) {
+      throw new Error("EXPORT_TOO_MANY_PDFS");
+    }
+    const obj = await bucket.get(r2Key);
+    if (!obj) return;
+    const buf = new Uint8Array(await obj.arrayBuffer());
+    totalBytes += buf.length;
+    if (totalBytes > MAX_EXPORT_BYTES) {
+      throw new Error("EXPORT_TOO_LARGE");
+    }
+    files.push({
+      name: `${root}/${folderKind}/${bucketName}/${baseName}.pdf`,
+      data: buf,
+    });
+    pdfCount += 1;
+  }
+
+  try {
+    for (const [key, inv] of Object.entries(snapshot.invoices)) {
+      const folder = invoiceExportBucket(inv);
+      const base = safeExportBaseName(
+        "Invoice",
+        inv.invoice_number,
+        inv.invoice_date,
+        key
+      );
+      await addDocPair("invoices", folder, base, inv);
+    }
+    for (const [key, quote] of Object.entries(snapshot.quotes || {})) {
+      const folder = quoteExportBucket(quote);
+      const base = safeExportBaseName(
+        "Quote",
+        quote.quote_number,
+        quote.quote_date || quote.invoice_date,
+        key
+      );
+      await addDocPair("quotes", folder, base, quote);
+    }
+  } catch (exc) {
+    if (String(exc.message) === "EXPORT_TOO_MANY_PDFS") {
+      return textError(
+        "Export is too large (too many PDFs). Contact support if you need a full archive.",
+        413
+      );
+    }
+    if (String(exc.message) === "EXPORT_TOO_LARGE") {
+      return textError(
+        "Export is too large. Contact support if you need a full archive.",
+        413
+      );
+    }
+    throw exc;
   }
 
   const zip = buildZip(files);
-  const stamp = new Date().toISOString().slice(0, 10);
   return new Response(zip, {
     status: 200,
     headers: {

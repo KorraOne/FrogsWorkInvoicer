@@ -1,14 +1,15 @@
 import { normalizeInvoicesMap } from "../domain/invoiceIdentity";
+import { normalizeQuotesMap } from "../domain/quoteIdentity";
 
 const DB_NAME = "frogswork_v2";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
-      for (const store of ["businesses", "customers", "invoices", "settings", "sync_queue"]) {
+      for (const store of ["businesses", "customers", "invoices", "quotes", "settings", "sync_queue"]) {
         if (!db.objectStoreNames.contains(store)) db.createObjectStore(store);
       }
     };
@@ -46,6 +47,10 @@ export const cache = {
     normalizeInvoicesMap(await getJson("invoices", {} as Record<string, Record<string, unknown>>)),
   saveInvoices: (v: Record<string, Record<string, unknown>>) =>
     putJson("invoices", normalizeInvoicesMap(v)),
+  getQuotes: async () =>
+    normalizeQuotesMap(await getJson("quotes", {} as Record<string, Record<string, unknown>>)),
+  saveQuotes: (v: Record<string, Record<string, unknown>>) =>
+    putJson("quotes", normalizeQuotesMap(v)),
   getSettings: () => getJson("settings", {} as Record<string, unknown>),
   saveSettings: (v: Record<string, unknown>) => putJson("settings", v),
   getQueue: () =>
@@ -59,6 +64,7 @@ export const cache = {
     await putJson("businesses", {});
     await putJson("customers", {});
     await putJson("invoices", {});
+    await putJson("quotes", {});
     await putJson("settings", {});
     await putJson("sync_queue", []);
   },

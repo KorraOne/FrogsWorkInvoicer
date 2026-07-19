@@ -11,6 +11,11 @@ const ALLOWED_MUTATIONS = new Set([
   "delete_invoice",
   "upsert_settings",
   "enqueue_email_send",
+  "create_quote",
+  "update_quote_status",
+  "delete_quote",
+  "enqueue_quote_email",
+  "convert_quote_to_invoice",
 ]);
 
 export function isPdfBytes(bytes) {

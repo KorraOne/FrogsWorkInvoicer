@@ -219,7 +219,7 @@ See also [`account_api/worker/README.md`](../account_api/worker/README.md).
 
 | Setting | Value |
 |---------|--------|
-| Source | [`client_web_v2/`](../client_web_v2/) (v2 rebuild; legacy in `client_web_legacy/`) |
+| Source | [`client_web_v2/`](../client_web_v2/) |
 | Build | `cd client_web_v2` then `npm install` and `npm run build` |
 | Deploy | `npx wrangler pages deploy dist --project-name frogswork-app` |
 | Custom domain | `app.frogswork.com` in Cloudflare Pages dashboard |
@@ -246,6 +246,7 @@ npx wrangler d1 execute frogswork-account --remote --file=..\migrations\009_emai
 npx wrangler d1 execute frogswork-account --remote --file=..\migrations\010_analytics_rebuild.sql
 npx wrangler d1 execute frogswork-account --remote --file=..\migrations\011_user_subscription_lifecycle.sql
 npx wrangler d1 execute frogswork-account --remote --file=..\migrations\012_auth_handoff_codes.sql
+npx wrangler d1 execute frogswork-account --remote --file=..\migrations\013_doc_quotes.sql
 npm run deploy
 ```
 

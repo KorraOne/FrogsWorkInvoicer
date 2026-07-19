@@ -118,6 +118,7 @@ export async function buildMetricsSummary(db) {
     db,
     `SELECT COUNT(DISTINCT user_id) AS c FROM (
        SELECT user_id FROM doc_invoices
+       UNION SELECT user_id FROM doc_quotes
        UNION SELECT user_id FROM doc_customers
        UNION SELECT user_id FROM doc_businesses
        UNION SELECT user_id FROM doc_settings
@@ -248,6 +249,32 @@ export async function buildMetricsSummary(db) {
 
   const accountsWithDevices = devicePerUser.length;
 
+  const quotePerUser = await rows(
+    db,
+    `SELECT user_id, COUNT(*) AS n FROM doc_quotes GROUP BY user_id`
+  ).catch(() => []);
+  const quoteCounts = quotePerUser.map((r) => Number(r.n) || 0);
+  const quoteSum = quoteCounts.reduce((a, b) => a + b, 0);
+  const quotesConverted = await scalar(
+    db,
+    `SELECT COUNT(*) AS c FROM doc_quotes
+     WHERE json_extract(data_json, '$.status') = 'converted'
+       AND (json_extract(data_json, '$.deleted_at') IS NULL
+            OR json_extract(data_json, '$.deleted_at') = '')`
+  ).catch(() => 0);
+  const quotesSentIsh = await scalar(
+    db,
+    `SELECT COUNT(*) AS c FROM doc_quotes
+     WHERE json_extract(data_json, '$.status') IN ('sent', 'closed', 'converted')
+       AND (json_extract(data_json, '$.deleted_at') IS NULL
+            OR json_extract(data_json, '$.deleted_at') = '')`
+  ).catch(() => 0);
+  const quotesEnabledAccounts = await scalar(
+    db,
+    `SELECT COUNT(*) AS c FROM doc_settings
+     WHERE json_extract(data_json, '$.quotes_enabled') IN (1, true, 'true', '1')`
+  ).catch(() => 0);
+
   return {
     generated_at: new Date().toISOString(),
     accounts: {
@@ -275,6 +302,13 @@ export async function buildMetricsSummary(db) {
       due_rule_types: dueTypes,
       settings_due_defaults: settingsDueDefaults,
       sent_ish_count: sentInvoices,
+    },
+    quotes: {
+      total: quoteSum,
+      sent_ish_count: quotesSentIsh,
+      converted_count: quotesConverted,
+      convert_rate_pct: pct(quotesConverted, quotesSentIsh),
+      accounts_enabled: quotesEnabledAccounts,
     },
     customers: {
       total: customersTotal,

@@ -9,7 +9,7 @@ import { renderClassicInvoice } from "./pdf/templates/classic.js";
 export async function buildInvoicePdf(invoice, business = {}, customer = {}, opts = {}) {
   const templateId = opts.templateId || business.pdf_template || invoice.pdf_template || "classic";
   if (templateId === "classic") {
-    return renderClassicInvoice(invoice, business, customer);
+    return renderClassicInvoice(invoice, business, customer, opts);
   }
   throw new Error(`Unknown PDF template: ${templateId}`);
 }

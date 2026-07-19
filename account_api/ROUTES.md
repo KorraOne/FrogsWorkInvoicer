@@ -53,9 +53,10 @@ Add printed `STRIPE_PRICE_*` values to `client_app/production.env` and `account_
 | GET | `/entitlements` | Bearer | Subscription status + `portal_url`, `storage_tier` (always `"cloud"`), `platforms`, `email_verified` |
 | POST | `/mobile/v1/session` | No | Body `{ email, password }` → tokens + `account` (PWA v2) |
 | GET | `/mobile/v1/account` | Bearer | Slim account: `email`, `active`, `storage_tier` (always `"cloud"`), `portal_url`, `email_verified` |
-| GET | `/mobile/v1/bootstrap` | Bearer | Cloud-only snapshot (same as `/documents/bootstrap`) |
+| GET | `/mobile/v1/bootstrap` | Bearer | Cloud-only snapshot (same as `/documents/bootstrap`; includes `quotes`) |
 | POST | `/mobile/v1/sync` | Bearer | Cloud-only mutation sync |
-| GET | `/mobile/v1/invoices/:n/pdf` | Bearer | Cloud-only PDF |
+| GET | `/mobile/v1/invoices/:n/pdf` | Bearer | Cloud-only invoice PDF |
+| GET | `/mobile/v1/quotes/:id/pdf` | Bearer | Cloud-only quote PDF |
 | POST | `/telemetry/heartbeat` | No | Anonymous install heartbeat + usage aggregates |
 | POST | `/telemetry/event` | No | Idempotent funnel events (`first_invoice`, `uninstall`, …) |
 | GET | `/metrics/summary` | Bearer `METRICS_TOKEN` | Privacy-friendly product aggregates (local dashboard) |
@@ -63,7 +64,7 @@ Add printed `STRIPE_PRICE_*` values to `client_app/production.env` and `account_
 | GET | `/releases/latest` | No | In-app update metadata (see below) |
 | POST | `/guest/session` | No (CORS `app.frogswork.com`, localhost:8090) | Guest cloud trial → `{ guest_id, guest_token, expires_at }` |
 | POST | `/email/invoices/:n/send` | Bearer access + active subscription | Local-tier relay send — body `{ pdf_b64, customer_email, filename?, subject?, body_text? }`; no D1/R2 persist |
-| GET | `/documents/bootstrap` | Bearer access or guest (cloud tier for users) | Full snapshot: businesses, customers, invoices, settings |
+| GET | `/documents/bootstrap` | Bearer access or guest (cloud tier for users) | Full snapshot: businesses, customers, invoices, quotes, settings |
 | POST | `/documents/migrate` | Bearer access or guest (cloud tier for users) | Import local backup JSON payload (max 5 MB) |
 | POST | `/documents/sync` | Bearer access or guest (cloud tier for users) | Body `{ mutations: [...] }` — offline queue replay |
 | GET | `/documents/invoices/:n/pdf` | Bearer access or guest | PDF as `{ filename, content_b64 }` |

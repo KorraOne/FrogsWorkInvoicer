@@ -38,7 +38,7 @@ cd marketing_site
 python -m http.server 8080
 ```
 
-1. Start API: `.\scripts\start-pwa-dev.ps1` (or account API on `:8787`)
+1. Start API: `cd account_api\worker; npx wrangler dev --port 8787` (or run `.\scripts\start-pwa-dev.ps1` from the repository root to start both the API and cloud app)
 2. Set payment links in browser console (or run `.\scripts\sync-marketing-account-config.ps1` after filling `production.env`):
 
    ```javascript

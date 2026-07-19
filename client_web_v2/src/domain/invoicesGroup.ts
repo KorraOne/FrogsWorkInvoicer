@@ -118,8 +118,13 @@ export function filterInvoices(
     if (to && String(inv.invoice_date || "") > to) return false;
     if (q) {
       const lineItems = (inv.line_items as Array<Record<string, unknown>> | undefined) || [];
+      const padded = String(Math.max(0, parseInt(String(inv.invoice_number), 10) || 0)).padStart(
+        8,
+        "0"
+      );
       const hay = [
         String(inv.invoice_number),
+        padded,
         inv.customer_name,
         inv.description,
         lineItems.map((i) => i.description).join(" "),

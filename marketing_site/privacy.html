@@ -39,7 +39,7 @@
         <p>When you register, we store your email and a hashed password. Stripe handles subscription billing. We link your account to a Stripe customer ID and subscription status.</p>
 
         <h2>Invoice and business data</h2>
-        <p>With an active Cloud subscription, invoice records (business details, customers, invoice JSON) are stored in our Cloudflare D1 database, scoped to your account. Invoice PDFs are stored in our Cloudflare R2 bucket. Email sending uses Resend through our API.</p>
+        <p>With an active Cloud subscription, invoice and quote records (business details, customers, invoice/quote JSON) are stored in our Cloudflare D1 database, scoped to your account. PDFs are stored in our Cloudflare R2 bucket. Email sending uses Resend through our API. Optional quotes and price estimates are stored the same way when you enable Quotes in the app.</p>
         <p>Data is protected by HTTPS in transit and account access controls. Clients may keep a local cache (for example IndexedDB in the browser, or WebView2 storage in the desktop shell) to work when briefly offline.</p>
 
         <h2>Desktop shell</h2>
@@ -63,8 +63,8 @@
         <p>We keep account and Cloud document data while your account is active and as needed for billing and legal obligations.</p>
         <p>In the Cloud app under <strong>Settings → Account</strong> you can:</p>
         <ul>
-            <li><strong>Download my data</strong> — a ZIP of your Cloud JSON and invoice PDFs for your own records (FrogsWork cannot restore an export into your account).</li>
-            <li><strong>Delete all my data</strong> — permanently erase your Cloud businesses, customers, invoices, and PDFs while keeping your login and subscription.</li>
+            <li><strong>Download my data</strong> — a ZIP of your Cloud data grouped by type and status (invoices, quotes, businesses, customers) plus PDFs for your own records (FrogsWork cannot restore an export into your account).</li>
+            <li><strong>Delete all my data</strong> — permanently erase your Cloud businesses, customers, invoices, quotes, and PDFs while keeping your login and subscription.</li>
             <li><strong>Delete account</strong> — cancel billing and permanently erase your account and Cloud data.</li>
             <li><strong>Manage subscription</strong> — cancel or change plan in Stripe’s Customer Portal.</li>
         </ul>

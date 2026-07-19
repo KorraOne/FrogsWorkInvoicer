@@ -1,30 +1,19 @@
-import { fetchInvoicePdf } from "../api/mobile";
-import {
-  disclosureBlockHtml,
-  dueRuleFieldsHtml,
-  formSectionHtml,
-  wireDisclosure,
-  wireDueRuleToggles,
-} from "../components/forms";
-import {
-  collapsedDueSummaryText,
-  dueCountdownForInvoice,
-  duePrefsForNewInvoice,
-  dueRuleFromFormData,
-  invoiceDueSummary,
-} from "../domain/dueDates";
+import { fetchQuotePdf } from "../api/mobile";
+import { formSectionHtml } from "../components/forms";
 import { confirmSheet, emptyStateHtml, openSheet, showToast, wireSheetGrabDismiss } from "../components/ui";
 import { trackEvent } from "../lib/analytics";
 import { cache } from "../data/idb";
 import {
+  convertQuoteToInvoice,
   flushQueue,
   newInvoiceId,
+  newQuoteId,
   pullBootstrap,
-  queueEmailSend,
-  reconcileEmailSendStatus,
-  saveInvoicePackage,
-  softDeleteInvoice,
-  updateInvoiceStatus,
+  queueQuoteEmail,
+  reconcileQuoteEmailSendStatus,
+  saveQuotePackage,
+  softDeleteQuote,
+  updateQuoteStatus,
   upsertCustomer,
 } from "../data/sync";
 import {
@@ -47,33 +36,31 @@ import {
   suggestedInvoiceNumber,
   todayIso,
 } from "../domain/invoiceFormat";
+import { quoteStorageKey, suggestedQuoteNumber } from "../domain/quoteIdentity";
 import {
-  findInvoiceNumberConflicts,
-  invoiceStorageKey,
-} from "../domain/invoiceIdentity";
-import {
-  openQuotesFiltered,
-  registerInvoiceListFilter,
+  openInvoicesFiltered,
+  registerQuoteListFilter,
 } from "../domain/crossDocNav";
 import {
-  countActiveFilters,
-  filterInvoices,
-  invoicesByStatus,
+  countActiveQuoteFilters,
+  daysSinceSent,
+  docKindLabel,
+  filterQuotes,
+  quotesByStatus,
   statusLabel,
-  type InvoiceFilters,
-} from "../domain/invoicesGroup";
+  type QuoteFilters,
+} from "../domain/quotesGroup";
 import { esc } from "../lib/escape";
 import { filesToWorkPhotos } from "../lib/images";
 import { router } from "../router";
 import type { AppContext } from "../types";
 
-let filterState: InvoiceFilters = {};
+let filterState: QuoteFilters = {};
+let filtersOpen = false;
 let draft: Record<string, unknown> | null = null;
 let draftPhotos: string[] = [];
-let filtersOpen = false;
-/** One-off customers for the current create flow (not persisted to customers list). */
+/** One-off customers for the current create flow. */
 let ephemeralCustomers: Record<string, Record<string, unknown>> = {};
-/** Blob URL for the success-screen PDF embed; revoke on leave. */
 let successPdfUrl: string | null = null;
 
 type DraftLine = {
@@ -85,17 +72,6 @@ type DraftLine = {
 };
 
 let draftLines: DraftLine[] = [];
-
-export function openInvoicesFiltered(q: string) {
-  filterState = { q: String(q || "").trim() };
-  filtersOpen = true;
-  router.navigate("invoices");
-}
-
-registerInvoiceListFilter((q) => {
-  filterState = { q };
-  filtersOpen = true;
-});
 
 function newDraftLineId(): string {
   return `line_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -115,30 +91,25 @@ function revokeSuccessPdfUrl() {
   }
 }
 
-/** Persist live create-form fields into `draft` before a remount (e.g. after photos). */
 function captureCreateFormState(panel: HTMLElement) {
-  const form = panel.querySelector("#create-invoice-form") as HTMLFormElement | null;
+  const form = panel.querySelector("#create-quote-form") as HTMLFormElement | null;
   if (!form) return;
   const fd = new FormData(form);
-  const customerName = String(fd.get("customer") || "").trim();
-  const businessName = String(fd.get("business") || "").trim();
   draft = {
     ...(draft || {}),
-    customer_name: customerName || draft?.customer_name || "",
-    business_name: businessName || draft?.business_name || "",
-    invoice_number: String(fd.get("invoice_number") || draft?.invoice_number || "").trim(),
-    invoice_date: String(fd.get("invoice_date") || draft?.invoice_date || "").trim(),
-    due_rule_type: String(fd.get("due_rule_type") || draft?.due_rule_type || "").trim(),
-    due_net_days: Number(fd.get("due_net_days") ?? draft?.due_net_days ?? 7),
-    due_fixed_date: String(fd.get("due_fixed_date") || draft?.due_fixed_date || "").trim(),
+    customer_name: String(fd.get("customer") || draft?.customer_name || "").trim(),
+    business_name: String(fd.get("business") || draft?.business_name || "").trim(),
+    quote_number: String(fd.get("quote_number") || draft?.quote_number || "").trim(),
+    quote_date: String(fd.get("quote_date") || draft?.quote_date || "").trim(),
+    doc_kind: String(fd.get("doc_kind") || draft?.doc_kind || "quote").trim(),
     comment: String(fd.get("comment") || "").trim(),
   };
 }
 
-function loadInvoiceIntoCreateDraft(inv: Record<string, unknown>) {
-  draft = { ...inv };
-  draftPhotos = [...((inv.work_photos_b64 as string[]) || [])];
-  const items = (inv.line_items as Array<Record<string, unknown>> | undefined) || [];
+function loadQuoteIntoCreateDraft(quote: Record<string, unknown>) {
+  draft = { ...quote };
+  draftPhotos = [...((quote.work_photos_b64 as string[]) || [])];
+  const items = (quote.line_items as Array<Record<string, unknown>> | undefined) || [];
   draftLines = items.map((item) => ({
     id: newDraftLineId(),
     description: String(item.description || ""),
@@ -153,9 +124,9 @@ function sleep(ms: number) {
 }
 
 async function fetchPdfBlob(
-  invoiceId: string
+  quoteId: string
 ): Promise<{ blob: Blob; filename: string; url: string }> {
-  const key = String(invoiceId || "").trim();
+  const key = String(quoteId || "").trim();
   let lastErr: unknown;
   for (let attempt = 0; attempt < 8; attempt++) {
     if (attempt > 0) await sleep(700);
@@ -167,12 +138,12 @@ async function fetchPdfBlob(
           /* fetch may still generate */
         }
       }
-      const data = await fetchInvoicePdf(key);
+      const data = await fetchQuotePdf(key);
       const binary = atob(data.content_b64);
       const bytes = new Uint8Array(binary.length);
       for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
       const blob = new Blob([bytes], { type: "application/pdf" });
-      const filename = String(data.filename || `Invoice_${key}.pdf`).trim() || "invoice.pdf";
+      const filename = String(data.filename || `Quote_${key}.pdf`).trim() || "quote.pdf";
       const url = URL.createObjectURL(blob);
       return { blob, filename, url };
     } catch (ex) {
@@ -185,33 +156,20 @@ async function fetchPdfBlob(
 function downloadPdf(url: string, filename: string) {
   const a = document.createElement("a");
   a.href = url;
-  a.download = filename || "invoice.pdf";
+  a.download = filename || "quote.pdf";
   a.rel = "noopener";
   document.body.appendChild(a);
   a.click();
   a.remove();
 }
 
-async function openPdf(invoiceId: string) {
-  const { url, filename } = await fetchPdfBlob(invoiceId);
+async function openPdf(quoteId: string) {
+  const { url, filename } = await fetchPdfBlob(quoteId);
   try {
     downloadPdf(url, filename);
   } finally {
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
   }
-}
-
-function customerFilterNames(
-  customers: Record<string, Record<string, unknown>>,
-  invoices: Record<string, Record<string, unknown>>
-): string[] {
-  const names = new Set(Object.keys(customers));
-  for (const inv of Object.values(invoices)) {
-    if (inv.deleted_at) continue;
-    const n = String(inv.customer_name || "").trim();
-    if (n) names.add(n);
-  }
-  return [...names].sort();
 }
 
 function resolveCustomerProfile(
@@ -221,7 +179,7 @@ function resolveCustomerProfile(
   return customers[name] || ephemeralCustomers[name] || {};
 }
 
-function snapshotCustomerOntoInvoice(
+function snapshotCustomerOntoDoc(
   customerName: string,
   profile: Record<string, unknown>
 ): Record<string, unknown> {
@@ -253,39 +211,96 @@ function readDraftLineRows(gstReg: boolean) {
   }));
 }
 
-export async function renderInvoices(panel: HTMLElement, ctx: AppContext): Promise<void> {
+export function openQuotesFiltered(q: string) {
+  filterState = { q: String(q || "").trim() };
+  filtersOpen = true;
+  router.navigate("quotes");
+}
+
+registerQuoteListFilter((q) => {
+  filterState = { q };
+  filtersOpen = true;
+});
+
+function customerFilterNames(
+  customers: Record<string, Record<string, unknown>>,
+  quotes: Record<string, Record<string, unknown>>
+): string[] {
+  const names = new Set(Object.keys(customers));
+  for (const quote of Object.values(quotes)) {
+    if (quote.deleted_at) continue;
+    const n = String(quote.customer_name || "").trim();
+    if (n) names.add(n);
+  }
+  return [...names].sort();
+}
+
+function searchQFromNumber(raw: unknown): string {
+  const n = parseInt(String(raw ?? ""), 10);
+  return Number.isFinite(n) && n > 0 ? String(n) : String(raw || "").trim();
+}
+
+function convertedInvoiceMeta(
+  quote: Record<string, unknown>,
+  invoices: Record<string, Record<string, unknown>>
+): string {
+  const id = String(quote.converted_invoice_id || "").trim();
+  let num = quote.converted_invoice_number;
+  let exists = false;
+  if (id && invoices[id] && !invoices[id].deleted_at) {
+    exists = true;
+    if (num == null || num === "") num = invoices[id].invoice_number;
+  } else if (num != null && num !== "") {
+    const target = Number(num);
+    exists = Object.values(invoices).some(
+      (inv) => !inv.deleted_at && Number(inv.invoice_number) === target
+    );
+  } else if (id) {
+    return `<div class="meta">Converted to invoice (removed)</div>`;
+  } else {
+    return "";
+  }
+  if (num == null || num === "") return "";
+  const display = formatInvoiceNumber(num as string | number);
+  const q = searchQFromNumber(num);
+  if (exists && q) {
+    return `<div class="meta"><button type="button" class="meta-link" data-action="goto-invoice" data-q="${esc(q)}">Converted to invoice #${display} ›</button></div>`;
+  }
+  return `<div class="meta">Converted to invoice #${display}</div>`;
+}
+
+export async function renderQuotes(panel: HTMLElement, ctx: AppContext): Promise<void> {
   if (router.sub === "create") return renderCreate(panel, ctx);
   if (router.sub === "success") return renderSuccess(panel, ctx);
 
-  const [invoices, customers, businesses, settings, quotes] = await Promise.all([
-    cache.getInvoices(),
+  const [quotes, customers, businesses, invoices] = await Promise.all([
+    cache.getQuotes(),
     cache.getCustomers(),
     cache.getBusinesses(),
-    cache.getSettings(),
-    cache.getQuotes(),
+    cache.getInvoices(),
   ]);
 
-  const filtered = filterInvoices(invoices, filterState);
+  const filtered = filterQuotes(quotes, filterState);
   const filteredMap = Object.fromEntries(
-    filtered.map((inv) => [invoiceStorageKey(inv), inv])
+    filtered.map((q) => [quoteStorageKey(q), q])
   );
-  const { groups, sentTotal } = invoicesByStatus(filteredMap, settings);
+  const { groups } = quotesByStatus(filteredMap);
   const multiBiz = Object.keys(businesses).length > 1;
-  const customerNames = customerFilterNames(customers, invoices);
+  const customerNames = customerFilterNames(customers, quotes);
   const businessNames = Object.keys(businesses).sort();
-  const activeFilterCount = countActiveFilters(filterState);
+  const activeFilterCount = countActiveQuoteFilters(filterState);
   const totalCount =
-    groups.not_sent.length + groups.sent.length + groups.paid.length;
+    groups.not_sent.length + groups.sent.length + groups.closed.length + groups.converted.length;
 
   panel.innerHTML = `
     <div class="panel-header">
-      <h2>Past invoices</h2>
-      <button type="button" class="btn small primary" id="new-invoice">Create</button>
+      <h2>Quotes</h2>
+      <button type="button" class="btn small primary" id="new-quote">Create</button>
     </div>
     <button type="button" class="btn small secondary filters-toggle" id="toggle-filters">
       Filters${activeFilterCount ? ` · ${activeFilterCount} active` : ""} ▾
     </button>
-    <form id="invoice-filters" class="panel filters-panel" ${filtersOpen ? "" : "hidden"}>
+    <form id="quote-filters" class="panel filters-panel" ${filtersOpen ? "" : "hidden"}>
       <div class="field"><label>Search</label><input name="q" value="${esc(filterState.q || "")}" placeholder="Number, customer, description"></div>
       <div class="field-row">
         <div class="field"><label>Status</label>
@@ -293,7 +308,8 @@ export async function renderInvoices(panel: HTMLElement, ctx: AppContext): Promi
             <option value="">All</option>
             <option value="not_sent" ${filterState.status === "not_sent" ? "selected" : ""}>Not sent</option>
             <option value="sent" ${filterState.status === "sent" ? "selected" : ""}>Sent</option>
-            <option value="paid" ${filterState.status === "paid" ? "selected" : ""}>Paid</option>
+            <option value="closed" ${filterState.status === "closed" ? "selected" : ""}>Closed</option>
+            <option value="converted" ${filterState.status === "converted" ? "selected" : ""}>Converted</option>
           </select></div>
         <div class="field"><label>Customer</label>
           <select name="customer"><option value="">All</option>
@@ -326,150 +342,119 @@ export async function renderInvoices(panel: HTMLElement, ctx: AppContext): Promi
     </form>
     ${
       totalCount
-        ? `${renderGroup("Not sent yet", "not_sent", groups.not_sent, settings, multiBiz, quotes, activeFilterCount > 0)}
-           ${renderGroup(`Sent, awaiting payment (${formatMoney(sentTotal)} owing)`, "sent", groups.sent, settings, multiBiz, quotes, activeFilterCount > 0)}
-           ${renderGroup("Paid", "paid", groups.paid, settings, multiBiz, quotes, activeFilterCount > 0)}`
-        : emptyStateHtml(
-            "No invoices yet",
-            "Create a sales invoice for a customer.",
-            "empty-create",
-            "Create sales invoice"
-          )
+        ? `${renderGroup("Not sent", "not_sent", groups.not_sent, multiBiz, invoices, activeFilterCount > 0)}
+           ${renderGroup("Sent", "sent", groups.sent, multiBiz, invoices, activeFilterCount > 0)}
+           ${renderGroup("Closed", "closed", groups.closed, multiBiz, invoices, activeFilterCount > 0)}
+           ${renderGroup("Converted", "converted", groups.converted, multiBiz, invoices, activeFilterCount > 0)}`
+        : activeFilterCount
+          ? `<div class="panel"><p class="hint">No matching quotes.</p>
+             <button type="button" class="btn small ghost" id="clear-filters-empty">Clear filters</button></div>`
+          : emptyStateHtml(
+              "No quotes yet",
+              "Create a quote or price estimate for a customer.",
+              "empty-create",
+              "Create quote"
+            )
     }`;
 
-  panel.querySelector("#new-invoice")?.addEventListener("click", () =>
-    router.navigate("invoices", "create")
+  panel.querySelector("#new-quote")?.addEventListener("click", () =>
+    router.navigate("quotes", "create")
   );
   panel.querySelector("#empty-create")?.addEventListener("click", () =>
-    router.navigate("invoices", "create")
+    router.navigate("quotes", "create")
   );
   panel.querySelector("#toggle-filters")?.addEventListener("click", () => {
     filtersOpen = !filtersOpen;
-    renderInvoices(panel, ctx);
+    renderQuotes(panel, ctx);
   });
-  panel.querySelector("#invoice-filters")?.addEventListener("submit", (e) => {
+  panel.querySelector("#quote-filters")?.addEventListener("submit", (e) => {
     e.preventDefault();
     const fd = new FormData(e.target as HTMLFormElement);
-    filterState = Object.fromEntries(fd.entries()) as InvoiceFilters;
-    renderInvoices(panel, ctx);
+    filterState = Object.fromEntries(fd.entries()) as QuoteFilters;
+    renderQuotes(panel, ctx);
   });
-  panel.querySelector("#clear-filters")?.addEventListener("click", () => {
+  const clearFilters = () => {
     filterState = {};
-    renderInvoices(panel, ctx);
-  });
-  wireListActions(panel, ctx, customers);
-}
-
-function searchQFromNumber(raw: unknown): string {
-  const n = parseInt(String(raw ?? ""), 10);
-  return Number.isFinite(n) && n > 0 ? String(n) : String(raw || "").trim();
-}
-
-function sourceQuoteMeta(
-  inv: Record<string, unknown>,
-  quotes: Record<string, Record<string, unknown>>
-): string {
-  const id = String(inv.source_quote_id || "").trim();
-  let num = inv.source_quote_number;
-  let sourceQuote = id && quotes[id] && !quotes[id].deleted_at ? quotes[id] : null;
-
-  if (!sourceQuote) {
-    // Older converts only stored the link on the quote side; reverse-lookup by
-    // converted_invoice_id / converted_invoice_number.
-    const invKey = invoiceStorageKey(inv);
-    const invNum = Number(inv.invoice_number);
-    sourceQuote =
-      Object.values(quotes).find(
-        (q) =>
-          !q.deleted_at &&
-          String(q.status || "") === "converted" &&
-          (String(q.converted_invoice_id || "") === invKey ||
-            (q.converted_invoice_number != null &&
-              Number(q.converted_invoice_number) === invNum))
-      ) || null;
-  }
-
-  if (sourceQuote) {
-    num = sourceQuote.quote_number;
-  } else if (num == null || num === "") {
-    return id ? `<div class="meta">From quote (removed)</div>` : "";
-  }
-
-  if (num == null || num === "") return "";
-  const display = formatInvoiceNumber(num as string | number);
-  const q = searchQFromNumber(num);
-  if (sourceQuote && q) {
-    return `<div class="meta"><button type="button" class="meta-link" data-action="goto-quote" data-q="${esc(q)}">From quote #${display} ›</button></div>`;
-  }
-  return `<div class="meta">From quote #${display}</div>`;
+    renderQuotes(panel, ctx);
+  };
+  panel.querySelector("#clear-filters")?.addEventListener("click", clearFilters);
+  panel.querySelector("#clear-filters-empty")?.addEventListener("click", clearFilters);
+  wireListActions(panel, ctx, customers, businesses);
 }
 
 function renderGroup(
   title: string,
   key: string,
   items: Record<string, unknown>[],
-  settings: Record<string, unknown>,
   multiBiz: boolean,
-  quotes: Record<string, Record<string, unknown>>,
+  invoices: Record<string, Record<string, unknown>>,
   forceOpen = false
 ) {
   if (!items.length) {
     return `<details class="invoice-group"><summary>${title} (0)</summary><p class="hint">None</p></details>`;
   }
-  const open = forceOpen || key !== "paid";
+  const open = forceOpen || key === "not_sent" || key === "sent";
   return `<details class="invoice-group" ${open ? "open" : ""}>
     <summary>${title} (${items.length})</summary>
-    ${items.map((inv) => invoiceCard(inv, settings, multiBiz, quotes)).join("")}
+    ${items.map((q) => quoteCard(q, multiBiz, invoices)).join("")}
   </details>`;
 }
 
-function invoiceCard(
-  inv: Record<string, unknown>,
-  settings: Record<string, unknown>,
+function quoteCard(
+  quote: Record<string, unknown>,
   multiBiz: boolean,
-  quotes: Record<string, Record<string, unknown>>
+  invoices: Record<string, Record<string, unknown>>
 ) {
-  const n = Number(inv.invoice_number);
-  const id = esc(invoiceStorageKey(inv));
-  const status = String(inv.status || "not_sent");
-  const countdown =
-    status === "sent" ? dueCountdownForInvoice(inv, new Date(), settings) : null;
+  const n = Number(quote.quote_number);
+  const id = esc(quoteStorageKey(quote));
+  const status = String(quote.status || "not_sent");
+  const kind = docKindLabel(String(quote.doc_kind || "quote"));
   const canSend = ["not_sent", "send_failed"].includes(status);
-  return `<article class="card" data-inv="${id}">
+  const days = status === "sent" ? daysSinceSent(quote) : null;
+  const daysLabel =
+    days == null
+      ? ""
+      : days === 0
+        ? "Sent today"
+        : days === 1
+          ? "Sent 1 day ago"
+          : `Sent ${days} days ago`;
+  return `<article class="card" data-quote="${id}">
     <div class="card-top">
-      <strong>#${formatInvoiceNumber(n)}</strong>
+      <strong>${esc(kind)} #${formatInvoiceNumber(n)}</strong>
       <span class="badge badge-${status}">${statusLabel(status)}</span>
     </div>
-    <div class="meta">${formatInvoiceDate(String(inv.invoice_date || ""))} · ${esc(String(inv.customer_name || ""))}</div>
-    ${multiBiz && inv.business_name ? `<div class="meta">From: ${esc(String(inv.business_name))}</div>` : ""}
-    <div class="meta">${formatMoney(Number(inv.total_inc_gst || 0))} · ${esc(lineItemsSummary(inv))}</div>
-    ${
-      countdown
-        ? `<div class="meta countdown-${countdown.kind}">${countdown.label} (${countdown.due_date_fmt})</div>`
-        : ""
-    }
-    ${sourceQuoteMeta(inv, quotes)}
+    <div class="meta">${formatInvoiceDate(String(quote.quote_date || ""))} · ${esc(String(quote.customer_name || ""))}</div>
+    ${multiBiz && quote.business_name ? `<div class="meta">From: ${esc(String(quote.business_name))}</div>` : ""}
+    <div class="meta">${formatMoney(Number(quote.total_inc_gst || 0))} · ${esc(lineItemsSummary(quote))}</div>
+    ${daysLabel ? `<div class="meta">${esc(daysLabel)}</div>` : ""}
+    ${status === "converted" ? convertedInvoiceMeta(quote, invoices) : ""}
     <div class="actions">
       ${canSend ? `<button class="btn small primary" data-action="send" data-id="${id}">Send</button>` : ""}
-      ${status === "sent" ? `<button class="btn small primary" data-action="paid" data-id="${id}">Mark paid</button>` : ""}
+      ${
+        status === "sent"
+          ? `<button class="btn small primary" data-action="convert" data-id="${id}">Create invoice</button>
+             <button class="btn small secondary" data-action="close" data-id="${id}">Close</button>`
+          : ""
+      }
       <button class="btn small secondary" data-action="pdf" data-id="${id}">View PDF</button>
       <button class="btn small ghost" data-action="more" data-id="${id}" data-n="${n}" aria-label="More actions">···</button>
     </div>
   </article>`;
 }
 
-/** Re-paint invoice list after async email status lands in cache. */
-async function refreshInvoicesListIfVisible(ctx: AppContext) {
-  if (router.tab !== "invoices" || router.sub) return;
-  const listPanel = document.getElementById("tab-invoices") as HTMLElement | null;
+async function refreshQuotesListIfVisible(ctx: AppContext) {
+  if (router.tab !== "quotes" || router.sub) return;
+  const listPanel = document.getElementById("tab-quotes") as HTMLElement | null;
   if (!listPanel) return;
-  await renderInvoices(listPanel, ctx);
+  await renderQuotes(listPanel, ctx);
 }
 
 function wireListActions(
   panel: HTMLElement,
   ctx: AppContext,
-  customers: Record<string, Record<string, unknown>>
+  customers: Record<string, Record<string, unknown>>,
+  businesses: Record<string, Record<string, unknown>>
 ) {
   panel.querySelectorAll("[data-action]").forEach((btn) => {
     btn.addEventListener("click", async () => {
@@ -480,37 +465,40 @@ function wireListActions(
       try {
         if (action === "send") {
           showToast("Sending…", "success");
-          const sendResult = await queueEmailSend(id);
-          trackEvent("send_invoice");
+          const sendResult = await queueQuoteEmail(id);
+          trackEvent("send_quote");
           await flushQueue(ctx.onSyncStatus);
           if (sendResult.finalStatus === "sent") {
-            showToast("Invoice sent.", "success");
+            showToast("Quote sent.", "success");
           } else if (sendResult.finalStatus === "send_failed") {
             showToast("Send failed. Check the customer email and try again.", "error");
           } else {
-            void reconcileEmailSendStatus(id).then(async (status) => {
-              if (status === "sent") showToast("Invoice sent.", "success");
+            void reconcileQuoteEmailSendStatus(id).then(async (status) => {
+              if (status === "sent") showToast("Quote sent.", "success");
               else if (status === "send_failed") {
                 showToast("Send failed. Check the customer email and try again.", "error");
               }
-              await refreshInvoicesListIfVisible(ctx);
+              await refreshQuotesListIfVisible(ctx);
             });
           }
-        } else if (action === "paid") {
-          await updateInvoiceStatus(id, "paid");
+        } else if (action === "close") {
+          await updateQuoteStatus(id, "closed");
           await flushQueue(ctx.onSyncStatus);
-          showToast("Marked as paid.", "success");
+          showToast("Quote closed.", "success");
+        } else if (action === "convert") {
+          await convertQuoteAndOpenInvoice(panel, ctx, id, businesses);
+          return;
         } else if (action === "pdf") {
           await openPdf(id);
-        } else if (action === "goto-quote") {
+        } else if (action === "goto-invoice") {
           const q = String(el.dataset.q || "").trim();
-          if (q) openQuotesFiltered(q);
+          if (q) openInvoicesFiltered(q);
           return;
         } else if (action === "more") {
-          await handleMoreActions(panel, ctx, id, n, customers);
+          await handleMoreActions(panel, ctx, id, n, customers, businesses);
           return;
         }
-        await renderInvoices(panel, ctx);
+        await renderQuotes(panel, ctx);
       } catch (ex) {
         showToast(ex instanceof Error ? ex.message : "Action failed.", "error");
       }
@@ -518,48 +506,115 @@ function wireListActions(
   });
 }
 
+async function convertQuoteAndOpenInvoice(
+  _panel: HTMLElement,
+  ctx: AppContext,
+  quoteId: string,
+  businesses: Record<string, Record<string, unknown>>
+) {
+  const quotes = await cache.getQuotes();
+  const quote = quotes[quoteId];
+  if (!quote) throw new Error("Quote not found.");
+  const invoices = await cache.getInvoices();
+  const businessName = String(quote.business_name || "").trim();
+  const biz = businesses[businessName] || {};
+  const invoiceNumber = suggestedInvoiceNumber(businessName, biz, invoices);
+  const invoiceId = newInvoiceId();
+  const invoicePayload: Record<string, unknown> = {
+    invoice_id: invoiceId,
+    invoice_number: invoiceNumber,
+    invoice_date: todayIso(),
+    customer_name: quote.customer_name,
+    customer_email: quote.customer_email,
+    customer_abn: quote.customer_abn,
+    address_line1: quote.address_line1,
+    address_line2: quote.address_line2,
+    suburb: quote.suburb,
+    state: quote.state,
+    postcode: quote.postcode,
+    business_name: businessName,
+    line_items: quote.line_items,
+    description: quote.description,
+    amount_ex_gst: quote.amount_ex_gst,
+    gst_amount: quote.gst_amount,
+    total_inc_gst: quote.total_inc_gst,
+    taxable_ex_gst: quote.taxable_ex_gst,
+    gst_free_ex_gst: quote.gst_free_ex_gst,
+    gst_registered: quote.gst_registered,
+    comment: quote.comment,
+    work_photos_b64: quote.work_photos_b64 || [],
+    status: "not_sent",
+    pdf_status: "pending",
+    source_quote_id: quoteId,
+    source_quote_number: quote.quote_number,
+  };
+  const savedInvoiceId = await convertQuoteToInvoice(quoteId, invoicePayload, {
+    preparePdf: true,
+    businessName,
+    usedInvoiceNumber: invoiceNumber,
+  });
+  await flushQueue(ctx.onSyncStatus);
+  showToast("Invoice created from quote.", "success");
+  router.navigate("invoices", "success", { name: savedInvoiceId });
+}
+
 async function handleMoreActions(
   panel: HTMLElement,
   ctx: AppContext,
-  invoiceId: string,
+  quoteId: string,
   n: number,
-  _customers: Record<string, Record<string, unknown>>
+  _customers: Record<string, Record<string, unknown>>,
+  businesses: Record<string, Record<string, unknown>>
 ) {
+  const quotes = await cache.getQuotes();
+  const quote = quotes[quoteId];
+  const status = String(quote?.status || "not_sent");
+  const actions = [
+    ...(status === "sent"
+      ? [
+          { id: "convert", label: "Create invoice", className: "btn primary" },
+          { id: "closed", label: "Close", className: "btn secondary" },
+        ]
+      : []),
+    { id: "edit", label: "Edit", className: "btn secondary" },
+    { id: "delete", label: "Remove", className: "btn danger" },
+    { id: "cancel", label: "Cancel", className: "btn ghost" },
+  ];
   const choice = await openSheet({
     title: `#${formatInvoiceNumber(n)}`,
-    bodyHtml: `<p class="hint">Move status or remove this invoice.</p>`,
-    actions: [
-      { id: "not_sent", label: "Move to Not sent", className: "btn secondary" },
-      { id: "sent", label: "Move to Sent", className: "btn secondary" },
-      { id: "paid", label: "Move to Paid", className: "btn secondary" },
-      { id: "delete", label: "Remove", className: "btn danger" },
-      { id: "cancel", label: "Cancel", className: "btn ghost" },
-    ],
+    bodyHtml: `<p class="hint">Edit, convert, or remove this quote.</p>`,
+    actions,
   });
   if (!choice || choice === "cancel") return;
   try {
     if (choice === "delete") {
-      const ok = await confirmSheet(`Remove invoice #${formatInvoiceNumber(n)}?`, "Remove");
+      const ok = await confirmSheet(`Remove quote #${formatInvoiceNumber(n)}?`, "Remove");
       if (!ok) return;
-      await softDeleteInvoice(invoiceId);
+      await softDeleteQuote(quoteId);
       await flushQueue(ctx.onSyncStatus);
-      showToast("Invoice removed.", "success");
-    } else {
-      await updateInvoiceStatus(invoiceId, choice);
+      showToast("Quote removed.", "success");
+      await renderQuotes(panel, ctx);
+    } else if (choice === "closed") {
+      await updateQuoteStatus(quoteId, "closed");
       await flushQueue(ctx.onSyncStatus);
-      showToast(`Moved to ${statusLabel(choice)}.`, "success");
+      showToast("Quote closed.", "success");
+      await renderQuotes(panel, ctx);
+    } else if (choice === "convert") {
+      await convertQuoteAndOpenInvoice(panel, ctx, quoteId, businesses);
+    } else if (choice === "edit") {
+      if (quote) loadQuoteIntoCreateDraft(quote);
+      router.navigate("quotes", "create");
     }
-    await renderInvoices(panel, ctx);
   } catch (ex) {
     showToast(ex instanceof Error ? ex.message : "Action failed.", "error");
   }
 }
 
 async function renderCreate(panel: HTMLElement, ctx: AppContext) {
-  const [businesses, customers, invoices, settings] = await Promise.all([
+  const [businesses, customers, quotes, settings] = await Promise.all([
     cache.getBusinesses(),
     cache.getCustomers(),
-    cache.getInvoices(),
+    cache.getQuotes(),
     cache.getSettings(),
   ]);
   const bizNames = Object.keys(businesses);
@@ -567,35 +622,27 @@ async function renderCreate(panel: HTMLElement, ctx: AppContext) {
     settings.default_business && businesses[String(settings.default_business)]
       ? String(settings.default_business)
       : bizNames[0] || "";
-  const restoring = Boolean(draft?.customer_name || draft?.invoice_number);
+  const restoring = Boolean(draft?.customer_name || draft?.quote_number);
   const selectedBiz =
     restoring && draft?.business_name && businesses[String(draft.business_name)]
       ? String(draft.business_name)
       : defaultBiz;
   const biz = businesses[selectedBiz] || {};
   const gstReg = anyBusinessGstRegistered(businesses);
-  const suggested = suggestedInvoiceNumber(selectedBiz, biz, invoices);
+  const suggested = suggestedQuoteNumber(selectedBiz, biz, quotes);
   const selectedCustomer = restoring ? String(draft?.customer_name || "") : "";
-  const invoiceNumberValue = restoring
-    ? String(draft?.invoice_number ?? suggested)
+  const quoteNumberValue = restoring
+    ? String(draft?.quote_number ?? suggested)
     : String(suggested);
-  const invoiceDateValue = restoring
-    ? String(draft?.invoice_date || todayIso())
+  const quoteDateValue = restoring
+    ? String(draft?.quote_date || todayIso())
     : todayIso();
-  const duePrefs = restoring
-    ? {
-        due_rule_type: String(draft?.due_rule_type || "net_days"),
-        due_net_days: Number(draft?.due_net_days ?? 7),
-        due_fixed_date: String(draft?.due_fixed_date || ""),
-      }
-    : duePrefsForNewInvoice(settings, todayIso());
-  const dueSummary0 = invoiceDueSummary(
-    invoiceDateValue,
-    duePrefs.due_rule_type,
-    duePrefs.due_net_days,
-    duePrefs.due_fixed_date
-  );
-  // Ensure one-off customers from the draft stay selectable after edit → create
+  const docKind = restoring
+    ? String(draft?.doc_kind || "quote").toLowerCase() === "estimate"
+      ? "estimate"
+      : "quote"
+    : "quote";
+
   if (selectedCustomer && !customers[selectedCustomer] && !ephemeralCustomers[selectedCustomer]) {
     ephemeralCustomers[selectedCustomer] = {
       email: draft?.customer_email || "",
@@ -610,10 +657,8 @@ async function renderCreate(panel: HTMLElement, ctx: AppContext) {
   const custNames = [
     ...new Set([...Object.keys(customers), ...Object.keys(ephemeralCustomers)]),
   ].sort();
-  const invNumDisplay = formatInvoiceNumber(
-    Number(invoiceNumberValue) || invoiceNumberValue
-  );
-  const dateDisplay = formatInvoiceDate(invoiceDateValue);
+  const numDisplay = formatInvoiceNumber(Number(quoteNumberValue) || quoteNumberValue);
+  const dateDisplay = formatInvoiceDate(quoteDateValue);
 
   const photoThumbs = draftPhotos
     .map(
@@ -622,14 +667,13 @@ async function renderCreate(panel: HTMLElement, ctx: AppContext) {
     )
     .join("");
 
-  const dueSummaryText = collapsedDueSummaryText(
-    duePrefs.due_rule_type,
-    duePrefs.due_net_days,
-    duePrefs.due_fixed_date,
-    dueSummary0.due_date_fmt
-  );
-
   const detailsBody = `
+      <div class="field"><label>Type</label>
+        <select name="doc_kind">
+          <option value="quote" ${docKind === "quote" ? "selected" : ""}>Quote</option>
+          <option value="estimate" ${docKind === "estimate" ? "selected" : ""}>Price estimate</option>
+        </select>
+      </div>
       ${
         bizNames.length > 1
           ? `<div class="field"><label>From</label><select name="business">${bizNames
@@ -642,23 +686,22 @@ async function renderCreate(panel: HTMLElement, ctx: AppContext) {
       }
       <div class="inv-meta-row">
         <div class="inv-meta-number">
-          <button type="button" class="inv-num-btn" id="inv-num-toggle" aria-expanded="false">
-            <strong id="inv-num-label">Invoice #${esc(String(invNumDisplay))}</strong>
+          <button type="button" class="inv-num-btn" id="quote-num-toggle" aria-expanded="false">
+            <strong id="quote-num-label">#${esc(String(numDisplay))}</strong>
             <span class="inv-num-hint">Change</span>
           </button>
         </div>
         <div class="inv-meta-date">
           <span class="inv-date-label">Date</span>
           <span class="inv-date-value">${esc(dateDisplay)}</span>
-          <input type="hidden" name="invoice_date" value="${esc(invoiceDateValue)}">
+          <input type="hidden" name="quote_date" value="${esc(quoteDateValue)}">
         </div>
       </div>
-      <div class="inv-num-edit" id="inv-num-edit" hidden>
-        <div class="field"><label for="invoice_number_input">Invoice number</label>
-          <input name="invoice_number" id="invoice_number_input" value="${esc(invoiceNumberValue)}" inputmode="numeric"></div>
+      <div class="inv-num-edit" id="quote-num-edit" hidden>
+        <div class="field"><label for="quote_number_input">Number</label>
+          <input name="quote_number" id="quote_number_input" value="${esc(quoteNumberValue)}" inputmode="numeric"></div>
       </div>
-      <p class="hint error-text" id="invoice-number-warn" hidden></p>
-      <input type="hidden" name="invoice_number_default" value="${esc(String(suggested))}">`;
+      <input type="hidden" name="quote_number_default" value="${esc(String(suggested))}">`;
 
   const customerBody = `
       <div class="field-row align-end customer-pick-row">
@@ -681,7 +724,7 @@ async function renderCreate(panel: HTMLElement, ctx: AppContext) {
       <div id="line-items" class="line-items-stack"></div>
       <button type="button" class="btn small ghost" id="add-line">+ Add line</button>`;
 
-  const notesBody = `<div class="field"><label>Notes (optional)</label><textarea name="comment" rows="2" placeholder="Shown on the invoice">${esc(draft?.comment || "")}</textarea></div>`;
+  const notesBody = `<div class="field"><label>Notes (optional)</label><textarea name="comment" rows="2" placeholder="Shown on the quote">${esc(String(draft?.comment || ""))}</textarea></div>`;
 
   const photosBody = `
       <p class="hint">Optional, max 6</p>
@@ -691,139 +734,70 @@ async function renderCreate(panel: HTMLElement, ctx: AppContext) {
       <p class="hint">${draftPhotos.length}/6 photos</p>`;
 
   panel.innerHTML = `
-    <form id="create-invoice-form" class="panel" novalidate>
+    <form id="create-quote-form" class="panel" novalidate>
       <div class="panel-header">
-        <h2>Create sales invoice</h2>
+        <h2>Create quote</h2>
         <button type="button" class="btn small ghost" id="cancel-create">Cancel</button>
       </div>
-      ${formSectionHtml("Invoice details", detailsBody)}
+      ${formSectionHtml("Details", detailsBody)}
       ${formSectionHtml("Customer", customerBody)}
       ${formSectionHtml("Line items", linesBody)}
-      ${formSectionHtml(
-        "Payment due",
-        disclosureBlockHtml({
-          id: "due-disclosure",
-          summaryHtml: `<span id="due-summary-text">${esc(dueSummaryText)}</span>`,
-          bodyHtml: dueRuleFieldsHtml(duePrefs, { showFixed: true }),
-          defaultOpen: false,
-          toggleLabel: "Adjust",
-          toggleLabelOpen: "Done",
-        })
-      )}
       ${formSectionHtml("Notes", notesBody)}
       ${formSectionHtml("Work photos", photosBody)}
       <div class="preview-section totals-panel" id="live-totals"></div>
       <p class="error-text" id="form-error" hidden></p>
       <div class="btn-row">
-        <button type="button" class="btn primary" id="save-invoice">Save invoice</button>
+        <button type="button" class="btn primary" id="save-quote">Save</button>
       </div>
     </form>`;
 
-  wireDueRuleToggles(panel);
-  wireDisclosure(panel, "due-disclosure", { closedLabel: "Adjust", openLabel: "Done" });
+  const form = panel.querySelector("#create-quote-form") as HTMLFormElement;
 
-  const form = panel.querySelector("#create-invoice-form") as HTMLFormElement;
-
-  const syncInvNumLabel = () => {
-    const input = panel.querySelector("#invoice_number_input") as HTMLInputElement | null;
-    const label = panel.querySelector("#inv-num-label");
+  const syncNumLabel = () => {
+    const input = panel.querySelector("#quote_number_input") as HTMLInputElement | null;
+    const label = panel.querySelector("#quote-num-label");
     if (!input || !label) return;
     try {
-      label.textContent = `Invoice #${formatInvoiceNumber(parseInvoiceNumberInput(input.value))}`;
+      label.textContent = `#${formatInvoiceNumber(parseInvoiceNumberInput(input.value))}`;
     } catch {
       /* keep */
     }
   };
 
-  const setInvNumEditOpen = (open: boolean) => {
-    const edit = panel.querySelector("#inv-num-edit") as HTMLElement | null;
-    const btn = panel.querySelector("#inv-num-toggle") as HTMLButtonElement | null;
+  const setNumEditOpen = (open: boolean) => {
+    const edit = panel.querySelector("#quote-num-edit") as HTMLElement | null;
+    const btn = panel.querySelector("#quote-num-toggle") as HTMLButtonElement | null;
     const hint = panel.querySelector(".inv-num-hint");
     if (edit) edit.hidden = !open;
     if (btn) btn.setAttribute("aria-expanded", open ? "true" : "false");
     if (hint) hint.textContent = open ? "Done" : "Change";
     if (!open) {
-      const input = panel.querySelector("#invoice_number_input") as HTMLInputElement | null;
-      const def = (panel.querySelector('[name="invoice_number_default"]') as HTMLInputElement)
+      const input = panel.querySelector("#quote_number_input") as HTMLInputElement | null;
+      const def = (panel.querySelector('[name="quote_number_default"]') as HTMLInputElement)
         ?.value;
       if (input && def && !String(input.value || "").trim()) input.value = def;
-      syncInvNumLabel();
-      refreshNumberWarn();
+      syncNumLabel();
     }
   };
 
-  panel.querySelector("#inv-num-toggle")?.addEventListener("click", () => {
-    const edit = panel.querySelector("#inv-num-edit") as HTMLElement | null;
-    setInvNumEditOpen(Boolean(edit?.hidden));
+  panel.querySelector("#quote-num-toggle")?.addEventListener("click", () => {
+    const edit = panel.querySelector("#quote-num-edit") as HTMLElement | null;
+    setNumEditOpen(Boolean(edit?.hidden));
   });
+  panel.querySelector("#quote_number_input")?.addEventListener("input", syncNumLabel);
 
-  const refreshNumberWarn = () => {
-    const warn = panel.querySelector("#invoice-number-warn") as HTMLElement | null;
-    const input = panel.querySelector("#invoice_number_input") as HTMLInputElement | null;
-    if (!warn || !input) return;
-    try {
-      const num = parseInvoiceNumberInput(input.value);
-      const bizName = String(new FormData(form).get("business") || selectedBiz);
-      const conflicts = findInvoiceNumberConflicts(invoices, num, bizName);
-      if (conflicts.active || conflicts.deleted) {
-        const parts: string[] = [];
-        if (conflicts.active) {
-          parts.push(
-            `${conflicts.active} active invoice${conflicts.active === 1 ? "" : "s"} already use this number`
-          );
-        }
-        if (conflicts.deleted) {
-          parts.push(
-            `${conflicts.deleted} removed invoice${conflicts.deleted === 1 ? "" : "s"} used this number`
-          );
-        }
-        warn.textContent = `${parts.join("; ")}. You can still reuse it — a new invoice will be created.`;
-        warn.hidden = false;
-      } else {
-        warn.textContent = "";
-        warn.hidden = true;
-      }
-    } catch {
-      warn.textContent = "";
-      warn.hidden = true;
-    }
-  };
-  panel.querySelector("#invoice_number_input")?.addEventListener("input", () => {
-    syncInvNumLabel();
-    refreshNumberWarn();
-  });
   form.querySelector('[name="business"]')?.addEventListener("change", () => {
     const bizSelect = form.querySelector('[name="business"]') as HTMLSelectElement | null;
     const bizName = bizSelect?.value || selectedBiz;
-    const nextSuggested = suggestedInvoiceNumber(bizName, businesses[bizName] || {}, invoices);
-    const defInput = form.querySelector('[name="invoice_number_default"]') as HTMLInputElement | null;
-    const numInput = form.querySelector("#invoice_number_input") as HTMLInputElement | null;
+    const nextSuggested = suggestedQuoteNumber(bizName, businesses[bizName] || {}, quotes);
+    const defInput = form.querySelector('[name="quote_number_default"]') as HTMLInputElement | null;
+    const numInput = form.querySelector("#quote_number_input") as HTMLInputElement | null;
     if (defInput) defInput.value = String(nextSuggested);
-    if (numInput && String(numInput.value) === String(invoiceNumberValue)) {
+    if (numInput && String(numInput.value) === String(quoteNumberValue)) {
       numInput.value = String(nextSuggested);
-      syncInvNumLabel();
+      syncNumLabel();
     }
-    refreshNumberWarn();
   });
-  refreshNumberWarn();
-
-  const refreshDueSummary = () => {
-    const fd = new FormData(form);
-    const due = dueRuleFromFormData(Object.fromEntries(fd.entries()), settings);
-    const invDate = String(fd.get("invoice_date") || todayIso());
-    const sum = invoiceDueSummary(invDate, due.due_rule_type, due.due_net_days, due.due_fixed_date);
-    const el = panel.querySelector("#due-summary-text");
-    if (el) {
-      el.textContent = collapsedDueSummaryText(
-        due.due_rule_type,
-        due.due_net_days,
-        due.due_fixed_date,
-        sum.due_date_fmt
-      );
-    }
-  };
-  form.addEventListener("change", refreshDueSummary);
-  form.addEventListener("input", refreshDueSummary);
 
   const refreshLineList = () => {
     const stack = panel.querySelector("#line-items") as HTMLElement | null;
@@ -863,7 +837,7 @@ async function renderCreate(panel: HTMLElement, ctx: AppContext) {
 
   panel.querySelector("#cancel-create")?.addEventListener("click", () => {
     clearCreateDraft();
-    router.navigate("invoices");
+    router.navigate("quotes");
   });
 
   panel.querySelector("#add-photos-btn")?.addEventListener("click", () => {
@@ -896,10 +870,10 @@ async function renderCreate(panel: HTMLElement, ctx: AppContext) {
     await openInlineCustomerSheet(panel, ctx);
   });
 
-  panel.querySelector("#save-invoice")?.addEventListener("click", async () => {
+  panel.querySelector("#save-quote")?.addEventListener("click", async () => {
     const err = panel.querySelector("#form-error") as HTMLElement;
     err.hidden = true;
-    const saveBtn = panel.querySelector("#save-invoice") as HTMLButtonElement | null;
+    const saveBtn = panel.querySelector("#save-quote") as HTMLButtonElement | null;
     if (saveBtn) saveBtn.disabled = true;
     try {
       const fd = new FormData(form);
@@ -909,20 +883,16 @@ async function renderCreate(panel: HTMLElement, ctx: AppContext) {
       const customerName = String(fd.get("customer") || "").trim();
       if (!customerName) throw new Error("Select a customer.");
       const custProfile = resolveCustomerProfile(customerName, customers);
-      const invoiceNumber = parseInvoiceNumberInput(String(fd.get("invoice_number")));
-      const due = dueRuleFromFormData(Object.fromEntries(fd.entries()), settings);
-      const dueSummary = invoiceDueSummary(
-        fd.get("invoice_date") || todayIso(),
-        due.due_rule_type,
-        due.due_net_days,
-        due.due_fixed_date
-      );
-      const invoiceId = String(draft?.invoice_id || "").trim() || newInvoiceId();
+      const quoteNumber = parseInvoiceNumberInput(String(fd.get("quote_number")));
+      const kind =
+        String(fd.get("doc_kind") || "quote").toLowerCase() === "estimate" ? "estimate" : "quote";
+      const quoteId = String(draft?.quote_id || "").trim() || newQuoteId();
       const toSave: Record<string, unknown> = {
-        invoice_id: invoiceId,
-        invoice_number: invoiceNumber,
-        invoice_date: String(fd.get("invoice_date") || todayIso()),
-        ...snapshotCustomerOntoInvoice(customerName, custProfile),
+        quote_id: quoteId,
+        quote_number: quoteNumber,
+        quote_date: String(fd.get("quote_date") || todayIso()),
+        doc_kind: kind,
+        ...snapshotCustomerOntoDoc(customerName, custProfile),
         business_name: businessName,
         line_items: parsed.items,
         description: parsed.items.map((i) => i.description).join("; "),
@@ -932,30 +902,21 @@ async function renderCreate(panel: HTMLElement, ctx: AppContext) {
         taxable_ex_gst: moneyStr(parsed.taxableExGst),
         gst_free_ex_gst: moneyStr(parsed.gstFreeExGst),
         gst_registered: gstRegistered,
-        due_rule_type: due.due_rule_type,
-        due_net_days: due.due_net_days,
-        due_fixed_date: due.due_fixed_date,
-        due_date: dueSummary.due_date_iso,
         comment: String(fd.get("comment") || "").trim(),
         work_photos_b64: [...draftPhotos],
         status: String(draft?.status || "not_sent"),
         pdf_status: "pending",
       };
       draft = toSave;
-      const savedId = await saveInvoicePackage({
-        invoice: toSave,
+      const savedId = await saveQuotePackage({
+        quote: toSave,
         businessName,
-        usedNumber: invoiceNumber,
-        settingsPartial: {
-          last_due_rule_type: due.due_rule_type,
-          last_due_net_days: due.due_net_days,
-          last_due_fixed_date: due.due_fixed_date || "",
-        },
+        usedNumber: quoteNumber,
         preparePdf: true,
       });
       await flushQueue(ctx.onSyncStatus);
       clearCreateDraft();
-      router.navigate("invoices", "success", { name: savedId });
+      router.navigate("quotes", "success", { name: savedId });
       await renderSuccess(panel, ctx);
     } catch (ex) {
       err.textContent = ex instanceof Error ? ex.message : "Save failed.";
@@ -978,7 +939,7 @@ async function openInlineCustomerSheet(panel: HTMLElement, ctx: AppContext) {
           <div class="field"><label>Email</label><input name="email" type="email"></div>
           ${addressFieldsHtml("", {})}
           <div class="field"><label>ABN (optional)</label><input name="abn"></div>
-          <p class="hint">Save keeps them in Customers. Use once is only for this invoice.</p>
+          <p class="hint">Save keeps them in Customers. Use once is only for this quote.</p>
           <p class="error-text" id="inline-cust-error" hidden></p>
         </form>
         <div class="sheet-actions sheet-actions-triple">
@@ -1044,7 +1005,7 @@ async function openInlineCustomerSheet(panel: HTMLElement, ctx: AppContext) {
   });
 
   if (result === "saved" || result === "once") {
-    showToast(result === "saved" ? "Customer saved." : "Customer added for this invoice.", "success");
+    showToast(result === "saved" ? "Customer saved." : "Customer added for this quote.", "success");
     captureCreateFormState(panel);
     const pre = String((draft as Record<string, unknown> | null)?._preselectCustomer || "");
     if (pre && draft) {
@@ -1323,54 +1284,52 @@ function totalsHtml(
 async function renderSuccess(panel: HTMLElement, ctx: AppContext): Promise<void> {
   revokeSuccessPdfUrl();
   const key = String(router.params.name || "").trim();
-  const [invoices, customers] = await Promise.all([
-    cache.getInvoices(),
-    cache.getCustomers(),
-  ]);
-  const inv = invoices[key];
-  if (!inv) {
-    router.navigate("invoices");
-    return renderInvoices(panel, ctx);
+  const [quotes, customers] = await Promise.all([cache.getQuotes(), cache.getCustomers()]);
+  const quote = quotes[key];
+  if (!quote) {
+    router.navigate("quotes");
+    return renderQuotes(panel, ctx);
   }
-  const n = Number(inv.invoice_number);
-  const customer = customers[String(inv.customer_name)] || {};
-  const sendEmail = String(inv.customer_email || customer.email || "").trim();
+  const n = Number(quote.quote_number);
+  const customer = customers[String(quote.customer_name)] || {};
+  const sendEmail = String(quote.customer_email || customer.email || "").trim();
   const hasEmail = Boolean(sendEmail);
-  const canSend = ["not_sent", "send_failed"].includes(String(inv.status || "not_sent"));
+  const canSend = ["not_sent", "send_failed"].includes(String(quote.status || "not_sent"));
+  const kind = docKindLabel(String(quote.doc_kind || "quote"));
 
   panel.innerHTML = `
     <section class="panel success-panel">
       <div class="panel-header">
         <div>
-          <h2>Invoice saved</h2>
-          <p class="hint">#${formatInvoiceNumber(n)} · ${formatMoney(Number(inv.total_inc_gst || 0))}</p>
+          <h2>${esc(kind)} saved</h2>
+          <p class="hint">#${formatInvoiceNumber(n)} · ${formatMoney(Number(quote.total_inc_gst || 0))}</p>
         </div>
         <button type="button" class="btn small ghost" id="success-edit">Edit</button>
       </div>
       <div class="pdf-embed-wrap" id="pdf-embed-wrap">
         <p class="hint pdf-embed-loading" id="pdf-embed-loading">Preparing PDF…</p>
-        <iframe class="pdf-embed" id="pdf-embed" title="Invoice PDF" hidden></iframe>
+        <iframe class="pdf-embed" id="pdf-embed" title="Quote PDF" hidden></iframe>
       </div>
       <p class="error-text" id="pdf-embed-error" hidden></p>
       <div class="btn-row stacked">
         <button type="button" class="btn secondary" id="success-download" disabled>Download PDF</button>
         <button type="button" class="btn primary" id="success-send" ${!hasEmail || !canSend ? "disabled" : ""}>Send to customer</button>
-        ${!hasEmail ? `<p class="hint">Add an email to send this invoice automatically.</p>` : ""}
+        ${!hasEmail ? `<p class="hint">Add an email to send this quote automatically.</p>` : ""}
         <button type="button" class="btn ghost" id="success-done">Done</button>
       </div>
     </section>`;
 
-  let pdfFilename = `Invoice_${formatInvoiceNumber(n)}.pdf`;
+  let pdfFilename = `Quote_${formatInvoiceNumber(n)}.pdf`;
 
   const leaveSuccess = () => {
     revokeSuccessPdfUrl();
-    router.navigate("invoices");
+    router.navigate("quotes");
   };
 
   panel.querySelector("#success-edit")?.addEventListener("click", () => {
     revokeSuccessPdfUrl();
-    loadInvoiceIntoCreateDraft(inv);
-    router.navigate("invoices", "create");
+    loadQuoteIntoCreateDraft(quote);
+    router.navigate("quotes", "create");
   });
 
   panel.querySelector("#success-done")?.addEventListener("click", leaveSuccess);
@@ -1386,26 +1345,26 @@ async function renderSuccess(panel: HTMLElement, ctx: AppContext): Promise<void>
   panel.querySelector("#success-send")?.addEventListener("click", async () => {
     try {
       showToast("Sending…", "success");
-      const sendResult = await queueEmailSend(key);
-      trackEvent("send_invoice");
+      const sendResult = await queueQuoteEmail(key);
+      trackEvent("send_quote");
       await flushQueue(ctx.onSyncStatus);
       if (sendResult.finalStatus === "send_failed") {
         showToast("Send failed. Check the customer email and try again.", "error");
         return;
       }
       if (sendResult.finalStatus === "sent") {
-        showToast("Invoice sent.", "success");
+        showToast("Quote sent.", "success");
         leaveSuccess();
         return;
       }
       revokeSuccessPdfUrl();
-      router.navigate("invoices");
-      void reconcileEmailSendStatus(key).then(async (status) => {
-        if (status === "sent") showToast("Invoice sent.", "success");
+      router.navigate("quotes");
+      void reconcileQuoteEmailSendStatus(key).then(async (status) => {
+        if (status === "sent") showToast("Quote sent.", "success");
         else if (status === "send_failed") {
           showToast("Send failed. Check the customer email and try again.", "error");
         }
-        await refreshInvoicesListIfVisible(ctx);
+        await refreshQuotesListIfVisible(ctx);
       });
     } catch (ex) {
       showToast(ex instanceof Error ? ex.message : "Send failed.", "error");

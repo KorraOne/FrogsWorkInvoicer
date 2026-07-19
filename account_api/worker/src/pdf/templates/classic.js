@@ -56,8 +56,9 @@ function color(c) {
  * @param {object} invoice
  * @param {object} business
  * @param {object} [customer]
+ * @param {{ docKind?: string }} [opts] — invoice | quote | estimate
  */
-export async function renderClassicInvoice(invoice, business = {}, customer = {}) {
+export async function renderClassicInvoice(invoice, business = {}, customer = {}, opts = {}) {
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
@@ -94,12 +95,23 @@ export async function renderClassicInvoice(invoice, business = {}, customer = {}
     });
   };
 
+  const docKind = String(opts.docKind || invoice.doc_kind || "invoice").toLowerCase();
+  const isQuoteDoc = docKind === "quote" || docKind === "estimate";
+
   const gstRegistered = Boolean(
     invoice.gst_registered ?? (Number(invoice.gst_amount || 0) > 0 || business.gst_registered)
   );
-  const title = gstRegistered ? "Tax Invoice" : "Invoice";
-  const invNum = formatInvoiceNumber(invoice.invoice_number);
-  const dueFmt = invoice.due_date_fmt || formatDisplayDate(invoice.due_date);
+  let title;
+  if (docKind === "estimate") title = "Price estimate";
+  else if (docKind === "quote") title = "Quote";
+  else title = gstRegistered ? "Tax Invoice" : "Invoice";
+
+  const invNum = formatInvoiceNumber(
+    isQuoteDoc ? invoice.quote_number ?? invoice.invoice_number : invoice.invoice_number
+  );
+  const dueFmt = isQuoteDoc
+    ? ""
+    : invoice.due_date_fmt || formatDisplayDate(invoice.due_date);
   const leftW = CONTENT_WIDTH * HEADER_SLOT_FRACTION;
   const rightW = CONTENT_WIDTH * (1 - HEADER_SLOT_FRACTION);
   const leftX = PAGE_MARGIN;
@@ -107,10 +119,14 @@ export async function renderClassicInvoice(invoice, business = {}, customer = {}
 
   // Header: logo | meta
   let headerBottom = y;
+  const numberLabel = isQuoteDoc ? "Quote #" : "Invoice #";
+  const dateRaw = isQuoteDoc
+    ? invoice.quote_date || invoice.invoice_date
+    : invoice.invoice_date;
   const metaLines = [
     { text: title, size: 18, bold: true },
-    { text: `Invoice # ${invNum}`, size: 10, bold: false },
-    { text: `Date ${formatDisplayDate(invoice.invoice_date)}`, size: 10, bold: false },
+    { text: `${numberLabel} ${invNum}`, size: 10, bold: false },
+    { text: `Date ${formatDisplayDate(dateRaw)}`, size: 10, bold: false },
   ];
   if (dueFmt) metaLines.push({ text: `Due ${dueFmt}`, size: 10, bold: false });
 
@@ -163,7 +179,8 @@ export async function renderClassicInvoice(invoice, business = {}, customer = {}
   }
 
   const cust = customer || {};
-  const billLines = ["BILL TO", String(invoice.customer_name || ""), ...formatAddressMultiline(cust)];
+  const billHeading = isQuoteDoc ? "QUOTE TO" : "BILL TO";
+  const billLines = [billHeading, String(invoice.customer_name || ""), ...formatAddressMultiline(cust)];
   const custAbn = cust.abn || cust.business_abn || "";
   if (custAbn) billLines.push(`ABN: ${formatAbn(custAbn)}`);
 
@@ -313,43 +330,45 @@ export async function renderClassicInvoice(invoice, business = {}, customer = {}
 
   y -= 12;
 
-  // How to pay
-  const accountName = business.account_name || "";
-  const bsb = business.bsb || "";
-  const acc = business.acc || "";
-  if (accountName || bsb || acc || dueFmt) {
-    ensure(100);
-    const boxH = 14 * (4 + (dueFmt ? 1 : 0) + 1) + 16;
-    page.drawRectangle({
-      x: PAGE_MARGIN,
-      y: y - boxH,
-      width: CONTENT_WIDTH,
-      height: boxH,
-      color: color(LIGHT_GREY),
-      borderColor: color(BORDER_GREY),
-      borderWidth: 1,
-    });
-    let py = y - 16;
-    drawText("How to pay", PAGE_MARGIN + 12, py, 11, true);
-    py -= 16;
-    if (accountName) {
-      drawText(`Account name: ${accountName}`, PAGE_MARGIN + 12, py, 10);
-      py -= 14;
+  // How to pay (invoices only — quotes/estimates omit payment)
+  if (!isQuoteDoc) {
+    const accountName = business.account_name || "";
+    const bsb = business.bsb || "";
+    const acc = business.acc || "";
+    if (accountName || bsb || acc || dueFmt) {
+      ensure(100);
+      const boxH = 14 * (4 + (dueFmt ? 1 : 0) + 1) + 16;
+      page.drawRectangle({
+        x: PAGE_MARGIN,
+        y: y - boxH,
+        width: CONTENT_WIDTH,
+        height: boxH,
+        color: color(LIGHT_GREY),
+        borderColor: color(BORDER_GREY),
+        borderWidth: 1,
+      });
+      let py = y - 16;
+      drawText("How to pay", PAGE_MARGIN + 12, py, 11, true);
+      py -= 16;
+      if (accountName) {
+        drawText(`Account name: ${accountName}`, PAGE_MARGIN + 12, py, 10);
+        py -= 14;
+      }
+      if (bsb) {
+        drawText(`BSB: ${formatBsb(bsb)}`, PAGE_MARGIN + 12, py, 10);
+        py -= 14;
+      }
+      if (acc) {
+        drawText(`Account: ${formatAccount(acc)}`, PAGE_MARGIN + 12, py, 10);
+        py -= 14;
+      }
+      if (dueFmt) {
+        drawText(`Payment due: ${dueFmt}`, PAGE_MARGIN + 12, py, 10);
+        py -= 14;
+      }
+      drawText(`Reference: Invoice #${invNum}`, PAGE_MARGIN + 12, py, 10);
+      y -= boxH + 12;
     }
-    if (bsb) {
-      drawText(`BSB: ${formatBsb(bsb)}`, PAGE_MARGIN + 12, py, 10);
-      py -= 14;
-    }
-    if (acc) {
-      drawText(`Account: ${formatAccount(acc)}`, PAGE_MARGIN + 12, py, 10);
-      py -= 14;
-    }
-    if (dueFmt) {
-      drawText(`Payment due: ${dueFmt}`, PAGE_MARGIN + 12, py, 10);
-      py -= 14;
-    }
-    drawText(`Reference: Invoice #${invNum}`, PAGE_MARGIN + 12, py, 10);
-    y -= boxH + 12;
   }
 
   if (invoice.comment) {

@@ -1,4 +1,4 @@
-/** Build cloud auto-send subject/body/filename for invoice emails. */
+/** Build cloud auto-send subject/body/filename for invoice / quote emails. */
 
 const FROGSWORK_URL = "https://frogswork.com";
 
@@ -26,6 +26,14 @@ function invoiceLabel(invoice, business) {
   );
   const gstAmount = Number(invoice?.gst_amount || invoice?.total_gst || 0);
   return gstRegistered && gstAmount > 0 ? "Tax Invoice" : "Invoice";
+}
+
+function resolveDocKind(opts = {}, doc = {}) {
+  return String(opts.docKind || doc.doc_kind || "invoice").toLowerCase();
+}
+
+function quoteLabel(docKind) {
+  return docKind === "estimate" ? "Price estimate" : "Quote";
 }
 
 function businessLookupKey(invoice, settings) {
@@ -56,16 +64,24 @@ export function buildInvoiceEmailContent({
   customer = {},
   settings = {},
   businesses = {},
-}) {
+  docKind,
+} = {}) {
+  const kind = resolveDocKind({ docKind }, invoice);
+  const isQuoteDoc = kind === "quote" || kind === "estimate";
+
   const lookupKey = businessLookupKey(invoice, settings);
   const businessName = businessDisplayName(invoice, settings, businesses);
   const business = (lookupKey && businesses[lookupKey]) || {};
-  const label = invoiceLabel(invoice, business);
-  const invNum = padInvoiceNumber(invoice?.invoice_number);
+  const label = isQuoteDoc ? quoteLabel(kind) : invoiceLabel(invoice, business);
+  const invNum = padInvoiceNumber(
+    isQuoteDoc ? invoice?.quote_number ?? invoice?.invoice_number : invoice?.invoice_number
+  );
   const customerName = String(invoice?.customer_name || customer?.name || "").trim();
   const totalFmt = formatMoneyAud(invoice?.total_inc_gst);
   const dueFmt = formatDateAud(invoice?.due_date);
-  const invDateFmt = formatDateAud(invoice?.invoice_date);
+  const invDateFmt = formatDateAud(
+    isQuoteDoc ? invoice?.quote_date || invoice?.invoice_date : invoice?.invoice_date
+  );
 
   const subject = `${label} #${invNum} from ${businessName}`;
 
@@ -76,30 +92,34 @@ export function buildInvoiceEmailContent({
     `Please find attached ${label.toLowerCase()} #${invNum} from ${businessName}${
       invDateFmt ? ` dated ${invDateFmt}` : ""
     } for ${totalFmt}.`,
-    "",
-    `Payment reference: Invoice #${invNum}`,
   ];
-  if (dueFmt) {
-    lines.push(`Payment due: ${dueFmt}`);
-  } else if (String(settings?.payment_terms || "").trim()) {
-    lines.push(`Payment terms: ${String(settings.payment_terms).trim()}`);
-  }
 
-  const bsb = String(business.bsb || "").trim();
-  const acc = String(business.acc || business.account_number || "").trim();
-  const accountName = String(business.account_name || "").trim();
-  if (bsb || acc || accountName) {
-    lines.push("", "How to pay:");
-    if (accountName) lines.push(`Account name: ${accountName}`);
-    if (bsb) lines.push(`BSB: ${bsb}`);
-    if (acc) lines.push(`Account: ${acc}`);
+  if (!isQuoteDoc) {
+    lines.push("", `Payment reference: Invoice #${invNum}`);
+    if (dueFmt) {
+      lines.push(`Payment due: ${dueFmt}`);
+    } else if (String(settings?.payment_terms || "").trim()) {
+      lines.push(`Payment terms: ${String(settings.payment_terms).trim()}`);
+    }
+
+    const bsb = String(business.bsb || "").trim();
+    const acc = String(business.acc || business.account_number || "").trim();
+    const accountName = String(business.account_name || "").trim();
+    if (bsb || acc || accountName) {
+      lines.push("", "How to pay:");
+      if (accountName) lines.push(`Account name: ${accountName}`);
+      if (bsb) lines.push(`BSB: ${bsb}`);
+      if (acc) lines.push(`Account: ${acc}`);
+    }
   }
 
   lines.push("", "Thank you,", businessName);
   lines.push(
     "",
     "—",
-    "This invoice was composed with FrogsWork Invoicer.",
+    isQuoteDoc
+      ? "This quote was composed with FrogsWork."
+      : "This invoice was composed with FrogsWork Invoicer.",
     FROGSWORK_URL
   );
 
@@ -120,10 +140,26 @@ export function buildInvoiceEmailContent({
     "\n"
   )}</div>`;
 
-  const filename =
-    String(invoice?.filename || "").trim() || `Invoice_${invNum}_${String(invoice?.invoice_date || "draft").slice(0, 10)}.pdf`;
+  const dateStamp = String(
+    (isQuoteDoc ? invoice?.quote_date || invoice?.invoice_date : invoice?.invoice_date) || "draft"
+  ).slice(0, 10);
+  const defaultName = isQuoteDoc
+    ? `Quote_${invNum}_${dateStamp}.pdf`
+    : `Invoice_${invNum}_${dateStamp}.pdf`;
+  const filename = String(invoice?.filename || "").trim() || defaultName;
 
   return { subject, text, html, filename, businessName, label };
+}
+
+/** Quote / price-estimate email (no payment / how-to-pay). */
+export function buildQuoteEmailContent(args = {}) {
+  const doc = args.quote || args.invoice || {};
+  const kind = resolveDocKind(args, doc);
+  return buildInvoiceEmailContent({
+    ...args,
+    invoice: doc,
+    docKind: kind === "estimate" ? "estimate" : "quote",
+  });
 }
 
 /** Read email copy prefs from doc_settings. One mode: off, cc, or bcc (default cc). */

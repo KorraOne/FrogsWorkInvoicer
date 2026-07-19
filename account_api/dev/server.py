@@ -145,6 +145,32 @@ def _migrate_db(db):
     db.execute(
         "CREATE INDEX IF NOT EXISTS idx_auth_handoff_codes_hash ON auth_handoff_codes(code_hash)"
     )
+    db.execute(
+        """CREATE TABLE IF NOT EXISTS doc_quotes (
+             user_id INTEGER NOT NULL,
+             quote_key TEXT NOT NULL,
+             quote_number INTEGER NOT NULL,
+             data_json TEXT NOT NULL,
+             revision INTEGER NOT NULL DEFAULT 1,
+             updated_at TEXT NOT NULL,
+             pdf_status TEXT NOT NULL DEFAULT 'pending',
+             pdf_r2_key TEXT,
+             PRIMARY KEY (user_id, quote_key),
+             FOREIGN KEY (user_id) REFERENCES users(id)
+           )"""
+    )
+    db.execute(
+        "CREATE INDEX IF NOT EXISTS idx_doc_quotes_user_number ON doc_quotes(user_id, quote_number)"
+    )
+    try:
+        outbox_cols = {row[1] for row in db.execute("PRAGMA table_info(email_outbox)").fetchall()}
+        if outbox_cols and "doc_type" not in outbox_cols:
+            db.execute(
+                "ALTER TABLE email_outbox ADD COLUMN doc_type TEXT NOT NULL DEFAULT 'invoice'"
+            )
+    except Exception:
+        pass
+
 
 def _issue_tokens(user_id, email):
     now = datetime.now(timezone.utc)

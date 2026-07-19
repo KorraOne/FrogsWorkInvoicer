@@ -5,6 +5,7 @@
         install: "Install",
         "getting-started": "Getting started",
         invoicing: "Invoicing",
+        quotes: "Quotes",
         dashboard: "Dashboard",
         subscription: "Subscription and sign-in",
         windows: "Windows desktop"
@@ -14,6 +15,7 @@
         "install",
         "getting-started",
         "invoicing",
+        "quotes",
         "dashboard",
         "subscription",
         "windows"
