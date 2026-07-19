@@ -1,4 +1,5 @@
 import { cache } from "../data/idb";
+import { isSetupBusinessComplete } from "../domain/businessCompleteness";
 import { dashboardTotals } from "../domain/invoicesGroup";
 import { formatMoney } from "../domain/invoiceFormat";
 import { isGstRegistered } from "../domain/gst";
@@ -15,8 +16,18 @@ export async function renderDashboard(panel: HTMLElement, _ctx: AppContext) {
   const defaultBizName = String(settings.default_business || Object.keys(businesses)[0] || "");
   const defaultBiz: Record<string, unknown> = businesses[defaultBizName] || {};
   const showExGst = isGstRegistered(defaultBiz);
+  const businessIncomplete = !isSetupBusinessComplete(businesses, settings);
+
+  const bannerHtml = businessIncomplete
+    ? `<div class="setup-notice" role="status">
+        <p class="setup-notice-title">Your business details aren't filled in</p>
+        <p class="hint">Add your name, email, address, and payment details so they appear on invoices.</p>
+        <button type="button" class="btn secondary" id="go-business-setup">Add business details</button>
+      </div>`
+    : "";
 
   panel.innerHTML = `
+    ${bannerHtml}
     <section class="panel">
       <h2>Sales invoice totals</h2>
       <div class="preview-section">
@@ -42,6 +53,9 @@ export async function renderDashboard(panel: HTMLElement, _ctx: AppContext) {
       <button type="button" class="btn ghost" id="go-invoices">Past invoices →</button>
     </div>`;
 
+  panel.querySelector("#go-business-setup")?.addEventListener("click", () =>
+    router.navigate("settings", "business")
+  );
   panel.querySelector("#go-create")?.addEventListener("click", () =>
     router.navigate("invoices", "create")
   );

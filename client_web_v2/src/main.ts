@@ -1,9 +1,14 @@
 import "./styles/app.css";
 import { fetchAccount } from "./api/mobile";
 import { captureAuthFromUrl, clearSession, getAccessToken } from "./auth/session";
-import { showToast } from "./components/ui";
+import { openSheet, showToast } from "./components/ui";
 import { cache } from "./data/idb";
 import { pullBootstrap, flushQueue } from "./data/sync";
+import {
+  hasSeenBusinessSetupPrompt,
+  isSetupBusinessComplete,
+  markBusinessSetupPromptSeen,
+} from "./domain/businessCompleteness";
 import { applyHostEnvironment, watchPywebviewReady, wireExternalLinks } from "./lib/host";
 import { initCloudAnalytics, trackEvent, trackScreen } from "./lib/analytics";
 import { reportDeviceSighting } from "./lib/device";
@@ -140,7 +145,7 @@ function showWelcome(message?: string, isError = false) {
     isError,
     onSuccess: (account) => {
       ctx.account = account;
-      if (account.storage_tier === "cloud" && account.active) {
+      if (account.active) {
         enterApp();
       } else {
         setScreen("upgrade");
@@ -154,6 +159,32 @@ function showUpgrade(account: MobileAccount) {
   setScreen("upgrade");
   ctx.account = account;
   renderUpgrade(root, account, () => showWelcome("Signed out."));
+}
+
+async function maybePromptBusinessSetup() {
+  const accountKey = String(ctx.account?.email || "")
+    .trim()
+    .toLowerCase();
+  if (!accountKey || hasSeenBusinessSetupPrompt(accountKey)) return;
+
+  const [businesses, settings] = await Promise.all([cache.getBusinesses(), cache.getSettings()]);
+  if (isSetupBusinessComplete(businesses, settings)) {
+    markBusinessSetupPromptSeen(accountKey);
+    return;
+  }
+
+  const action = await openSheet({
+    title: "Set up your business",
+    bodyHtml: `<p class="hint">Add your business details so they appear on invoices. You can skip and finish this later from Settings.</p>`,
+    actions: [
+      { id: "skip", label: "Skip for now", className: "btn secondary" },
+      { id: "setup", label: "Set up business", className: "btn primary" },
+    ],
+  });
+  markBusinessSetupPromptSeen(accountKey);
+  if (action === "setup") {
+    router.navigate("settings", "business");
+  }
 }
 
 async function enterApp() {
@@ -174,6 +205,7 @@ async function enterApp() {
   rememberAllowedHash(location.hash || "#home");
   router.navigate(router.tab || "home");
   await renderActive();
+  await maybePromptBusinessSetup();
 }
 
 async function renderActive() {
@@ -232,7 +264,7 @@ async function boot() {
   try {
     const account = await fetchAccount();
     ctx.account = account;
-    if (account.storage_tier === "cloud" && account.active) {
+    if (account.active) {
       await enterApp();
     } else {
       showUpgrade(account);

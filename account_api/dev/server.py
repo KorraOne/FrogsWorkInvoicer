@@ -691,9 +691,8 @@ def entitlements():
     user = g.current_user
     sub = _subscription_status(user["stripe_customer_id"])
     sub["portal_url"] = _portal_url(user["stripe_customer_id"])
-    tier = resolve_storage_tier_dev(user)
-    sub["storage_tier"] = tier
-    sub["platforms"] = {"desktop": True, "mobile": tier == "cloud"}
+    sub["storage_tier"] = "cloud"
+    sub["platforms"] = {"desktop": True, "mobile": True}
     sub["email_verified"] = is_email_verified(user)
     sub["email"] = user["email"]
     db = get_db()

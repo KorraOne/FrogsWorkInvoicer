@@ -11,24 +11,24 @@ export function gstFieldsHtml(values: Record<string, unknown> = {}): string {
         <a href="https://www.ato.gov.au/businesses-and-organisations/gst-excise-and-indirect-taxes/gst/registering-for-gst" target="_blank" rel="noopener noreferrer">ATO: registering for GST</a>
       </p>
       <select name="gst_registered" id="gst_registered">
-        <option value="yes" ${yes ? "selected" : ""}>Yes</option>
         <option value="no" ${!yes ? "selected" : ""}>No</option>
+        <option value="yes" ${yes ? "selected" : ""}>Yes</option>
       </select>
     </div>
-    <div class="field"><label>Business ABN</label>
-      <input name="business_abn" value="${esc(values.business_abn || values.abn || "")}" inputmode="numeric" placeholder="11 digits"></div>`;
+    <div class="field"><label for="business_abn">Business ABN <span class="req-mark" data-abn-req ${yes ? "" : "hidden"}>*</span><span class="opt-mark" data-abn-opt ${yes ? "hidden" : ""}>(optional)</span></label>
+      <input name="business_abn" id="business_abn" value="${esc(values.business_abn || values.abn || "")}" inputmode="numeric" placeholder="11 digits"></div>`;
 }
 
 export function bankFieldsHtml(values: Record<string, unknown> = {}): string {
   return `
     <div class="field-row">
-      <div class="field"><label>BSB</label>
-        <input name="bsb" value="${esc(values.bsb || "")}" inputmode="numeric" placeholder="000-000"></div>
-      <div class="field"><label>Account number</label>
-        <input name="acc" value="${esc(values.acc || "")}" inputmode="numeric"></div>
+      <div class="field"><label>BSB *</label>
+        <input name="bsb" value="${esc(values.bsb || "")}" inputmode="numeric" placeholder="000-000" required></div>
+      <div class="field"><label>Account number *</label>
+        <input name="acc" value="${esc(values.acc || "")}" inputmode="numeric" required></div>
     </div>
-    <div class="field"><label>Account name</label>
-      <input name="account_name" value="${esc(values.account_name || "")}"></div>`;
+    <div class="field"><label>Account name *</label>
+      <input name="account_name" value="${esc(values.account_name || "")}" required></div>`;
 }
 
 export function dueRuleFieldsHtml(
@@ -136,15 +136,15 @@ export function businessAddressFieldsHtml(record: Record<string, unknown> = {}):
     (s) => `<option value="${s}" ${record.state === s ? "selected" : ""}>${s}</option>`
   ).join("");
   return `
-    <div class="field"><label>Street or PO Box</label>
-      <input name="line1" value="${esc(record.address_line1)}" autocomplete="address-line1"></div>
+    <div class="field"><label>Street or PO Box *</label>
+      <input name="line1" value="${esc(record.address_line1)}" autocomplete="address-line1" required></div>
     <div class="field"><label>Unit, level, suite (optional)</label>
       <input name="line2" value="${esc(record.address_line2)}" autocomplete="address-line2"></div>
     <div class="field-row">
-      <div class="field"><label>Suburb</label><input name="suburb" value="${esc(record.suburb)}"></div>
-      <div class="field field-narrow"><label>State</label>
-        <select name="state"><option value="">—</option>${opts}</select></div>
-      <div class="field field-narrow"><label>Postcode</label>
-        <input name="postcode" value="${esc(record.postcode)}" inputmode="numeric" maxlength="4"></div>
+      <div class="field"><label>Suburb *</label><input name="suburb" value="${esc(record.suburb)}" required></div>
+      <div class="field field-narrow"><label>State *</label>
+        <select name="state" required><option value="">—</option>${opts}</select></div>
+      <div class="field field-narrow"><label>Postcode *</label>
+        <input name="postcode" value="${esc(record.postcode)}" inputmode="numeric" maxlength="4" required></div>
     </div>`;
 }

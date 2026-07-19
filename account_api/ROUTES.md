@@ -6,10 +6,10 @@ Base URL: `http://127.0.0.1:8787` (dev) · `https://api.frogswork.com` (prod).
 
 ## Subscribe flow (email-first)
 
-Account creation runs on **frogswork.com** (`marketing_site/account/`). Checkout uses the **Stripe Checkout Sessions API** (`POST /checkout/create-session`) with four price IDs (Local/Cloud × monthly/annual). Sync display prices via `.\scripts\sync-marketing-account-config.ps1`.
+Account creation runs on **frogswork.com** (`marketing_site/account/`). Checkout uses the **Stripe Checkout Sessions API** (`POST /checkout/create-session`) with Cloud monthly/annual price IDs (Local is retired). Sync display prices via `.\scripts\sync-marketing-account-config.ps1`.
 
 1. User creates account at `/account/signup.html` → `POST /auth/signup` → `signup_token` (pending until paid).
-2. User chooses Local or Cloud + interval at `/account/subscribe.html` → `POST /checkout/create-session` → Stripe Checkout (`customer_email` prefilled).
+2. User chooses monthly or annual Cloud at `/account/subscribe.html` → `POST /checkout/create-session` → Stripe Checkout (`customer_email` prefilled).
 3. Stripe redirects to `/account/return.html?session_id=cs_…`.
 4. Return page polls `GET /checkout/session-info` until `account_status` is `active`.
 5. Webhook `checkout.session.completed` also activates the account (idempotent).
@@ -19,7 +19,9 @@ Account creation runs on **frogswork.com** (`marketing_site/account/`). Checkout
 
 **Legacy payment-first:** `POST /auth/register` after Payment Link checkout (deprecated; kept for in-flight sessions).
 
-Create Stripe prices (metadata `storage_tier: local|cloud`):
+**Entitlement:** any Stripe subscription that is `active` or `trialing` unlocks Cloud. The `storage_tier` field is vestigial and always returned as `"cloud"` (Local is no longer a product). App gates check `active` only — do not require price metadata.
+
+Create Stripe prices (metadata `storage_tier: cloud` is optional/legacy):
 
 ```powershell
 python account_api\dev\setup_stripe_prices.py --grandfather-existing
@@ -48,9 +50,9 @@ Add printed `STRIPE_PRICE_*` values to `client_app/production.env` and `account_
 | POST | `/auth/verify-email` | No | Body: `{ token }` → `{ ok: true, verified: true }` |
 | POST | `/auth/resend-verification` | Bearer | Resend verification email → `{ ok: true, sent: true }` |
 | POST | `/auth/refresh` | No | Body: `{ refresh_token }` → new tokens |
-| GET | `/entitlements` | Bearer | Subscription status + `portal_url`, `storage_tier`, `platforms`, `email_verified` |
+| GET | `/entitlements` | Bearer | Subscription status + `portal_url`, `storage_tier` (always `"cloud"`), `platforms`, `email_verified` |
 | POST | `/mobile/v1/session` | No | Body `{ email, password }` → tokens + `account` (PWA v2) |
-| GET | `/mobile/v1/account` | Bearer | Slim account: `email`, `active`, `storage_tier`, `portal_url`, `email_verified` |
+| GET | `/mobile/v1/account` | Bearer | Slim account: `email`, `active`, `storage_tier` (always `"cloud"`), `portal_url`, `email_verified` |
 | GET | `/mobile/v1/bootstrap` | Bearer | Cloud-only snapshot (same as `/documents/bootstrap`) |
 | POST | `/mobile/v1/sync` | Bearer | Cloud-only mutation sync |
 | GET | `/mobile/v1/invoices/:n/pdf` | Bearer | Cloud-only PDF |

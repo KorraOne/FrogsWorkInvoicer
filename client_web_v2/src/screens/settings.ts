@@ -346,14 +346,24 @@ async function openTypedConfirm(opts: {
 }
 
 async function renderEmailSending(panel: HTMLElement, ctx: AppContext) {
-  const settings = await cache.getSettings();
+  const [settings, businesses] = await Promise.all([
+    cache.getSettings(),
+    cache.getBusinesses(),
+  ]);
   const selfCopy = emailSelfCopyMode(settings);
-  const accountEmail = ctx.account?.email || "your account email";
+  const defaultName = String(settings.default_business || Object.keys(businesses)[0] || "");
+  const defaultBiz = (defaultName && businesses[defaultName]) || Object.values(businesses)[0] || {};
+  const businessEmail = String(defaultBiz.email || "").trim();
+  const accountEmail = String(ctx.account?.email || "").trim();
+  const copyTarget = businessEmail || accountEmail || "your business email";
+  const copyHint = businessEmail
+    ? `Optionally send a copy to your business email (${esc(copyTarget)}). Change it under Business details.`
+    : `Optionally send a copy to your business email. Set it under Business details (defaults to your account email${accountEmail ? `: ${esc(accountEmail)}` : ""}).`;
 
   panel.innerHTML = `
     <form id="email-send-form" class="panel" novalidate>
       <h2>Email sending</h2>
-      <p class="hint">When you tap Send, the customer gets the PDF. Optionally send a copy to ${esc(accountEmail)}.</p>
+      <p class="hint">When you tap Send, the customer gets the PDF. ${copyHint}</p>
       <div class="field">
         <label for="email_self_copy">Copy to me</label>
         <select name="email_self_copy" id="email_self_copy">
@@ -503,7 +513,8 @@ async function renderBusinessForm(
     router.sub === "business-add" || !editingName || !businesses[editingName];
   const record =
     forcedRecord ?? (editingName ? businesses[editingName] || {} : {});
-  const duePrefs = dueRuleFromSettings(settings);
+  const accountEmail = String(ctx.account?.email || "").trim();
+  const emailValue = String(record.email || "").trim() || accountEmail;
   let logoState: LogoEditorState = readLogoStateFromRecord(record);
   let guard: ReturnType<typeof attachUnsavedGuard> | null = null;
 
@@ -516,16 +527,19 @@ async function renderBusinessForm(
     panel.innerHTML = `
     <form id="business-form" class="panel" novalidate>
       <h2>${isAdd ? "Add business" : "Business details"}</h2>
-      <div class="field"><label>Business name</label>
-        <input name="business_name" value="${esc(record.business_name || editingName)}" required></div>
-      <div class="field"><label>Email</label><input name="email" type="email" value="${esc(record.email)}"></div>
-      <div class="field"><label>Phone</label><input name="phone" value="${esc(record.phone)}"></div>
+      <p class="hint">Required fields are marked with *. This email is used when you CC/BCC yourself on invoice emails.</p>
+      <div class="field"><label>Business name *</label>
+        <input name="business_name" value="${esc(record.business_name || editingName)}" required autocomplete="organization"></div>
+      <div class="field"><label>Email *</label>
+        <input name="email" type="email" value="${esc(emailValue)}" required autocomplete="email">
+        <p class="hint">Defaults to your account email. Change it if invoices should copy a different address.</p></div>
+      <div class="field"><label>Phone (optional)</label>
+        <input name="phone" value="${esc(record.phone || "")}" type="tel" autocomplete="tel"></div>
       ${businessAddressFieldsHtml(record)}
       ${gstFieldsHtml(record)}
       ${bankFieldsHtml(record)}
-      <h3>Invoice logo</h3>
+      <h3>Invoice logo (optional)</h3>
       ${logoEditorHtml(logoState)}
-      ${isAdd ? dueRuleFieldsHtml(duePrefs, { showFixed: false }) : ""}
       <p class="error-text" id="form-error" hidden></p>
       <div class="btn-row">
         <button type="button" class="btn primary" id="save-business">Save</button>
@@ -533,10 +547,21 @@ async function renderBusinessForm(
       </div>
     </form>`;
 
-    if (isAdd) wireDueRuleToggles(panel);
-
     const form = panel.querySelector("#business-form") as HTMLFormElement;
     guard = attachUnsavedGuard(form);
+
+    const gstSelect = form.querySelector("#gst_registered") as HTMLSelectElement | null;
+    const syncAbnRequired = () => {
+      const yes = parseGstRegisteredForm(gstSelect?.value);
+      form.querySelectorAll("[data-abn-req]").forEach((el) =>
+        (el as HTMLElement).toggleAttribute("hidden", !yes)
+      );
+      form.querySelectorAll("[data-abn-opt]").forEach((el) =>
+        (el as HTMLElement).toggleAttribute("hidden", yes)
+      );
+    };
+    gstSelect?.addEventListener("change", syncAbnRequired);
+    syncAbnRequired();
 
     const onLogoChange = (next: LogoEditorState, reason: "source" | "placement" | "enabled") => {
       logoState = next;
@@ -559,25 +584,37 @@ async function renderBusinessForm(
         saveBtn.textContent = "Saving…";
       }
       try {
-        const fd = new FormData(panel.querySelector("#business-form") as HTMLFormElement);
+        const fd = new FormData(form);
         const businessName = String(fd.get("business_name") || "").trim();
         if (!businessName) throw new Error("Business name is required.");
+        const email = String(fd.get("email") || "").trim();
+        if (!email || !email.includes("@")) throw new Error("A valid email is required.");
         const addr = normalizeAuAddress(readAddressFromForm(fd));
+        if (!addr.address_line1) throw new Error("Street or PO Box is required.");
+        if (!addr.suburb) throw new Error("Suburb is required.");
+        if (!addr.state) throw new Error("State is required.");
+        if (!addr.postcode) throw new Error("Postcode is required.");
+        const accountName = String(fd.get("account_name") || "").trim();
+        if (!accountName) throw new Error("Account name is required.");
+        const bsbRaw = String(fd.get("bsb") || "").trim();
+        const accRaw = String(fd.get("acc") || "").trim();
+        if (!bsbRaw) throw new Error("BSB is required.");
+        if (!accRaw) throw new Error("Account number is required.");
         if (logoState.enabled && logoState.sourceB64 && !logoState.bakedB64) {
           logoState.bakedB64 = await bakeLogoToHeaderSlot(logoState.sourceB64, logoState.placement);
         }
         const profile: Record<string, unknown> = {
           business_name: businessName,
-          email: String(fd.get("email") || "").trim(),
+          email,
           phone: String(fd.get("phone") || "").trim(),
           ...addr,
           business_abn: fd.get("business_abn")
             ? normalizeAbn(String(fd.get("business_abn")))
             : "",
           gst_registered: parseGstRegisteredForm(fd.get("gst_registered")),
-          bsb: fd.get("bsb") ? normalizeBsb(String(fd.get("bsb"))) : "",
-          acc: fd.get("acc") ? normalizeAccountNumber(String(fd.get("acc"))) : "",
-          account_name: String(fd.get("account_name") || "").trim(),
+          bsb: normalizeBsb(bsbRaw),
+          acc: normalizeAccountNumber(accRaw),
+          account_name: accountName,
           invoice_counter: record.invoice_counter || 1,
           logo_b64: logoState.bakedB64 || "",
           logo_source_b64: logoState.sourceB64 || "",
@@ -592,13 +629,6 @@ async function renderBusinessForm(
         }
         await upsertBusiness(key, profile);
         if (!settings.default_business) await upsertSettings({ default_business: key });
-        if (fd.get("due_rule_type")) {
-          const due = dueRuleFromFormData(Object.fromEntries(fd.entries()), settings);
-          await upsertSettings({
-            due_rule_type: due.due_rule_type,
-            due_net_days: due.due_net_days,
-          });
-        }
         guard?.clear();
         showToast("Business saved.", "success");
         router.navigate("settings");

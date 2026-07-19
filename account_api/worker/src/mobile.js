@@ -21,20 +21,20 @@ async function mobileAccount(env, auth, stripe, subscriptionStatus, portalUrl) {
   return json({
     email: auth.user.email,
     active: Boolean(sub.active),
-    storage_tier: access.tier,
+    storage_tier: "cloud",
     portal_url: portal,
     email_verified: isEmailVerified(auth.user),
-    platforms: { desktop: true, mobile: access.tier === "cloud" },
+    platforms: { desktop: true, mobile: true },
   });
 }
 
 async function requireCloudActive(env, auth, stripe) {
   const access = await loadCloudAccess(env.DB, stripe, auth.user);
-  if (access.tier !== "cloud" || !access.active) {
-    return { error: textError("Active Cloud subscription required.", 403) };
+  if (!access.active) {
+    return { error: textError("Active subscription required.", 403) };
   }
   auth.cloudAccess = access;
-  return { tier: access.tier, sub: { active: true }, access };
+  return { tier: "cloud", sub: { active: true }, access };
 }
 
 function mapMobileToDocumentsPath(path) {

@@ -310,6 +310,8 @@ body.app-flow-immersive {
 
 .error-text { color: var(--fw-error); font-size: 0.95rem; margin: 0.5rem 0; font-weight: 600; }
 .hint { font-size: 0.9rem; color: var(--fw-text-muted); margin: 0.5rem 0; }
+.req-mark { color: var(--fw-error); font-weight: 700; }
+.opt-mark { color: var(--fw-text-muted); font-weight: 400; font-size: 0.9em; }
 .sync-status { font-size: 0.85rem; opacity: 0.95; }
 
 .fab {
@@ -758,6 +760,22 @@ fieldset.field { border: 1px solid var(--fw-border); border-radius: 8px; padding
   text-align: center;
 }
 .empty-title { margin: 0 0 0.35rem; font-weight: 700; color: var(--fw-green-900); }
+
+.setup-notice {
+  background: var(--fw-surface-muted);
+  border: 1px solid var(--fw-border-strong);
+  border-radius: var(--radius);
+  padding: 0.9rem 1rem 1rem;
+  margin-bottom: 0.85rem;
+}
+.setup-notice-title {
+  margin: 0 0 0.25rem;
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--fw-green-900);
+}
+.setup-notice .hint { margin: 0 0 0.75rem; }
+.setup-notice .btn { width: 100%; }
 
 .photo-grid {
   display: flex;

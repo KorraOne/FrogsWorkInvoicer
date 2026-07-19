@@ -25,10 +25,8 @@ def _price_id(tier: str, interval: str) -> str:
 
 
 def _storage_tier_from_subscription(sub) -> str:
-    item = sub.items.data[0] if sub.items and sub.items.data else None
-    meta = (getattr(item.price, "metadata", None) or {}) if item else {}
-    tier = (meta.get("storage_tier") or meta.get("tier") or "local").lower()
-    return "cloud" if tier == "cloud" else "local"
+    """Local tier is retired — every FrogsWork subscription is Cloud."""
+    return "cloud"
 
 
 def _checkout_email(checkout) -> str:
@@ -229,14 +227,12 @@ def checkout_session_info(db, session_id, user_by_id, subscription_status_fn):
     user = user_by_id(user_id) if user_id else None
     email = _checkout_email(checkout) or (user["email"] if user else "")
     account_status = user.get("account_status") if user else None
-    storage_tier = (checkout.metadata or {}).get("storage_tier") or "local"
+    storage_tier = "cloud"
 
     sub = checkout.subscription
     if isinstance(sub, str) and sub:
         sub = stripe.Subscription.retrieve(sub)
     subscription_active = bool(sub and sub.status in ("active", "trialing"))
-    if subscription_active:
-        storage_tier = _storage_tier_from_subscription(sub)
 
     if not paid:
         return {
@@ -281,10 +277,5 @@ def cleanup_pending_users(db) -> int:
 
 
 def resolve_storage_tier_dev(user) -> str:
-    customer_id = user.get("stripe_customer_id")
-    if not customer_id:
-        return user.get("storage_tier") or "local"
-    sub = _active_subscription(customer_id)
-    if not sub:
-        return user.get("storage_tier") or "local"
-    return _storage_tier_from_subscription(sub)
+    """Local tier is retired — always Cloud."""
+    return "cloud"

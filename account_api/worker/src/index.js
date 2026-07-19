@@ -353,13 +353,12 @@ async function handleMobileSession(request, env) {
       account: {
         email: user.email,
         active: false,
-        storage_tier: user.storage_tier || "local",
+        storage_tier: "cloud",
         portal_url: null,
         email_verified: isEmailVerified(user),
       },
     });
   }
-  const tier = await resolveStorageTier(env.DB, stripe, user);
   const sub = await subscriptionStatus(stripe, user.stripe_customer_id);
   const portal = await portalUrl(stripe, user.stripe_customer_id);
   return json({
@@ -367,7 +366,7 @@ async function handleMobileSession(request, env) {
     account: {
       email: user.email,
       active: sub.active,
-      storage_tier: tier,
+      storage_tier: "cloud",
       portal_url: portal,
       email_verified: isEmailVerified(user),
     },
@@ -606,8 +605,8 @@ async function handleRequest(request, env, ctx) {
       }
       const sub = await subscriptionStatus(stripe, auth.user.stripe_customer_id);
       sub.portal_url = await portalUrl(stripe, auth.user.stripe_customer_id);
-      sub.storage_tier = await resolveStorageTier(env.DB, stripe, auth.user);
-      sub.platforms = entitlementsPlatforms(sub.storage_tier);
+      sub.storage_tier = "cloud";
+      sub.platforms = entitlementsPlatforms("cloud");
       sub.email_verified = isEmailVerified(auth.user);
       sub.email = auth.user.email;
       await updateSubscriptionMilestones(env.DB, auth.user, sub);

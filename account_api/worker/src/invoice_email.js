@@ -153,3 +153,27 @@ export function emailCopyPrefsFromSettings(settings = {}) {
   if (!ccSelf && !bccSelf) return { ccSelf: false, bccSelf: false, mode: "off" };
   return { ccSelf: true, bccSelf: false, mode: "cc" };
 }
+
+/**
+ * Email used for CC/BCC self-copy on invoice sends.
+ * Prefer the invoice's business profile email, then default/first business, then account email.
+ */
+export function selfCopyEmailFromBusiness({
+  invoice = {},
+  businesses = {},
+  settings = {},
+  fallbackUserEmail = "",
+} = {}) {
+  const map = businesses && typeof businesses === "object" ? businesses : {};
+  const keys = Object.keys(map);
+  const invoiceBiz = String(invoice.business_name || invoice.business || "").trim();
+  const defaultBiz = String(settings.default_business || "").trim();
+  const pick =
+    (invoiceBiz && map[invoiceBiz]) ||
+    (defaultBiz && map[defaultBiz]) ||
+    (keys.length ? map[keys[0]] : null) ||
+    {};
+  const fromBiz = String(pick.email || "").trim();
+  if (fromBiz.includes("@")) return fromBiz;
+  return String(fallbackUserEmail || "").trim();
+}

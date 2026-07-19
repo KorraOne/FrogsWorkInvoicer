@@ -6,7 +6,7 @@ import {
   linkInstallOnRegister,
   updateSubscriptionMilestones,
 } from "./telemetry.js";
-import { resolveStorageTier, storageTierFromSubscription } from "./documents.js";
+import { storageTierFromSubscription } from "./documents.js";
 import { sendVerificationEmail } from "./auth_email.js";
 
 async function resolvePromotionCodeId(stripe, code) {
@@ -301,7 +301,6 @@ export async function checkoutSessionDetails(stripe, sessionId, db, userById) {
     checkout.payment_status === "paid" || checkout.status === "complete";
 
   let email = sessionEmail(checkout);
-  let storageTier = (checkout.metadata?.storage_tier || "local").toLowerCase();
   let accountStatus = null;
 
   const userId = Number(
@@ -319,15 +318,12 @@ export async function checkoutSessionDetails(stripe, sessionId, db, userById) {
   if (typeof sub === "string" && sub) {
     sub = await stripe.subscriptions.retrieve(sub);
   }
-  if (sub && (sub.status === "active" || sub.status === "trialing")) {
-    storageTier = storageTierFromSubscription(sub);
-  }
 
   return {
     checkout,
     paid,
     email,
-    storage_tier: storageTier === "cloud" ? "cloud" : "local",
+    storage_tier: "cloud",
     account_status: accountStatus,
     subscription_active: Boolean(
       sub && (sub.status === "active" || sub.status === "trialing")

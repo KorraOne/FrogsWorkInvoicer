@@ -4,6 +4,7 @@ import { buildInvoicePdf } from "./invoice_pdf.js";
 import {
   buildInvoiceEmailContent,
   emailCopyPrefsFromSettings,
+  selfCopyEmailFromBusiness,
 } from "./invoice_email.js";
 import {
   decodePdfB64,
@@ -94,16 +95,13 @@ async function resolveInvoiceLookup(db, userId, pathSeg) {
   return null;
 }
 
-export function storageTierFromSubscription(sub) {
-  const item = sub?.items?.data?.[0];
-  const meta = item?.price?.metadata || {};
-  const tier = (meta.storage_tier || meta.tier || "local").toLowerCase();
-  return tier === "cloud" ? "cloud" : "local";
+/** Local tier is retired — every FrogsWork subscription is Cloud. */
+export function storageTierFromSubscription(_sub) {
+  return "cloud";
 }
 
-export function entitlementsPlatforms(storageTier) {
-  const cloud = storageTier === "cloud";
-  return { desktop: true, mobile: cloud };
+export function entitlementsPlatforms(_storageTier) {
+  return { desktop: true, mobile: true };
 }
 
 export async function resolveStorageTier(db, stripe, user) {
@@ -111,11 +109,10 @@ export async function resolveStorageTier(db, stripe, user) {
   return access.tier;
 }
 
-/** One Stripe subscriptions.list → tier + active. */
+/** One Stripe subscriptions.list → tier + active. Tier is always cloud. */
 export async function loadCloudAccess(db, stripe, user) {
   if (!user?.stripe_customer_id || !stripe) {
-    const tier = user?.storage_tier === "cloud" ? "cloud" : "local";
-    return { tier, active: false, listMs: 0 };
+    return { tier: "cloud", active: false, listMs: 0 };
   }
   const t0 = Date.now();
   const subs = await stripe.subscriptions.list({
@@ -126,36 +123,25 @@ export async function loadCloudAccess(db, stripe, user) {
   const listMs = Date.now() - t0;
   for (const sub of subs.data) {
     if (sub.status === "active" || sub.status === "trialing") {
-      const tier = storageTierFromSubscription(sub);
-      if (tier !== user.storage_tier) {
+      if (user.storage_tier !== "cloud") {
         await db
           .prepare("UPDATE users SET storage_tier = ? WHERE id = ?")
-          .bind(tier, user.id)
+          .bind("cloud", user.id)
           .run();
       }
-      return { tier, active: true, listMs, status: sub.status };
+      return { tier: "cloud", active: true, listMs, status: sub.status };
     }
   }
-  return {
-    tier: user?.storage_tier === "cloud" ? "cloud" : "local",
-    active: false,
-    listMs,
-  };
+  return { tier: "cloud", active: false, listMs };
 }
 
 async function requireCloudUser(auth, env, stripe) {
-  if (auth.cloudAccess?.tier === "cloud") {
+  if (auth.cloudAccess) {
     return { tier: "cloud", perf: { requireCloudUserMs: 0, reusedMobileGate: true } };
   }
   const access = await loadCloudAccess(env.DB, stripe, auth.user);
-  if (access.tier !== "cloud") {
-    return {
-      error: textError("Cloud storage tier required.", 403),
-      perf: { requireCloudUserMs: access.listMs },
-    };
-  }
   auth.cloudAccess = access;
-  return { tier: access.tier, perf: { requireCloudUserMs: access.listMs } };
+  return { tier: "cloud", perf: { requireCloudUserMs: access.listMs } };
 }
 
 function documentsBucket(env) {
@@ -566,7 +552,12 @@ export async function processEmailOutbox(env, userId, userEmail) {
       const bucket = documentsBucket(env);
       const pdfObj = invRow.pdf_r2_key ? await bucket.get(invRow.pdf_r2_key) : null;
       const pdfBytes = pdfObj ? await pdfObj.arrayBuffer() : null;
-      const selfEmail = String(userEmail || "").trim();
+      const selfEmail = selfCopyEmailFromBusiness({
+        invoice,
+        businesses,
+        settings,
+        fallbackUserEmail: userEmail,
+      });
       const cc = copyPrefs.ccSelf && selfEmail ? [selfEmail] : [];
       const bcc = copyPrefs.bccSelf && selfEmail ? [selfEmail] : [];
       if (provider === "log") {
