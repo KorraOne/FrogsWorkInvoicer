@@ -5,6 +5,9 @@ export type FrogsworkDesktopHost = {
   apiBase?: string;
   /** Open URL in the system browser (injected by the shell). */
   openExternal?: (url: string) => void;
+  /** Mirror tokens into AppData for Windows uninstall export. */
+  persistSession?: (accessToken: string, refreshToken?: string, email?: string) => unknown;
+  clearSession?: () => unknown;
 };
 
 declare global {
@@ -14,6 +17,12 @@ declare global {
       api?: {
         open_external?: (url: string) => unknown;
         get_api_base?: () => string;
+        persist_session?: (
+          accessToken: string,
+          refreshToken?: string,
+          email?: string
+        ) => unknown;
+        clear_session?: () => unknown;
       };
     };
   }
@@ -25,6 +34,16 @@ function syncFromPywebviewApi(): FrogsworkDesktopHost | null {
   const host: FrogsworkDesktopHost = {
     openExternal: (url: string) => {
       if (api.open_external) api.open_external(url);
+    },
+    persistSession: (accessToken, refreshToken, email) => {
+      if (api.persist_session) {
+        return api.persist_session(accessToken || "", refreshToken || "", email || "");
+      }
+      return false;
+    },
+    clearSession: () => {
+      if (api.clear_session) return api.clear_session();
+      return false;
     },
   };
   try {
@@ -97,5 +116,24 @@ export function watchPywebviewReady(): void {
       syncFromPywebviewApi();
       applyHostEnvironment();
     });
+  }
+}
+
+/** Push current localStorage tokens to the native shell (for uninstall export). */
+export function syncSessionToDesktopHost(
+  accessToken: string,
+  refreshToken?: string,
+  email?: string
+): void {
+  if (!isDesktopHost()) return;
+  const cfg = desktopHostConfig();
+  try {
+    if (accessToken) {
+      cfg?.persistSession?.(accessToken, refreshToken || "", email || "");
+    } else {
+      cfg?.clearSession?.();
+    }
+  } catch {
+    /* ignore */
   }
 }

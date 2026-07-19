@@ -1,6 +1,6 @@
 import "./styles/app.css";
 import { fetchAccount } from "./api/mobile";
-import { captureAuthFromUrl, clearSession, getAccessToken } from "./auth/session";
+import { captureAuthFromUrl, clearSession, getAccessToken, mirrorSessionToDesktopHost } from "./auth/session";
 import { openSheet, showToast } from "./components/ui";
 import { cache } from "./data/idb";
 import { pullBootstrap, flushQueue } from "./data/sync";
@@ -26,6 +26,8 @@ import type { AppContext, MobileAccount, Screen } from "./types";
 applyHostEnvironment();
 watchPywebviewReady();
 wireExternalLinks(document);
+mirrorSessionToDesktopHost();
+window.addEventListener("pywebviewready", () => mirrorSessionToDesktopHost());
 
 if (/^\/\/+/.test(window.location.pathname)) {
   history.replaceState(null, "", "/" + window.location.search + window.location.hash);

@@ -42,7 +42,7 @@ Add printed `STRIPE_PRICE_*` values to `client_app/production.env` and `account_
 | POST | `/auth/login` | No | Body: `{ email, password }` → `{ access_token, refresh_token }` (rate limited) |
 | POST | `/auth/handoff/create` | Bearer signup or access | Active/trialing account → `{ code, expires_in }` (single-use, ~60s; opaque code for app handoff) |
 | POST | `/auth/handoff/redeem` | No | Body: `{ code }` → `{ access_token, refresh_token }` (rate limited; single-use) |
-| GET | `/account/export` | Bearer | ZIP download: `frogswork-export.json` + `pdfs/*.pdf` (rate limited; permanent self-serve copy — not re-importable) |
+| GET | `/account/export` | Bearer | ZIP download: hierarchical `frogswork_data_export_YYYYMMDD/` (account/businesses/customers/settings JSON + invoices/quotes by status with paired PDFs; rate limited; not re-importable) |
 | POST | `/account/data/delete` | Bearer | Body `{ confirm: "DELETE DATA" }` → purge Cloud docs/PDFs/devices for user; keep login + Stripe |
 | POST | `/account/delete` | Bearer | Body `{ confirm: "DELETE ACCOUNT", password }` → cancel Stripe, purge data, delete user |
 | POST | `/auth/forgot-password` | No | Body: `{ email }` → generic success (rate limited; sends Resend email if configured) |

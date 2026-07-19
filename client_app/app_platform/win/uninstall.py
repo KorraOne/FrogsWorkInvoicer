@@ -1,4 +1,4 @@
-"""Export invoice PDFs before uninstall (Windows; FrogsWork.exe --export-uninstall-data)."""
+"""Cloud account export before uninstall (Windows; FrogsWork.exe --export-uninstall-data)."""
 
 import json
 import os
@@ -6,7 +6,7 @@ import shutil
 import sys
 from datetime import date
 
-from app_config import APP_BRAND_NAME, APP_DATA_DIR_NAME
+from app_config import APP_BRAND_NAME, APP_DATA_DIR_NAME, CLOUD_API_URL
 
 PDF_MARKER_FILENAME = ".frogswork-pdfs"
 
@@ -59,8 +59,61 @@ def _remove_marked_pdf_folder(pdf_dir):
         pass
 
 
+def _write_readme(path, body):
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(body)
+    except OSError:
+        pass
+
+
+def _download_cloud_export(downloads):
+    """
+    Call the same GET /account/export used by Settings → Download my data.
+    Requires session tokens persisted to AppData by the desktop Cloud shell.
+    Returns True if a ZIP was written.
+    """
+    try:
+        from account import auth_store, client
+    except Exception:
+        return False
+
+    if not auth_store.is_authenticated():
+        return False
+
+    stamp = date.today().isoformat()
+    dest = os.path.join(downloads, f"frogswork-export-{stamp}.zip")
+    try:
+        try:
+            zip_bytes = client.download_account_export(timeout=120)
+        except client.AccountError:
+            # Access token may be stale; refresh once then retry.
+            try:
+                client._refresh_if_needed()
+            except Exception:
+                return False
+            zip_bytes = client.download_account_export(timeout=120)
+        if not zip_bytes:
+            return False
+        with open(dest, "wb") as f:
+            f.write(zip_bytes)
+        _write_readme(
+            os.path.join(downloads, f"frogswork-export-{stamp}-README.txt"),
+            (
+                f"{APP_BRAND_NAME} was uninstalled from this PC.\n\n"
+                f"Your Cloud data export was saved to:\n  {dest}\n\n"
+                "This is the same ZIP as Settings → Download my data "
+                "(invoices and quotes by status, plus account/business/customer JSON).\n"
+                "It cannot be re-imported into FrogsWork.\n"
+            ),
+        )
+        return True
+    except Exception:
+        return False
+
+
 def export_for_uninstall():
-    """Copy invoice PDFs to Downloads, then remove marked PDF folder. Never blocks uninstall."""
+    """Download Cloud export ZIP to Downloads when signed in. Never blocks uninstall."""
     pdf_dir = _read_bootstrap_pdf_folder()
     if not pdf_dir:
         appdata = _appdata_dir()
@@ -75,30 +128,23 @@ def export_for_uninstall():
         pass
 
     downloads = _downloads_dir()
-    if downloads and os.path.isdir(downloads) and pdf_dir and os.path.isdir(pdf_dir):
-        pdfs = [name for name in os.listdir(pdf_dir) if name.lower().endswith(".pdf")]
-        if pdfs:
+    if downloads and os.path.isdir(downloads):
+        wrote = _download_cloud_export(downloads)
+        if not wrote:
+            # Not signed in on this PC (or export failed). Point the user at Cloud Settings.
             stamp = date.today().isoformat()
-            export_root = os.path.join(downloads, f"FrogsWork-Uninstall-{stamp}")
-            export_pdfs = os.path.join(export_root, "pdfs")
-            try:
-                os.makedirs(export_pdfs, exist_ok=True)
-                copied = 0
-                for name in pdfs:
-                    src = os.path.join(pdf_dir, name)
-                    if not os.path.isfile(src):
-                        continue
-                    shutil.copy2(src, os.path.join(export_pdfs, name))
-                    copied += 1
-                readme = os.path.join(export_root, "README.txt")
-                with open(readme, "w", encoding="utf-8") as f:
-                    f.write(
-                        f"{APP_BRAND_NAME} was uninstalled from this PC.\n\n"
-                        f"{copied} invoice PDF(s) were copied from:\n  {pdf_dir}\n\n"
-                        f"to:\n  {export_pdfs}\n"
-                    )
-            except OSError:
-                pass
+            api = (os.environ.get("FROGSWORK_ACCOUNT_API_URL") or CLOUD_API_URL or "").rstrip("/")
+            _write_readme(
+                os.path.join(downloads, f"FrogsWork-Uninstall-{stamp}-README.txt"),
+                (
+                    f"{APP_BRAND_NAME} was uninstalled from this PC.\n\n"
+                    "No Cloud data export was saved automatically "
+                    "(this Windows app was not signed in, or the export could not be downloaded).\n\n"
+                    "Your invoices and quotes stay in FrogsWork Cloud until you delete them.\n"
+                    "To download a copy: open https://app.frogswork.com → Settings → Download my data.\n"
+                    f"(API: {api or 'https://api.frogswork.com'})\n"
+                ),
+            )
 
     _remove_marked_pdf_folder(pdf_dir)
     return 0

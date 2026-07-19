@@ -15,7 +15,7 @@ LOCAL_APP_HOST = "127.0.0.1"
 LOCAL_APP_PORT = 5000
 LOCAL_APP_URL = f"http://{LOCAL_APP_HOST}:{LOCAL_APP_PORT}/"
 
-APP_VERSION = "3.1.1"
+APP_VERSION = "3.1.2"
 
 APP_BRAND_NAME = "FrogsWork"
 APP_BRAND_TAGLINE = "Sales invoicing for Australian sole traders"

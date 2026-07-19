@@ -158,6 +158,36 @@ def get_entitlements():
         raise
 
 
+def download_account_export(timeout=120):
+    """
+    Same archive as Settings → Download my data (GET /account/export).
+    Returns ZIP bytes. Raises AccountError / AccountOfflineError.
+    """
+    auth_data = auth_store.load_auth()
+    token = auth_data.get("access_token")
+    if not token:
+        raise AccountError("Not signed in.")
+    headers = {
+        "Accept": "application/zip, application/json",
+        "Authorization": f"Bearer {token}",
+        "User-Agent": "FrogsWork/1.0",
+    }
+    req = urllib.request.Request(_api_url("/account/export"), headers=headers, method="GET")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.read()
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        try:
+            payload = json.loads(detail)
+            message = payload.get("error") or payload.get("message") or detail
+        except json.JSONDecodeError:
+            message = detail.strip() or exc.reason
+        raise AccountError(message) from exc
+    except urllib.error.URLError as exc:
+        raise AccountOfflineError(str(exc.reason)) from exc
+
+
 # Re-export document API helpers
 from .documents import (  # noqa: E402
     documents_bootstrap,

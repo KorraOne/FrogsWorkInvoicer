@@ -164,6 +164,35 @@ class DesktopBridge:
             return override.rstrip("/")
         return app_config.CLOUD_API_URL.rstrip("/")
 
+    def persist_session(self, access_token, refresh_token=None, email=None):
+        """Mirror Cloud UI tokens into AppData so uninstall can call /account/export."""
+        try:
+            from account import auth_store
+
+            data = auth_store.load_auth() or {}
+            if access_token:
+                data["access_token"] = str(access_token)
+            if refresh_token:
+                data["refresh_token"] = str(refresh_token)
+            if email:
+                data["email"] = str(email).strip().lower()
+            data["server_url"] = self.get_api_base()
+            auth_store.save_auth(data)
+            return True
+        except Exception:
+            log.debug("persist_session failed", exc_info=True)
+            return False
+
+    def clear_session(self):
+        try:
+            from account import auth_store
+
+            auth_store.clear_auth()
+            return True
+        except Exception:
+            log.debug("clear_session failed", exc_info=True)
+            return False
+
 
 def is_desktop_mode():
     return _desktop_mode
@@ -299,6 +328,18 @@ def _inject_host_bridge(window):
         }}
         window.open(url, '_blank');
         return true;
+      }},
+      persistSession: function (accessToken, refreshToken, email) {{
+        if (api && api.persist_session) {{
+          return api.persist_session(accessToken || '', refreshToken || '', email || '');
+        }}
+        return false;
+      }},
+      clearSession: function () {{
+        if (api && api.clear_session) {{
+          return api.clear_session();
+        }}
+        return false;
       }}
     }};
     document.documentElement.classList.add('host-desktop');

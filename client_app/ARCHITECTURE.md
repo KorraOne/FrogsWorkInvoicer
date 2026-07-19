@@ -44,7 +44,7 @@ Named `app_platform` (not `platform`) to avoid shadowing Python’s stdlib `plat
 | [`window_state.py`](app_platform/window_state.py) | Desktop window geometry persistence |
 | [`external_browser.py`](app_platform/external_browser.py) | Open marketing/billing URLs in the system browser |
 | [`updates.py`](app_platform/updates.py) | Packaged in-app updates |
-| [`win/uninstall.py`](app_platform/win/uninstall.py) | `--export-uninstall-data` (Windows Inno Setup hook) |
+| [`win/uninstall.py`](app_platform/win/uninstall.py) | `--export-uninstall-data` — Cloud ZIP export via `/account/export` (Windows Inno Setup hook) |
 
 ## Host contract
 
@@ -52,6 +52,7 @@ The Cloud UI detects the shell via `window.frogsworkDesktop` (see `client_web_v2
 
 - `apiBase` — optional API override (staging)
 - `openExternal(url)` — open https links in the system browser
+- `persistSession` / `clearSession` — mirror JWTs into AppData so uninstall can download `/account/export`
 
 Env overrides:
 

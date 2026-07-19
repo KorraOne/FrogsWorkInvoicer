@@ -35,7 +35,7 @@ Custom PyInstaller folder:
 | Privileges | `lowest` (no admin) |
 | Desktop shortcut | Optional task on install wizard |
 | Start at logon | Optional task — shortcut in Startup folder |
-| Uninstall PDF export | `FrogsWork.exe --export-uninstall-data` (legacy local PDFs if any) |
+| Uninstall Cloud export | `FrogsWork.exe --export-uninstall-data` → same ZIP as Settings → Download my data (when signed in) |
 | Stop running app | `taskkill` before uninstall |
 | Remove AppData | `{userappdata}\FrogsWork` on uninstall |
 

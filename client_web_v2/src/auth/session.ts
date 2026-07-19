@@ -1,4 +1,5 @@
 import type { SessionTokens } from "../types";
+import { syncSessionToDesktopHost } from "../lib/host";
 
 const ACCESS_KEY = "frogswork_access_token";
 const REFRESH_KEY = "frogswork_refresh_token";
@@ -25,11 +26,23 @@ export function getRefreshToken(): string {
 export function saveSession(tokens: SessionTokens): void {
   if (tokens.access_token) localStorage.setItem(ACCESS_KEY, tokens.access_token);
   if (tokens.refresh_token) localStorage.setItem(REFRESH_KEY, tokens.refresh_token);
+  syncSessionToDesktopHost(
+    tokens.access_token || getAccessToken(),
+    tokens.refresh_token || getRefreshToken()
+  );
 }
 
 export function clearSession(): void {
   localStorage.removeItem(ACCESS_KEY);
   localStorage.removeItem(REFRESH_KEY);
+  syncSessionToDesktopHost("");
+}
+
+/** If already signed in when the desktop shell loads, mirror tokens for uninstall export. */
+export function mirrorSessionToDesktopHost(): void {
+  const access = getAccessToken();
+  if (!access) return;
+  syncSessionToDesktopHost(access, getRefreshToken());
 }
 
 function stripAuthParamsFromUrl(): void {
