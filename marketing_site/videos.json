@@ -33,7 +33,7 @@
         "Sign in with your FrogsWork Cloud account",
         "Confirm the app shows Home with the left navigation"
       ],
-      "related_issues": ["installer-will-not-run", "update-failed"],
+      "related_issues": ["installer-will-not-run", "install-warnings", "update-failed"],
       "published": false
     },
     {
@@ -45,13 +45,13 @@
       "duration_seconds": 35,
       "device": "iphone",
       "steps": [
-        "Open Safari and go to app.frogswork.com",
+        "Open Safari (recommended) and go to app.frogswork.com",
         "Sign in if prompted",
         "Tap Share, then Add to Home Screen",
         "Open FrogsWork from the home screen",
         "Confirm the bottom tabs: Home, Invoices, Customers, Settings"
       ],
-      "related_issues": ["install-pwa"],
+      "related_issues": ["install-pwa", "install-warnings"],
       "published": false
     },
     {
@@ -63,13 +63,13 @@
       "duration_seconds": 35,
       "device": "android",
       "steps": [
-        "Open Chrome and go to app.frogswork.com",
+        "Open Chrome (recommended; not Samsung Internet) and go to app.frogswork.com",
         "Sign in if prompted",
         "Tap the browser menu, then Install app or Add to Home screen",
         "Open FrogsWork from the home screen",
         "Confirm the bottom tabs: Home, Invoices, Customers, Settings"
       ],
-      "related_issues": ["install-pwa"],
+      "related_issues": ["install-pwa", "install-warnings"],
       "published": false
     },
     {
