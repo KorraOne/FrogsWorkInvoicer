@@ -67,12 +67,14 @@ Add printed `STRIPE_PRICE_*` values to `client_app/production.env` and `account_
 | POST | `/email/invoices/:n/send` | Bearer access + active subscription | Local-tier relay send — body `{ pdf_b64, customer_email, filename?, subject?, body_text? }`; no D1/R2 persist |
 | GET | `/documents/bootstrap` | Bearer access or guest (cloud tier for users) | Full snapshot: businesses, customers, invoices, quotes, settings |
 | POST | `/documents/migrate` | Bearer access or guest (cloud tier for users) | Import local backup JSON payload (max 5 MB) |
-| POST | `/documents/sync` | Bearer access or guest (cloud tier for users) | Body `{ mutations: [...] }` — offline queue replay |
+| POST | `/documents/sync` | Bearer access or guest (cloud tier for users) | Body `{ mutations: [...] }` — offline queue replay. Email mutations (`enqueue_email_send`, `enqueue_quote_email`, `enqueue_followup_email`) require active subscription. Follow-ups do not change invoice status. |
 | GET | `/documents/invoices/:n/pdf` | Bearer access or guest | PDF as `{ filename, content_b64 }` |
 | POST | `/documents/invoices/:n/generate` | Bearer access or guest | Server PDF generation (pdf-lib) → R2 for users |
 | POST | `/documents/invoices/:n/send` | Bearer access (active sub) or guest | Cloud: queue integrated email. Guest: **403** (manual send only in PWA) |
 | POST | `/dev/reset-seed` | Bearer `METRICS_TOKEN` + `ALLOW_DEV_RESET=1` | Dev: purge cloud docs + seed from Stripe (non-prod only) |
 | POST | `/webhooks/stripe` | Stripe signature | `checkout.session.completed` activates account; idempotent |
+
+**Scheduled (Worker only):** daily cron (`0 4 * * *`) runs pending-user cleanup, handoff cleanup, and opt-in `processPaymentFollowups` (automatic payment reminder emails). Flask has no documents email cron.
 
 ### Auth
 

@@ -3,8 +3,11 @@ import { jwtSecretBytes } from "./jwt_secret.js";
 import { buildInvoicePdf } from "./invoice_pdf.js";
 import {
   buildInvoiceEmailContent,
+  buildPaymentFollowupEmailContent,
   buildQuoteEmailContent,
   emailCopyPrefsFromSettings,
+  paymentFollowupOffsetDays,
+  paymentFollowupsEnabled,
   selfCopyEmailFromBusiness,
 } from "./invoice_email.js";
 import {
@@ -384,7 +387,7 @@ async function upsertInvoice(db, userId, invoice) {
   return key;
 }
 
-async function updateInvoiceStatus(db, userId, payload, status) {
+async function updateInvoiceStatus(db, userId, payload, status, extra = {}) {
   const key = mutationInvoiceKey(
     typeof payload === "object" && payload !== null
       ? payload
@@ -399,7 +402,7 @@ async function updateInvoiceStatus(db, userId, payload, status) {
   inv.invoice_id = String(inv.invoice_id || key);
   inv.status = status;
   if (status === "paid") {
-    const fromPayload = String(payload?.paid_date || "").slice(0, 10);
+    const fromPayload = String(payload?.paid_date || extra?.paid_date || "").slice(0, 10);
     if (/^\d{4}-\d{2}-\d{2}$/.test(fromPayload)) {
       inv.paid_date = fromPayload;
     } else if (!inv.paid_date) {
@@ -407,6 +410,13 @@ async function updateInvoiceStatus(db, userId, payload, status) {
     }
   } else if (["not_sent", "sent", "send_queued", "send_failed"].includes(status)) {
     delete inv.paid_date;
+  }
+  if (status === "sent" && !inv.sent_date) {
+    inv.sent_date = String(extra.sent_date || nowIso());
+  }
+  for (const [k, v] of Object.entries(extra || {})) {
+    if (k === "sent_date" || k === "paid_date") continue;
+    if (v !== undefined) inv[k] = v;
   }
   const ts = nowIso();
   await db
@@ -629,18 +639,48 @@ async function dbInvoice(db, userId, key) {
     .first();
 }
 
-export async function enqueueEmailSend(env, userId, invoiceRef, userEmail) {
-  const payload =
-    typeof invoiceRef === "object" && invoiceRef !== null
-      ? invoiceRef
-      : { invoice_number: invoiceRef };
-  const key = mutationInvoiceKey(payload);
-  const row = await dbInvoice(env.DB, userId, key);
-  if (!row) throw new Error("Invoice not found");
-  const inv = JSON.parse(row.data_json);
-  const invoiceNumber = Number(inv.invoice_number || payload.invoice_number);
-  const id = crypto.randomUUID();
-  const ts = nowIso();
+async function insertOutboxRow(env, {
+  id,
+  userId,
+  invoiceNumber,
+  key,
+  ts,
+  docType = "invoice",
+  purpose = "initial",
+  scheduleKey = null,
+}) {
+  try {
+    await env.DB.prepare(
+      `INSERT INTO email_outbox (id, user_id, invoice_number, invoice_key, doc_type, purpose, schedule_key, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
+    )
+      .bind(id, userId, invoiceNumber, key, docType, purpose, scheduleKey, ts, ts)
+      .run();
+    return;
+  } catch (exc) {
+    const msg = String(exc?.message || exc);
+    if (purpose === "payment_reminder" && /UNIQUE|unique|constraint/i.test(msg)) {
+      throw new Error("Follow-up already queued for this invoice.");
+    }
+    // Fall back only when purpose/schedule_key columns are missing (pre-migration).
+    if (!/no such column|purpose|schedule_key/i.test(msg) && purpose === "payment_reminder") {
+      throw exc instanceof Error ? exc : new Error(msg);
+    }
+  }
+  if (purpose === "payment_reminder") {
+    // Without purpose columns we cannot enforce idempotency; still insert with best-effort columns.
+  }
+  try {
+    await env.DB.prepare(
+      `INSERT INTO email_outbox (id, user_id, invoice_number, invoice_key, doc_type, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)`
+    )
+      .bind(id, userId, invoiceNumber, key, docType, ts, ts)
+      .run();
+    return;
+  } catch {
+    /* fall through */
+  }
   try {
     await env.DB.prepare(
       `INSERT INTO email_outbox (id, user_id, invoice_number, invoice_key, status, created_at, updated_at)
@@ -656,8 +696,9 @@ export async function enqueueEmailSend(env, userId, invoiceRef, userEmail) {
       .bind(id, userId, invoiceNumber, ts, ts)
       .run();
   }
-  await updateInvoiceStatus(env.DB, userId, { invoice_id: key, invoice_number: invoiceNumber }, "send_queued");
+}
 
+function runOutboxInBackground(env, userId, userEmail) {
   const runOutbox = () =>
     processEmailOutbox(env, userId, userEmail).catch((err) => {
       console.log(
@@ -667,9 +708,37 @@ export async function enqueueEmailSend(env, userId, invoiceRef, userEmail) {
         })
       );
     });
-
   if (env._executionCtx?.waitUntil) {
     env._executionCtx.waitUntil(runOutbox());
+    return true;
+  }
+  return false;
+}
+
+export async function enqueueEmailSend(env, userId, invoiceRef, userEmail) {
+  const payload =
+    typeof invoiceRef === "object" && invoiceRef !== null
+      ? invoiceRef
+      : { invoice_number: invoiceRef };
+  const key = mutationInvoiceKey(payload);
+  const row = await dbInvoice(env.DB, userId, key);
+  if (!row) throw new Error("Invoice not found");
+  const inv = JSON.parse(row.data_json);
+  const invoiceNumber = Number(inv.invoice_number || payload.invoice_number);
+  const id = crypto.randomUUID();
+  const ts = nowIso();
+  await insertOutboxRow(env, {
+    id,
+    userId,
+    invoiceNumber,
+    key,
+    ts,
+    docType: "invoice",
+    purpose: "initial",
+  });
+  await updateInvoiceStatus(env.DB, userId, { invoice_id: key, invoice_number: invoiceNumber }, "send_queued");
+
+  if (runOutboxInBackground(env, userId, userEmail)) {
     return {
       id,
       status: "send_queued",
@@ -690,6 +759,94 @@ export async function enqueueEmailSend(env, userId, invoiceRef, userEmail) {
   };
 }
 
+/**
+ * Queue a payment follow-up email. Does not change invoice status.
+ * @param {{ scheduleKey?: string, async?: boolean }} [opts]
+ */
+export async function enqueueFollowupEmail(env, userId, invoiceRef, userEmail, opts = {}) {
+  const payload =
+    typeof invoiceRef === "object" && invoiceRef !== null
+      ? invoiceRef
+      : { invoice_number: invoiceRef };
+  const key = mutationInvoiceKey(payload);
+  const row = await dbInvoice(env.DB, userId, key);
+  if (!row) throw new Error("Invoice not found");
+  const inv = JSON.parse(row.data_json);
+  if (inv.deleted_at) throw new Error("Invoice was removed");
+  if (String(inv.status || "") !== "sent") {
+    throw new Error("Follow-up is only available for sent unpaid invoices.");
+  }
+  const customers = await loadCustomersMap(env.DB, userId);
+  const customer = customerForInvoice(inv, customers);
+  const customerEmail = String(inv.customer_email || customer.email || "").trim();
+  if (!customerEmail.includes("@")) {
+    throw new Error("Customer email required for follow-up.");
+  }
+  const invoiceNumber = Number(inv.invoice_number || payload.invoice_number);
+  const id = crypto.randomUUID();
+  const ts = nowIso();
+  const scheduleKey = String(opts.scheduleKey || "").trim() || `manual:${id}`;
+
+  let outboxId = id;
+  try {
+    await insertOutboxRow(env, {
+      id,
+      userId,
+      invoiceNumber,
+      key,
+      ts,
+      docType: "invoice",
+      purpose: "payment_reminder",
+      scheduleKey,
+    });
+  } catch (exc) {
+    const msg = String(exc?.message || exc);
+    if (!/already queued/i.test(msg)) throw exc;
+    const existing = await env.DB.prepare(
+      `SELECT id, status FROM email_outbox
+       WHERE user_id = ? AND invoice_key = ? AND purpose = 'payment_reminder' AND schedule_key = ?`
+    )
+      .bind(userId, key, scheduleKey)
+      .first();
+    if (!existing) throw exc;
+    if (String(existing.status) === "sent") {
+      throw new Error("Follow-up already queued for this invoice.");
+    }
+    outboxId = existing.id;
+    if (String(existing.status) === "failed") {
+      await env.DB.prepare(
+        `UPDATE email_outbox SET status = 'pending', updated_at = ?, last_error = NULL WHERE id = ?`
+      )
+        .bind(ts, existing.id)
+        .run();
+    }
+  }
+
+  if (opts.async !== false && runOutboxInBackground(env, userId, userEmail)) {
+    return {
+      id: outboxId,
+      status: "queued",
+      invoice_key: key,
+      invoice_number: invoiceNumber,
+      purpose: "payment_reminder",
+      async: true,
+    };
+  }
+
+  const processed = await processEmailOutbox(env, userId, userEmail);
+  const forThis =
+    (processed.items || []).find((item) => item.outbox_id === outboxId) ||
+    processed.items?.[0] ||
+    null;
+  return {
+    id: outboxId,
+    status: forThis?.final_status || "queued",
+    invoice_key: key,
+    invoice_number: invoiceNumber,
+    purpose: "payment_reminder",
+  };
+}
+
 export async function enqueueQuoteEmail(env, userId, quoteRef, userEmail) {
   const payload =
     typeof quoteRef === "object" && quoteRef !== null
@@ -702,44 +859,18 @@ export async function enqueueQuoteEmail(env, userId, quoteRef, userEmail) {
   const quoteNumber = Number(quote.quote_number || payload.quote_number);
   const id = crypto.randomUUID();
   const ts = nowIso();
-  try {
-    await env.DB.prepare(
-      `INSERT INTO email_outbox (id, user_id, invoice_number, invoice_key, doc_type, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, 'quote', 'pending', ?, ?)`
-    )
-      .bind(id, userId, quoteNumber, key, ts, ts)
-      .run();
-  } catch {
-    try {
-      await env.DB.prepare(
-        `INSERT INTO email_outbox (id, user_id, invoice_number, invoice_key, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, 'pending', ?, ?)`
-      )
-        .bind(id, userId, quoteNumber, key, ts, ts)
-        .run();
-    } catch {
-      await env.DB.prepare(
-        `INSERT INTO email_outbox (id, user_id, invoice_number, status, created_at, updated_at)
-         VALUES (?, ?, ?, 'pending', ?, ?)`
-      )
-        .bind(id, userId, quoteNumber, ts, ts)
-        .run();
-    }
-  }
+  await insertOutboxRow(env, {
+    id,
+    userId,
+    invoiceNumber: quoteNumber,
+    key,
+    ts,
+    docType: "quote",
+    purpose: "initial",
+  });
   await updateQuoteStatus(env.DB, userId, { quote_id: key, quote_number: quoteNumber }, "send_queued");
 
-  const runOutbox = () =>
-    processEmailOutbox(env, userId, userEmail).catch((err) => {
-      console.log(
-        JSON.stringify({
-          action: "processEmailOutbox.bg_error",
-          error: String(err?.message || err),
-        })
-      );
-    });
-
-  if (env._executionCtx?.waitUntil) {
-    env._executionCtx.waitUntil(runOutbox());
+  if (runOutboxInBackground(env, userId, userEmail)) {
     return {
       id,
       status: "send_queued",
@@ -777,9 +908,11 @@ export async function processEmailOutbox(env, userId, userEmail) {
   for (const row of rows.results || []) {
     const ts = nowIso();
     const isQuote = String(row.doc_type || "invoice").toLowerCase() === "quote";
+    const isReminder = String(row.purpose || "initial").toLowerCase() === "payment_reminder";
     const item = {
       outbox_id: row.id,
       doc_type: isQuote ? "quote" : "invoice",
+      purpose: isReminder ? "payment_reminder" : "initial",
       invoice_number: row.invoice_number,
       invoice_key: row.invoice_key || null,
       branch: null,
@@ -841,26 +974,46 @@ export async function processEmailOutbox(env, userId, userEmail) {
         item.pdf_generate_ms = 0;
       }
       const doc = JSON.parse(docRow.data_json);
+      if (isReminder) {
+        if (doc.deleted_at || String(doc.status || "") !== "sent") {
+          item.branch = "reminder_skipped_not_sent";
+          item.final_status = "skipped";
+          await env.DB.prepare(
+            `UPDATE email_outbox SET status = 'sent', updated_at = ?, attempts = attempts + 1, last_error = ? WHERE id = ?`
+          )
+            .bind(ts, "skipped: invoice no longer sent/unpaid", row.id)
+            .run();
+          items.push(item);
+          continue;
+        }
+      }
       const customer = customerForInvoice(doc, customers);
       const customerEmail = String(doc.customer_email || customer.email || "").trim();
       item.has_customer_email = Boolean(customerEmail);
       if (!customerEmail && provider !== "log") {
         throw new Error("Customer email required");
       }
-      const composed = isQuote
-        ? buildQuoteEmailContent({
-            quote: doc,
-            customer,
-            settings,
-            businesses,
-            docKind: doc.doc_kind,
-          })
-        : buildInvoiceEmailContent({
+      const composed = isReminder
+        ? buildPaymentFollowupEmailContent({
             invoice: doc,
             customer,
             settings,
             businesses,
-          });
+          })
+        : isQuote
+          ? buildQuoteEmailContent({
+              quote: doc,
+              customer,
+              settings,
+              businesses,
+              docKind: doc.doc_kind,
+            })
+          : buildInvoiceEmailContent({
+              invoice: doc,
+              customer,
+              settings,
+              businesses,
+            });
       const bucket = documentsBucket(env);
       const pdfObj = docRow.pdf_r2_key ? await bucket.get(docRow.pdf_r2_key) : null;
       const pdfBytes = pdfObj ? await pdfObj.arrayBuffer() : null;
@@ -877,7 +1030,11 @@ export async function processEmailOutbox(env, userId, userEmail) {
         item.resend_ms = 0;
         console.log(
           JSON.stringify({
-            action: isQuote ? "send_quote_email" : "send_invoice_email",
+            action: isReminder
+              ? "send_payment_followup_email"
+              : isQuote
+                ? "send_quote_email"
+                : "send_invoice_email",
             to: customerEmail || "(missing)",
             cc,
             bcc,
@@ -936,21 +1093,24 @@ export async function processEmailOutbox(env, userId, userEmail) {
       )
         .bind(ts, row.id)
         .run();
-      if (isQuote) {
-        await updateQuoteStatus(
-          env.DB,
-          userId,
-          { quote_id: key, quote_number: row.invoice_number },
-          "sent",
-          { sent_date: ts }
-        );
-      } else {
-        await updateInvoiceStatus(
-          env.DB,
-          userId,
-          { invoice_id: key, invoice_number: row.invoice_number },
-          "sent"
-        );
+      if (!isReminder) {
+        if (isQuote) {
+          await updateQuoteStatus(
+            env.DB,
+            userId,
+            { quote_id: key, quote_number: row.invoice_number },
+            "sent",
+            { sent_date: ts }
+          );
+        } else {
+          await updateInvoiceStatus(
+            env.DB,
+            userId,
+            { invoice_id: key, invoice_number: row.invoice_number },
+            "sent",
+            { sent_date: ts }
+          );
+        }
       }
       item.final_status = "sent";
     } catch (exc) {
@@ -961,26 +1121,137 @@ export async function processEmailOutbox(env, userId, userEmail) {
       )
         .bind(String(exc.message || exc), ts, row.id)
         .run();
-      const failKey = String(row.invoice_key || "").trim() || invoiceKey(row.invoice_number);
-      if (isQuote) {
-        await updateQuoteStatus(
-          env.DB,
-          userId,
-          { quote_id: failKey, quote_number: row.invoice_number },
-          "send_failed"
-        );
-      } else {
-        await updateInvoiceStatus(
-          env.DB,
-          userId,
-          { invoice_id: failKey, invoice_number: row.invoice_number },
-          "send_failed"
-        );
+      if (!isReminder) {
+        const failKey = String(row.invoice_key || "").trim() || invoiceKey(row.invoice_number);
+        if (isQuote) {
+          await updateQuoteStatus(
+            env.DB,
+            userId,
+            { quote_id: failKey, quote_number: row.invoice_number },
+            "send_failed"
+          );
+        } else {
+          await updateInvoiceStatus(
+            env.DB,
+            userId,
+            { invoice_id: failKey, invoice_number: row.invoice_number },
+            "send_failed"
+          );
+        }
       }
     }
     items.push(item);
   }
   return { provider, hasResendKey, items };
+}
+
+function addDaysIsoUtc(isoDate, days) {
+  const raw = String(isoDate || "").trim().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+  const d = new Date(`${raw}T12:00:00.000Z`);
+  if (Number.isNaN(d.getTime())) return null;
+  d.setUTCDate(d.getUTCDate() + Number(days));
+  return d.toISOString().slice(0, 10);
+}
+
+function todayUtcIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * Daily cron: enqueue one automatic payment follow-up per due date when enabled.
+ * Uses UTC calendar dates. Worker-only (Flask has no documents cron).
+ */
+export async function processPaymentFollowups(env) {
+  const today = todayUtcIso();
+  const settingsRows = await env.DB.prepare("SELECT user_id, data_json FROM doc_settings").all();
+  let enqueued = 0;
+  let skipped = 0;
+  let usersChecked = 0;
+
+  for (const srow of settingsRows.results || []) {
+    let settings = {};
+    try {
+      settings = JSON.parse(srow.data_json || "{}");
+    } catch {
+      continue;
+    }
+    if (!paymentFollowupsEnabled(settings)) continue;
+    usersChecked += 1;
+    const userId = Number(srow.user_id);
+    const offset = paymentFollowupOffsetDays(settings);
+    const user = await env.DB.prepare(
+      `SELECT id, email, storage_tier, subscribed_at, unsubscribed_at, account_status
+       FROM users WHERE id = ?`
+    )
+      .bind(userId)
+      .first();
+    if (!user || String(user.account_status || "active").trim() !== "active") {
+      skipped += 1;
+      continue;
+    }
+    if (user.storage_tier !== "cloud" || !user.subscribed_at || user.unsubscribed_at) {
+      skipped += 1;
+      continue;
+    }
+
+    const customers = await loadCustomersMap(env.DB, userId);
+    const invRows = await env.DB.prepare(
+      `SELECT invoice_key, data_json FROM doc_invoices WHERE user_id = ?`
+    )
+      .bind(userId)
+      .all();
+
+    for (const irow of invRows.results || []) {
+      let inv = {};
+      try {
+        inv = JSON.parse(irow.data_json || "{}");
+      } catch {
+        continue;
+      }
+      if (inv.deleted_at) continue;
+      if (String(inv.status || "") !== "sent") continue;
+      const dueDate = String(inv.due_date || "").trim().slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) continue;
+      const target = addDaysIsoUtc(dueDate, offset);
+      if (target !== today) continue;
+
+      const customer = customerForInvoice(inv, customers);
+      const customerEmail = String(inv.customer_email || customer.email || "").trim();
+      if (!customerEmail.includes("@")) {
+        skipped += 1;
+        continue;
+      }
+
+      try {
+        await enqueueFollowupEmail(
+          env,
+          userId,
+          { invoice_id: irow.invoice_key, invoice_number: inv.invoice_number },
+          user.email,
+          { scheduleKey: dueDate, async: true }
+        );
+        enqueued += 1;
+      } catch (exc) {
+        const msg = String(exc?.message || exc);
+        if (/already queued/i.test(msg)) {
+          skipped += 1;
+        } else {
+          console.error(
+            JSON.stringify({
+              action: "processPaymentFollowups.enqueue_error",
+              user_id: userId,
+              invoice_key: irow.invoice_key,
+              error: msg.slice(0, 200),
+            })
+          );
+          skipped += 1;
+        }
+      }
+    }
+  }
+
+  return { today, usersChecked, enqueued, skipped };
 }
 
 async function applyMutation(db, userId, mutation, env, userEmail) {
@@ -1022,6 +1293,8 @@ async function applyMutation(db, userId, mutation, env, userEmail) {
       return { ok: true };
     case "enqueue_email_send":
       return enqueueEmailSend(env, userId, payload, userEmail);
+    case "enqueue_followup_email":
+      return enqueueFollowupEmail(env, userId, payload, userEmail);
     case "create_quote": {
       const key = await upsertQuote(db, userId, payload.quote);
       if (payload.prepare_pdf && env?._executionCtx?.waitUntil) {
@@ -1161,7 +1434,11 @@ export async function handleDocumentsRoute(
     let subActive =
       typeof auth.cloudAccess?.active === "boolean" ? auth.cloudAccess.active : null;
     for (const mutation of mutations) {
-      if (mutation.type === "enqueue_email_send" || mutation.type === "enqueue_quote_email") {
+      if (
+        mutation.type === "enqueue_email_send" ||
+        mutation.type === "enqueue_quote_email" ||
+        mutation.type === "enqueue_followup_email"
+      ) {
         if (subActive === null) {
           const sub = await subscriptionStatus(stripe, auth.user.stripe_customer_id);
           subActive = sub.active;

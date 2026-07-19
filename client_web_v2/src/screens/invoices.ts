@@ -21,6 +21,7 @@ import {
   newInvoiceId,
   pullBootstrap,
   queueEmailSend,
+  queueFollowupEmail,
   reconcileEmailSendStatus,
   saveInvoicePackage,
   softDeleteInvoice,
@@ -435,6 +436,7 @@ function invoiceCard(
   const countdown =
     status === "sent" ? dueCountdownForInvoice(inv, new Date(), settings) : null;
   const canSend = ["not_sent", "send_failed"].includes(status);
+  const hasEmail = String(inv.customer_email || "").includes("@");
   return `<article class="card" data-inv="${id}">
     <div class="card-top">
       <strong>#${formatInvoiceNumber(n)}</strong>
@@ -451,7 +453,14 @@ function invoiceCard(
     ${sourceQuoteMeta(inv, quotes)}
     <div class="actions">
       ${canSend ? `<button class="btn small primary" data-action="send" data-id="${id}">Send</button>` : ""}
-      ${status === "sent" ? `<button class="btn small primary" data-action="paid" data-id="${id}">Mark paid</button>` : ""}
+      ${
+        status === "sent"
+          ? `<button class="btn small primary" data-action="paid" data-id="${id}">Mark paid</button>
+             <button class="btn small secondary" data-action="followup" data-id="${id}" ${
+               hasEmail ? "" : "disabled title=\"Add a customer email to follow up\""
+             }>Follow up</button>`
+          : ""
+      }
       <button class="btn small secondary" data-action="pdf" data-id="${id}">View PDF</button>
       <button class="btn small ghost" data-action="more" data-id="${id}" data-n="${n}" aria-label="More actions">···</button>
     </div>
@@ -500,6 +509,12 @@ function wireListActions(
           await updateInvoiceStatus(id, "paid");
           await flushQueue(ctx.onSyncStatus);
           showToast("Marked as paid.", "success");
+        } else if (action === "followup") {
+          showToast("Sending follow-up…", "success");
+          await queueFollowupEmail(id);
+          trackEvent("followup_invoice");
+          await flushQueue(ctx.onSyncStatus);
+          showToast("Follow-up sent.", "success");
         } else if (action === "pdf") {
           await openPdf(id);
         } else if (action === "goto-quote") {

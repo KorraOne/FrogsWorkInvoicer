@@ -169,6 +169,17 @@ def _migrate_db(db):
             db.execute(
                 "ALTER TABLE email_outbox ADD COLUMN doc_type TEXT NOT NULL DEFAULT 'invoice'"
             )
+        if outbox_cols and "purpose" not in outbox_cols:
+            db.execute(
+                "ALTER TABLE email_outbox ADD COLUMN purpose TEXT NOT NULL DEFAULT 'initial'"
+            )
+        if outbox_cols and "schedule_key" not in outbox_cols:
+            db.execute("ALTER TABLE email_outbox ADD COLUMN schedule_key TEXT")
+        db.execute(
+            """CREATE UNIQUE INDEX IF NOT EXISTS idx_email_outbox_reminder_unique
+               ON email_outbox(user_id, invoice_key, purpose, schedule_key)
+               WHERE purpose = 'payment_reminder'"""
+        )
     except Exception:
         pass
 

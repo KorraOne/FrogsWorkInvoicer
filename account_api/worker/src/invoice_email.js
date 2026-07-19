@@ -1,6 +1,10 @@
-/** Build cloud auto-send subject/body/filename for invoice / quote emails. */
+/** Build cloud auto-send subject/body/filename for invoice / quote / follow-up emails. */
 
-const FROGSWORK_URL = "https://frogswork.com";
+import {
+  FROGSWORK_URL,
+  brandedFooterHtml,
+  brandedFooterText,
+} from "./email_branding.js";
 
 function padInvoiceNumber(number) {
   const n = Math.max(1, parseInt(String(number), 10) || 0);
@@ -56,6 +60,42 @@ function businessDisplayName(invoice, settings, businesses) {
   return "Your business";
 }
 
+function howToPayLines(business = {}) {
+  const bsb = String(business.bsb || "").trim();
+  const acc = String(business.acc || business.account_number || "").trim();
+  const accountName = String(business.account_name || "").trim();
+  if (!bsb && !acc && !accountName) return [];
+  const lines = ["", "How to pay:"];
+  if (accountName) lines.push(`Account name: ${accountName}`);
+  if (bsb) lines.push(`BSB: ${bsb}`);
+  if (acc) lines.push(`Account: ${acc}`);
+  return lines;
+}
+
+function linesToHtml(lines) {
+  const htmlParts = lines.map((line) => {
+    if (!line) return "<br>";
+    if (line === FROGSWORK_URL) {
+      return `<a href="${FROGSWORK_URL}">${FROGSWORK_URL}</a>`;
+    }
+    if (line === "—") return '<hr style="border:none;border-top:1px solid #ddd;margin:1em 0">';
+    const escaped = line
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+    return `<p style="margin:0 0 0.4em 0">${escaped}</p>`;
+  });
+  return `<div style="font-family:system-ui,Segoe UI,sans-serif;font-size:15px;line-height:1.45;color:#222">${htmlParts.join(
+    "\n"
+  )}</div>`;
+}
+
+function wrapEmail(bodyLines, footerVariant) {
+  const text = [...bodyLines, ...brandedFooterText({ variant: footerVariant })].join("\n");
+  const html = `${linesToHtml(bodyLines)}${brandedFooterHtml({ variant: footerVariant })}`;
+  return { text, html };
+}
+
 /**
  * @returns {{ subject: string, text: string, html: string, filename: string, businessName: string, label: string }}
  */
@@ -102,44 +142,12 @@ export function buildInvoiceEmailContent({
     } else if (String(settings?.payment_terms || "").trim()) {
       lines.push(`Payment terms: ${String(settings.payment_terms).trim()}`);
     }
-
-    const bsb = String(business.bsb || "").trim();
-    const acc = String(business.acc || business.account_number || "").trim();
-    const accountName = String(business.account_name || "").trim();
-    if (bsb || acc || accountName) {
-      lines.push("", "How to pay:");
-      if (accountName) lines.push(`Account name: ${accountName}`);
-      if (bsb) lines.push(`BSB: ${bsb}`);
-      if (acc) lines.push(`Account: ${acc}`);
-    }
+    lines.push(...howToPayLines(business));
   }
 
   lines.push("", "Thank you,", businessName);
-  lines.push(
-    "",
-    "—",
-    isQuoteDoc
-      ? "This quote was composed with FrogsWork."
-      : "This invoice was composed with FrogsWork Invoicer.",
-    FROGSWORK_URL
-  );
 
-  const text = lines.join("\n");
-  const htmlParts = lines.map((line) => {
-    if (!line) return "<br>";
-    if (line === FROGSWORK_URL) {
-      return `<a href="${FROGSWORK_URL}">${FROGSWORK_URL}</a>`;
-    }
-    if (line === "—") return "<hr style=\"border:none;border-top:1px solid #ddd;margin:1em 0\">";
-    const escaped = line
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
-    return `<p style="margin:0 0 0.4em 0">${escaped}</p>`;
-  });
-  const html = `<div style="font-family:system-ui,Segoe UI,sans-serif;font-size:15px;line-height:1.45;color:#222">${htmlParts.join(
-    "\n"
-  )}</div>`;
+  const { text, html } = wrapEmail(lines, isQuoteDoc ? "quote" : "invoice");
 
   const dateStamp = String(
     (isQuoteDoc ? invoice?.quote_date || invoice?.invoice_date : invoice?.invoice_date) || "draft"
@@ -161,6 +169,54 @@ export function buildQuoteEmailContent(args = {}) {
     invoice: doc,
     docKind: kind === "estimate" ? "estimate" : "quote",
   });
+}
+
+/**
+ * Payment follow-up / reminder email for an unpaid sent invoice.
+ * @returns {{ subject: string, text: string, html: string, filename: string, businessName: string, label: string }}
+ */
+export function buildPaymentFollowupEmailContent({
+  invoice,
+  customer = {},
+  settings = {},
+  businesses = {},
+} = {}) {
+  const lookupKey = businessLookupKey(invoice, settings);
+  const businessName = businessDisplayName(invoice, settings, businesses);
+  const business = (lookupKey && businesses[lookupKey]) || {};
+  const label = invoiceLabel(invoice, business);
+  const invNum = padInvoiceNumber(invoice?.invoice_number);
+  const customerName = String(invoice?.customer_name || customer?.name || "").trim();
+  const totalFmt = formatMoneyAud(invoice?.total_inc_gst);
+  const dueFmt = formatDateAud(invoice?.due_date);
+  const invDateFmt = formatDateAud(invoice?.invoice_date);
+
+  const subject = `Payment reminder: Invoice #${invNum} from ${businessName}`;
+  const greeting = customerName ? `Hi ${customerName},` : "Hi,";
+  const lines = [
+    greeting,
+    "",
+    `This is a friendly reminder that invoice #${invNum} from ${businessName} is still outstanding.`,
+  ];
+  if (invDateFmt) lines.push(`Invoice date: ${invDateFmt}`);
+  if (dueFmt) lines.push(`Payment due: ${dueFmt}`);
+  lines.push(`Amount owing: ${totalFmt}`);
+  lines.push("", `Please use this payment reference: ${invNum}`);
+  lines.push(`(Invoice #${invNum})`);
+  lines.push(...howToPayLines(business));
+  lines.push(
+    "",
+    "If you have already paid this invoice, you can ignore this email."
+  );
+  lines.push("", "Thank you,", businessName);
+
+  const { text, html } = wrapEmail(lines, "followup");
+
+  const dateStamp = String(invoice?.invoice_date || "draft").slice(0, 10);
+  const filename =
+    String(invoice?.filename || "").trim() || `Invoice_${invNum}_${dateStamp}.pdf`;
+
+  return { subject, text, html, filename, businessName, label };
 }
 
 /** Read email copy prefs from doc_settings. One mode: off, cc, or bcc (default cc). */
@@ -213,4 +269,20 @@ export function selfCopyEmailFromBusiness({
   const fromBiz = String(pick.email || "").trim();
   if (fromBiz.includes("@")) return fromBiz;
   return String(fallbackUserEmail || "").trim();
+}
+
+/** Clamp follow-up offset days to [-14, 14]; default -3. */
+export function paymentFollowupOffsetDays(settings = {}) {
+  const n = parseInt(String(settings.payment_followup_offset_days ?? "-3"), 10);
+  if (!Number.isFinite(n)) return -3;
+  return Math.max(-14, Math.min(14, n));
+}
+
+export function paymentFollowupsEnabled(settings = {}) {
+  return (
+    settings.payment_followups_enabled === true ||
+    settings.payment_followups_enabled === 1 ||
+    settings.payment_followups_enabled === "1" ||
+    settings.payment_followups_enabled === "true"
+  );
 }

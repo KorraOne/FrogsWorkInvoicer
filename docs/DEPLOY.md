@@ -247,10 +247,11 @@ npx wrangler d1 execute frogswork-account --remote --file=..\migrations\010_anal
 npx wrangler d1 execute frogswork-account --remote --file=..\migrations\011_user_subscription_lifecycle.sql
 npx wrangler d1 execute frogswork-account --remote --file=..\migrations\012_auth_handoff_codes.sql
 npx wrangler d1 execute frogswork-account --remote --file=..\migrations\013_doc_quotes.sql
+npx wrangler d1 execute frogswork-account --remote --file=..\migrations\014_email_outbox_purpose.sql
 npm run deploy
 ```
 
-Migration `008` creates `guest_workspaces`, `doc_*`, and `email_outbox` if missing (safe to re-run). Use it instead of `003` when `storage_tier` already exists. Migration `010` drops user-test/promo tables and adds `account_devices`. Migration `011` adds user subscription lifecycle columns (skip if columns already exist). Migration `012` adds one-time auth handoff codes for secure frogswork.com → app.frogswork.com sign-in.
+Migration `008` creates `guest_workspaces`, `doc_*`, and `email_outbox` if missing (safe to re-run). Use it instead of `003` when `storage_tier` already exists. Migration `010` drops user-test/promo tables and adds `account_devices`. Migration `011` adds user subscription lifecycle columns (skip if columns already exist). Migration `012` adds one-time auth handoff codes for secure frogswork.com → app.frogswork.com sign-in. Migration `014` adds email outbox `purpose` / `schedule_key` for payment follow-up reminders.
 
 ---
 

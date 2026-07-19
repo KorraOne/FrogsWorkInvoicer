@@ -1,4 +1,5 @@
 import { decodePdfB64 } from "./upload_security.js";
+import { appendBrandedFooter } from "./email_branding.js";
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -28,6 +29,7 @@ export async function assertActiveSubscription(stripe, user, subscriptionStatus)
 }
 
 async function sendInvoiceViaResend(env, { to, cc, subject, text, filename, pdfBinary }) {
+  const branded = appendBrandedFooter(text || "", undefined, { variant: "invoice" });
   if (!env.RESEND_API_KEY) {
     console.log(
       JSON.stringify({
@@ -59,7 +61,7 @@ async function sendInvoiceViaResend(env, { to, cc, subject, text, filename, pdfB
       to: [to],
       cc: cc ? [cc] : [],
       subject,
-      text,
+      text: branded.text,
       attachments: [{ filename: filename || "invoice.pdf", content: b64 }],
     }),
   });

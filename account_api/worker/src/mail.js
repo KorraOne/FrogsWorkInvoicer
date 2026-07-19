@@ -1,11 +1,23 @@
-export async function sendTransactionalEmail(env, { to, subject, text, html }) {
+import { appendBrandedFooter } from "./email_branding.js";
+
+export async function sendTransactionalEmail(
+  env,
+  { to, subject, text, html, skipBranding = false }
+) {
+  let bodyText = text;
+  let bodyHtml = html;
+  if (!skipBranding) {
+    const branded = appendBrandedFooter(text, html, { variant: "transactional" });
+    bodyText = branded.text;
+    bodyHtml = branded.html;
+  }
   if (!env.RESEND_API_KEY) {
     console.log(
       JSON.stringify({
         action: "transactional_email",
         to,
         subject,
-        preview: (text || "").slice(0, 120),
+        preview: (bodyText || "").slice(0, 120),
       })
     );
     return { ok: true, logged: true };
@@ -21,8 +33,8 @@ export async function sendTransactionalEmail(env, { to, subject, text, html }) {
       from,
       to: Array.isArray(to) ? to : [to],
       subject,
-      text,
-      html: html || undefined,
+      text: bodyText,
+      html: bodyHtml || undefined,
     }),
   });
   if (!res.ok) {

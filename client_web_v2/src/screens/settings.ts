@@ -510,11 +510,33 @@ function emailSelfCopyMode(settings: Record<string, unknown>): "off" | "cc" | "b
 async function renderPaymentTerms(panel: HTMLElement, ctx: AppContext) {
   const settings = await cache.getSettings();
   const prefs = dueRuleFromSettings(settings);
+  const followupsOn =
+    settings.payment_followups_enabled === true ||
+    settings.payment_followups_enabled === 1 ||
+    settings.payment_followups_enabled === "1" ||
+    settings.payment_followups_enabled === "true";
+  let offsetRaw = parseInt(String(settings.payment_followup_offset_days ?? "-3"), 10);
+  if (!Number.isFinite(offsetRaw)) offsetRaw = -3;
+  offsetRaw = Math.max(-14, Math.min(14, offsetRaw));
   panel.innerHTML = `
     <form id="terms-form" class="panel" novalidate>
       <h2>Default payment terms</h2>
       <p class="hint">Used when creating new invoices.</p>
       ${dueRuleFieldsHtml(prefs, { showFixed: false })}
+      <h2 style="margin-top:1.5rem">Payment follow-ups</h2>
+      <p class="hint">Optional reminder emails for sent unpaid invoices. Off by default.</p>
+      <label class="checkbox">
+        <input type="checkbox" name="payment_followups_enabled" id="payment_followups_enabled" ${
+          followupsOn ? "checked" : ""
+        }>
+        <span>Automatic payment follow-ups</span>
+      </label>
+      <div class="field">
+        <label for="payment_followup_offset_days">Send follow-up (days relative to due date)</label>
+        <input type="number" name="payment_followup_offset_days" id="payment_followup_offset_days"
+          min="-14" max="14" step="1" value="${offsetRaw}">
+        <p class="hint">Negative = before due (default −3). Positive = after due. Range −14 to 14. If already paid, the email asks the customer to ignore it.</p>
+      </div>
       <p class="error-text" id="form-error" hidden></p>
       <div class="btn-row">
         <button type="button" class="btn primary" id="save-terms">Save</button>
@@ -533,7 +555,15 @@ async function renderPaymentTerms(panel: HTMLElement, ctx: AppContext) {
     try {
       const fd = new FormData(form);
       const due = dueRuleFromFormData(Object.fromEntries(fd.entries()), settings);
-      await upsertSettings({ due_rule_type: due.due_rule_type, due_net_days: due.due_net_days });
+      let offset = parseInt(String(fd.get("payment_followup_offset_days") ?? "-3"), 10);
+      if (!Number.isFinite(offset)) offset = -3;
+      offset = Math.max(-14, Math.min(14, offset));
+      await upsertSettings({
+        due_rule_type: due.due_rule_type,
+        due_net_days: due.due_net_days,
+        payment_followups_enabled: Boolean(fd.get("payment_followups_enabled")),
+        payment_followup_offset_days: offset,
+      });
       await flushQueue(ctx.onSyncStatus);
       guard.clear();
       showToast("Payment terms saved.", "success");

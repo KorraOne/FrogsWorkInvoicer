@@ -17,6 +17,7 @@ import {
   handleGuestDocumentsRoute,
   handleGuestRoute,
   processEmailOutbox,
+  processPaymentFollowups,
   verifyGuestToken,
 } from "./documents.js";
 import { corsPreflight, withCors } from "./cors.js";
@@ -314,6 +315,12 @@ export default {
       console.log(`cleanupExpiredHandoffCodes: deleted ${handoffDeleted}`);
     } catch (exc) {
       console.error("scheduled handoff cleanup failed:", exc);
+    }
+    try {
+      const followups = await processPaymentFollowups(env);
+      console.log(`processPaymentFollowups: ${JSON.stringify(followups)}`);
+    } catch (exc) {
+      console.error("scheduled payment followups failed:", exc);
     }
   },
 };

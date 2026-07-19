@@ -118,6 +118,8 @@ erDiagram
     integer invoice_number
     text invoice_key
     text doc_type
+    text purpose
+    text schedule_key
     text status
     integer attempts
   }
@@ -186,9 +188,11 @@ metadata; they do not normalize the full document payload.
 
 - **`guest_workspaces`** stores an expiring JSON workspace keyed by
   `guest_id`.
-- **`email_outbox`** tracks queued invoice/quote email delivery, attempts, errors,
-  and status. `doc_type` is `invoice` (default) or `quote`. A row can be associated
-  with an authenticated `user_id` or a logical `guest_id`; only `user_id` has a SQL
+- **`email_outbox`** tracks queued invoice/quote/follow-up email delivery, attempts, errors,
+  and status. `doc_type` is `invoice` (default) or `quote`. `purpose` is `initial` (default) or
+  `payment_reminder`; reminder rows use `schedule_key` (due date `YYYY-MM-DD` for auto, or
+  `manual:…` for manual Follow up) with a unique index so cron cannot double-send. A row can be
+  associated with an authenticated `user_id` or a logical `guest_id`; only `user_id` has a SQL
   foreign key.
 
 ## Tenant isolation

@@ -179,6 +179,28 @@ export function resolveInvoiceDueDate(
   return computeDueDate(invoice.invoice_date, ruleType, netDays, fixedDate);
 }
 
+/** Clamp follow-up offset days to [-14, 14]; default -3. */
+export function paymentFollowupOffsetDays(settings: Record<string, unknown> = {}): number {
+  const n = parseInt(String(settings.payment_followup_offset_days ?? "-3"), 10);
+  if (!Number.isFinite(n)) return -3;
+  return Math.max(-14, Math.min(14, n));
+}
+
+/**
+ * Calendar date (YYYY-MM-DD) when an automatic follow-up would send for this invoice.
+ * Null if no resolvable due date.
+ */
+export function followupTargetDate(
+  invoice: Record<string, unknown>,
+  settings: Record<string, unknown> = {}
+): string | null {
+  const due = resolveInvoiceDueDate(invoice, settings);
+  if (!due) return null;
+  const offset = paymentFollowupOffsetDays(settings);
+  const target = addDays(due, offset);
+  return target.toISOString().slice(0, 10);
+}
+
 export function dueCountdownForInvoice(
   invoice: Record<string, unknown>,
   today: Date | null = null,

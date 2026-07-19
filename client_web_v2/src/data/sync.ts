@@ -327,6 +327,25 @@ export async function queueEmailSend(invoiceId: string) {
   return { result, finalStatus };
 }
 
+/** Queue a payment follow-up email without changing invoice status. */
+export async function queueFollowupEmail(invoiceId: string) {
+  const invoices = normalizeInvoicesMap(await cache.getInvoices());
+  const key = String(invoiceId || "").trim();
+  const result = await syncMutation("enqueue_followup_email", {
+    invoice_id: key,
+    invoice_number: invoices[key] ? Number(invoices[key].invoice_number) : undefined,
+  });
+  if (Array.isArray(result?.errors) && result!.errors.length) {
+    const firstErr = result!.errors[0] as { error?: string };
+    throw new Error(String(firstErr?.error || "Follow-up failed."));
+  }
+  const first = Array.isArray(result?.results)
+    ? (result!.results as Record<string, unknown>[])[0]
+    : null;
+  const finalStatus = String(first?.status || "queued").trim() || "queued";
+  return { result, finalStatus };
+}
+
 export async function bumpInvoiceCounter(businessName: string, usedNumber: number) {
   const businesses = await cache.getBusinesses();
   if (!businesses[businessName]) return;

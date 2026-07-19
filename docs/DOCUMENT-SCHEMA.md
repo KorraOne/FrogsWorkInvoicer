@@ -81,6 +81,8 @@ No due-date / how-to-pay fields on the PDF or email.
 | `default_business` | string |
 | `due_rule_type`, `due_net_days` | defaults |
 | `quotes_enabled` | boolean | off by default; shows Quotes tab |
+| `payment_followups_enabled` | boolean | off by default; auto payment reminder emails |
+| `payment_followup_offset_days` | number | −14…14; default −3 (days relative to due date) |
 | `storage_mode` | `local` \| `cloud` (desktop only) |
 | `welcome_complete` | boolean |
 
@@ -101,6 +103,7 @@ FIFO replay via `POST /documents/sync`:
 - `convert_quote_to_invoice` — `{ quote_id, invoice, prepare_pdf? }`
 - `upsert_settings` — `{ settings: { ... } }` (merged into existing)
 - `enqueue_email_send` — `{ invoice_number }` (chains PDF generate → email)
+- `enqueue_followup_email` — `{ invoice_id }` payment reminder (does not change invoice status)
 
 ## API routes
 

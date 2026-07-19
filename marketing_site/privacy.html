@@ -39,7 +39,7 @@
         <p>When you register, we store your email and a hashed password. Stripe handles subscription billing. We link your account to a Stripe customer ID and subscription status.</p>
 
         <h2>Invoice and business data</h2>
-        <p>With an active Cloud subscription, invoice and quote records (business details, customers, invoice/quote JSON) are stored in our Cloudflare D1 database, scoped to your account. PDFs are stored in our Cloudflare R2 bucket. Email sending uses Resend through our API. Optional quotes and price estimates are stored the same way when you enable Quotes in the app.</p>
+        <p>With an active Cloud subscription, invoice and quote records (business details, customers, invoice/quote JSON) are stored in our Cloudflare D1 database, scoped to your account. PDFs are stored in our Cloudflare R2 bucket. Email sending uses Resend through our API (invoice/quote sends, optional payment follow-up reminders when you enable them, and account emails such as verify/reset). Optional quotes and price estimates are stored the same way when you enable Quotes in the app.</p>
         <p>Data is protected by HTTPS in transit and account access controls. Clients may keep a local cache (for example IndexedDB in the browser, or WebView2 storage in the desktop shell) to work when briefly offline.</p>
 
         <h2>Desktop shell</h2>

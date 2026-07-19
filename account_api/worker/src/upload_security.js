@@ -11,6 +11,7 @@ const ALLOWED_MUTATIONS = new Set([
   "delete_invoice",
   "upsert_settings",
   "enqueue_email_send",
+  "enqueue_followup_email",
   "create_quote",
   "update_quote_status",
   "delete_quote",
