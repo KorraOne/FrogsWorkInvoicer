@@ -33,14 +33,14 @@
         <p class="section-lead">Last updated: July 2026. FrogsWork is operated by KorraOne.</p>
 
         <h2>Cloud service</h2>
-        <p>FrogsWork is a Cloud product. You use it in the browser, as a phone PWA, or through the Windows desktop shell. Those clients talk to the FrogsWork account API at <code>api.frogswork.com</code>.</p>
+        <p>FrogsWork is a Cloud product. You use it in the browser, as a phone PWA, or through the Windows desktop app. Those clients talk to the FrogsWork account API at <code>api.frogswork.com</code>.</p>
 
         <h2>Account and billing</h2>
         <p>When you register, we store your email and a hashed password. Stripe handles subscription billing. We link your account to a Stripe customer ID and subscription status.</p>
 
         <h2>Invoice and business data</h2>
         <p>With an active Cloud subscription, invoice and quote records (business details, customers, invoice/quote JSON) are stored in our Cloudflare D1 database, scoped to your account. PDFs are stored in our Cloudflare R2 bucket. Email sending uses Resend through our API (invoice/quote sends, optional payment follow-up reminders when you enable them, and account emails such as verify/reset). Optional quotes and price estimates are stored the same way when you enable Quotes in the app.</p>
-        <p>Data is protected by HTTPS in transit and account access controls. Clients may keep a local cache (for example IndexedDB in the browser, or WebView2 storage in the desktop shell) to work when briefly offline.</p>
+        <p>Data is protected by HTTPS in transit and account access controls. Clients may keep a local cache (for example IndexedDB in the browser, or WebView2 storage in the desktop app) to work when briefly offline.</p>
 
         <h2>Desktop shell</h2>
         <p>The Windows installer is a thin shell around the Cloud app. It may keep window size, update state, and an install identifier under <code>%APPDATA%\FrogsWork\</code>. It does not replace Cloud storage for invoices.</p>
