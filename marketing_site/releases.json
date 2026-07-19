@@ -1,10 +1,15 @@
 ﻿{
-    "version":  "3.1.1",
-    "setup_sha256":  "103f9b13f4602132bd73ddfdbf850c758986367751bfe112a7861accc33c8618",
-    "published_at":  "2026-07-16",
-    "update_zip_path":  "https://downloads.frogswork.com/FrogsWork-3.1.1-win64.zip",
-    "notes":  "Desktop nav brand logo (aspect-matched), Settings/help aligned with frogswork.com support, faster business logo save.",
+    "version":  "3.1.2",
+    "setup_sha256":  "cb030a2d15c17b96df325999fbc3e39120e9f37706b9033adc5fdc86720b6681",
+    "published_at":  "2026-07-19",
+    "update_zip_path":  "https://downloads.frogswork.com/FrogsWork-3.1.2-win64.zip",
+    "notes":  "Uninstall downloads the same Cloud data ZIP as Settings (quotes and invoices). Desktop shell keeps a signed-in session for that export.",
     "history":  [
+                    {
+                        "published_at":  "2026-07-19",
+                        "version":  "3.1.2",
+                        "notes":  "Uninstall downloads the same Cloud data ZIP as Settings (quotes and invoices). Desktop shell keeps a signed-in session for that export."
+                    },
                     {
                         "published_at":  "2026-07-16",
                         "version":  "3.1.1",
@@ -131,6 +136,6 @@
                         "notes":  "Replaces usage-based billing with subscription. Free trial: 20 invoices or 20000 ex GST before subscribe."
                     }
                 ],
-    "download_path":  "https://downloads.frogswork.com/FrogsWork-3.1.1-setup.exe",
-    "sha256":  "237d35f42d80dceea71548f4efc95ba4e0742e279ef7a783125f828295929504"
+    "download_path":  "https://downloads.frogswork.com/FrogsWork-3.1.2-setup.exe",
+    "sha256":  "ba82ac38fdaba2d909a203a53674137f25ea2f816f708165268e0fe108f38e03"
 }
